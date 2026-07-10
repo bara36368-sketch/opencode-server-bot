@@ -10,4 +10,4 @@ providers.json
 sessions.json
 agent_providers.json
 admins.json
-*.bat
+setenv.sh
