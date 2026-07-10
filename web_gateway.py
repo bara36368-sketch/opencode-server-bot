@@ -34,6 +34,8 @@ def _load_providers():
         "fireworks": {"url": "https://api.fireworks.ai/inference/v1/chat/completions", "model": "accounts/fireworks/models/llama-v3p3-70b-instruct", "key": os.environ.get("FIREWORKS_KEY", "not configured")},
         "lepton": {"url": "https://mixtral-8x22b.lepton.run/api/v1/chat/completions", "model": "mixtral-8x22b", "key": os.environ.get("LEPTON_KEY", "not configured")},
         "synoxcloud": {"url": "https://api.synoxcloud.xyz/api/ai-chat", "model": "gpt-5", "key": "free"},
+        "hy3": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
+        "hy3-preview": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
     }
     if os.path.exists(PROVIDERS_FILE):
         try:

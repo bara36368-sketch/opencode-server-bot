@@ -44,6 +44,8 @@ DEFAULT_RATE_LIMITS = {
     "lepton": (20, 5000),
     "imarena": (30, 60000),
     "synoxcloud": (30, 60000),
+    "hy3": (30, 10000),
+    "hy3-preview": (30, 10000),
     "bitrouter": (9999, 999999),
 }
 
@@ -1014,6 +1016,17 @@ PROVIDERS = {
         "url": "https://api.preview.arena.ai/v1/chat/completions",
         "model": "auto",
         "key": "not configured"
+    },
+
+    "hy3": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "tencent/hy3",
+        "key": os.environ.get("OPENROUTER_KEY", "set-via-env-var"),
+    },
+    "hy3-preview": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "tencent/hy3-preview",
+        "key": os.environ.get("OPENROUTER_KEY", "set-via-env-var"),
     },
 
     "synoxcloud": {

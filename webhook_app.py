@@ -20,6 +20,8 @@ PROVIDERS = {
     "cerebras": {"url": "https://api.cerebras.ai/v1/chat/completions", "model": "llama3.1-70b", "key": os.environ.get("CEREBRAS_KEY", "")},
     "github": {"url": "https://models.inference.ai.azure.com/chat/completions", "model": "gpt-4o-mini", "key": os.environ.get("GITHUB_KEY", "")},
     "nvidia": {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "meta/llama-3.3-70b-instruct", "key": os.environ.get("NVIDIA_KEY", "")},
+    "hy3": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": os.environ.get("OPENROUTER_KEY", "")},
+    "hy3-preview": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": os.environ.get("OPENROUTER_KEY", "")},
 }
 PROVIDERS_FILE = os.path.join(BASE_DIR, "providers.json")
 if os.path.exists(PROVIDERS_FILE):
