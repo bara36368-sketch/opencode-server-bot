@@ -63,6 +63,7 @@ ADMINS_FILE = os.path.join(os.path.dirname(__file__), "admins.json")
 AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.json")
 SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
+ROUTINES_FILE = os.path.join(os.path.dirname(__file__), "routines.json")
 
 try:
     LOG = open("bot.log", "a", encoding="utf-8")
@@ -460,6 +461,19 @@ def load_sessions():
                 sessions.update({int(k): v for k, v in data.get("sessions", {}).items()})
                 team_sessions.update({int(k): v for k, v in data.get("team_sessions", {}).items()})
         except: pass
+
+routines = {}
+def save_routines():
+    with open(ROUTINES_FILE, "w") as f:
+        json.dump(routines, f)
+def load_routines():
+    global routines
+    if os.path.exists(ROUTINES_FILE):
+        try:
+            with open(ROUTINES_FILE) as f:
+                routines = json.load(f)
+        except:
+            routines = {}
 
 ARCHITECTURES = {
     "single": {"desc": "Single agent mode (default, no team coordination)"},
@@ -1176,6 +1190,7 @@ sessions = {}
 team_sessions = {}
 load_sessions()
 load_memory()
+load_routines()
 
 async def tg(method, data=None):
     c = await get_http()
@@ -1512,6 +1527,7 @@ async def main():
                             "/schedule add|list|remove — Recurring AI tasks",
                             "/remind <duration> <msg> — Reminder",
                             "/digest — Summarize conversation",
+                            "/routine create|list|show|delete|run — Prompt chaining workflows",
                             "/plugin load|list — Load/list plugins",
                         ]),
                         ("INTEGRATIONS", [
@@ -2592,6 +2608,81 @@ async def main():
                     ], active_provider)
                     await send(chat, f"Digest:\n{summary[:3500]}")
 
+                elif cmd == "/routine":
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "create":
+                        if len(parts) < 4:
+                            await send(chat, "Usage: /routine create <name> <step1> | <step2> [| <step3> ...]")
+                            continue
+                        name = parts[2].lower()
+                        rest = " ".join(parts[3:])
+                        steps = [s.strip() for s in rest.split("|") if s.strip()]
+                        if len(steps) < 2:
+                            await send(chat, "Need at least 2 steps separated by |")
+                            continue
+                        if len(steps) > 6:
+                            await send(chat, "Maximum 6 steps per routine.")
+                            continue
+                        routines[name] = {"steps": steps, "created_by": uid}
+                        save_routines()
+                        await send(chat, f"Routine '{name}' created with {len(steps)} steps.")
+                    elif sub == "list":
+                        if not routines:
+                            await send(chat, "No routines defined. Use /routine create to make one.")
+                            continue
+                        lines = [f"Routines ({len(routines)}):"]
+                        for rname, r in sorted(routines.items()):
+                            lines.append(f"  /do {rname} — {len(r['steps'])} steps")
+                        await send(chat, "\n".join(lines))
+                    elif sub == "show":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /routine show <name>")
+                            continue
+                        name = parts[2].lower()
+                        r = routines.get(name)
+                        if not r:
+                            await send(chat, f"Unknown routine: {name}")
+                            continue
+                        lines = [f"Routine: {name}"]
+                        for i, s in enumerate(r["steps"], 1):
+                            lines.append(f"  Step {i}: {s[:200]}")
+                        await send(chat, "\n".join(lines))
+                    elif sub == "delete":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /routine delete <name>")
+                            continue
+                        name = parts[2].lower()
+                        if name not in routines:
+                            await send(chat, f"Unknown routine: {name}")
+                            continue
+                        del routines[name]
+                        save_routines()
+                        await send(chat, f"Routine '{name}' deleted.")
+                    elif sub == "run":
+                        if len(parts) < 4:
+                            await send(chat, "Usage: /routine run <name> <input>")
+                            continue
+                        name = parts[2].lower()
+                        r = routines.get(name)
+                        if not r:
+                            await send(chat, f"Unknown routine: {name}")
+                            continue
+                        user_input = " ".join(parts[3:])
+                        await typing(chat)
+                        current = user_input
+                        total = len(r["steps"])
+                        for i, step_prompt in enumerate(r["steps"], 1):
+                            await send(chat, f"Step {i}/{total}: running...")
+                            filled = step_prompt.replace("{input}", user_input).replace("{prev}", current)
+                            resp = await smart_call([
+                                {"role": "system", "content": "You are a precise AI workflow executor. Follow the instruction exactly using the provided context."},
+                                {"role": "user", "content": filled},
+                            ], active_provider)
+                            current = resp.strip()
+                        await send(chat, current[:4000])
+                    else:
+                        await send(chat, "Subcommands: create, list, show, delete, run")
+
                 elif cmd == "/translate":
                     if len(parts) < 3:
                         await send(chat, "Usage: /translate <source>:<target> <text>\n       /translate en:fr Hello world\n       /translate :es Hello (auto-detect source)")
@@ -2724,7 +2815,7 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
