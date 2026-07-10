@@ -3,8 +3,8 @@
 # Fill in your real API keys below, then run: source setenv.sh
 # Add to ~/.bashrc to auto-load: echo "source ~/opencode-server-bot/setenv.sh" >> ~/.bashrc
 
-export TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
-export OWNER_ID="your_telegram_user_id_here"
+export TELEGRAM_BOT_TOKEN="8839361042:AAGqZQv0D18kdvpWXgC5PZpiihKW3SsboEA"
+export OWNER_ID="8585609360"
 
 # AI Provider Keys (at least one needed)
 export GROQ_KEY="gsk_your_groq_key_here"
