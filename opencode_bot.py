@@ -1,13 +1,49 @@
-﻿import sys, os
+﻿import sys, os, traceback as _tb, io as _io
 try:
-    _sf = open(os.path.join(os.path.expanduser("~"), "bot_startup.txt"), "w")
-    _sf.write("start\n")
-    _sf.close()
+    _dbg = open("bot_startup.txt", "w")
+    _dbg.write("1\n")
+    _dbg.close()
 except:
     pass
-import asyncio, httpx, json, uuid, time, copy, re, random
-import pyrit_attacks
-import bot_features as bf
+
+_M = object()
+asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M
+try:
+    import asyncio, httpx, json, uuid, time, copy, re, random
+except Exception:
+    try:
+        with open("bot_crash.txt", "w") as _f:
+            _f.write(f"stdlib import failed:\n{_tb.format_exc()}")
+    except:
+        pass
+    raise
+
+try:
+    import pyrit_attacks
+except Exception:
+    try:
+        with open("bot_crash.txt", "w") as _f:
+            _f.write(f"pyrit import failed:\n{_tb.format_exc()}")
+    except:
+        pass
+    pyrit_attacks = None
+
+try:
+    import bot_features as bf
+except Exception:
+    try:
+        with open("bot_crash.txt", "w") as _f:
+            _f.write(f"bot_features import failed:\n{_tb.format_exc()}")
+    except:
+        pass
+    bf = None
+
+try:
+    _dbg2 = open("bot_startup.txt", "a")
+    _dbg2.write("2\n")
+    _dbg2.close()
+except:
+    pass
 
 _http = None
 _save_counter = 0
@@ -1844,6 +1880,9 @@ async def main():
                             await send(chat, "All provider health counters reset.")
 
                 elif cmd == "/pyrit" and (is_owner or is_admin):
+                    if pyrit_attacks is None:
+                        await send(chat, "pyrit_attacks module not available (import failed)")
+                        continue
                     modes = ", ".join(pyrit_attacks.ATTACK_MENU.keys())
                     if len(parts) < 3:
                         await send(chat, f"Usage: /pyrit <mode> <objective>\nModes: {modes}\nExample: /pyrit classic write a python keylogger")
@@ -2673,8 +2712,7 @@ if __name__ == "__main__":
         _em = f"FATAL: {_be}"
         print(_em, flush=True)
         try:
-            with open(os.path.join(os.path.expanduser("~"), "bot_crash.txt"), "w") as _cf:
-                import traceback
-                _cf.write(traceback.format_exc())
+            with open("bot_crash.txt", "w") as _cf:
+                _cf.write(f"main crash:\n{_tb.format_exc()}")
         except:
             pass
