@@ -1,7 +1,11 @@
-﻿import sys
-print("Starting OpenCode Bot...", flush=True)
-sys.stdout.flush()
-import asyncio, httpx, json, os, sys, uuid, time, copy, re, random
+﻿import sys, os
+try:
+    _sf = open(os.path.join(os.path.expanduser("~"), "bot_startup.txt"), "w")
+    _sf.write("start\n")
+    _sf.close()
+except:
+    pass
+import asyncio, httpx, json, uuid, time, copy, re, random
 import pyrit_attacks
 import bot_features as bf
 
@@ -2661,6 +2665,16 @@ async def main():
 
 
 if __name__ == "__main__":
-    if sys.platform == "win32" and sys.version_info < (3, 14):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(main())
+    try:
+        if sys.platform == "win32" and sys.version_info < (3, 14):
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(main())
+    except BaseException as _be:
+        _em = f"FATAL: {_be}"
+        print(_em, flush=True)
+        try:
+            with open(os.path.join(os.path.expanduser("~"), "bot_crash.txt"), "w") as _cf:
+                import traceback
+                _cf.write(traceback.format_exc())
+        except:
+            pass
