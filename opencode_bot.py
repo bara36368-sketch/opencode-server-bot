@@ -442,8 +442,15 @@ def save_sessions():
     _save_counter += 1
     if _save_counter % 3 != 0:
         return
+    _existing = {}
+    if os.path.exists(SESSIONS_FILE):
+        try:
+            with open(SESSIONS_FILE) as f: _existing = json.load(f)
+        except: pass
+    _existing["sessions"] = {str(k): v for k, v in sessions.items()}
+    _existing["team_sessions"] = {str(k): v for k, v in team_sessions.items()}
     with open(SESSIONS_FILE, "w") as f:
-        json.dump({"sessions": {str(k): v for k, v in sessions.items()}, "team_sessions": {str(k): v for k, v in team_sessions.items()}}, f)
+        json.dump(_existing, f)
 
 def load_sessions():
     if os.path.exists(SESSIONS_FILE):
@@ -1459,82 +1466,96 @@ async def main():
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/help":
-                    lines = [
-                        "/start â€” Reset",
-                        "/agents â€” List agents",
-                        "/agent <name> â€” Switch agent",
-                        "/repo â€” List providers",
-                        "/repo <name> â€” Switch provider",
-                        "/arch â€” List architectures",
-                        "/arch <name> â€” Switch architecture",
-                        "/mode â€” List modes (chat/team/autonomous)",
-                        "/mode <name> â€” Switch mode",
-                        "/teams â€” List teams",
-                        "/createteam <desc> â€” AI creates a team",
-                        "/putteam <name> <a1> <a2>... â€” Create/update team",
-                        "/useteam <name> â€” Activate a team",
-                        "/stopteam â€” Deactivate team mode",
-                        "/tools â€” List available tools",
-                        "/effort â€” Show effort level",
-                        "/low|/normal|/medium|/high|/superhigh â€” Set effort",
-                        "/thinking off|extended|adaptive â€” Thinking mode",
-                        "/status â€” Current agent + provider",
-                        "/clear â€” Clear session",
-                        "/premadeskills â€” Pre-made skill teams",
-                        "/routes â€” Provider health",
-                        "/gateway â€” Gateway stats + queue",
-                        "/toolfk â€” List all ToolFK.com tool APIs (200+ free utilities)",
-                        "/synoxcloud â€” List all SynoxCloud API endpoints (434 tools + 52 AI models)",
-                        "/webgateway â€” Web AI Gateway status/restart",
-                        "/vision <prompt> â€” Analyze image with AI (send with photo or reply to photo)",
-                        "/draw <prompt> â€” Generate image from text",
-                        "/schedule add <sec> <prompt> â€” Schedule recurring AI task",
-                        "/schedule list â€” List scheduled tasks",
-                        "/schedule remove <id> â€” Remove scheduled task",
-                        "/export json|md â€” Export chat history",
-                        "/doc â€” List indexed documents",
-                        "/ask <question> â€” Query uploaded documents",
-                        "/context â€” Show auto-context",
-                        "/search <query> â€” Web search via DuckDuckGo + AI summary",
-                        "/youtube <url> â€” Get YouTube transcript and AI summary",
-                        "/run python|js <code> â€” Execute code in sandbox",
-                        "/fetch <url> â€” Fetch and AI-summarize any URL",
-                        "/remind <duration> <msg> â€” Set a reminder (e.g. 30min, 2h)",
-                        "/translate <src>:<tgt> <text> â€” Translate text",
-                        "/qr encode <text> â€” Generate QR code",
-                        "/qr decode â€” Decode QR from a replied photo",
-                        "/stats â€” Your usage statistics",
-                        "/data query <q> â€” Query loaded spreadsheets",
-                        "/data list â€” List loaded data files",
-                        "/plugin load <url> â€” Load a plugin from URL or file",
-                        "/plugin list â€” List loaded plugins",
-                        "ðŸ“· Send a photo for AI vision analysis",
-                        "ðŸŽ¤ Send a voice message for speech-to-text + TTS reply",
-                        "ðŸ“„ Send a document (txt/pdf/csv/xlsx) to index & query",
+                    categories = [
+                        ("CHAT", [
+                            "/start — Reset session",
+                            "/agent <name> — Switch agent",
+                            "/agents — List agents",
+                            "/repo — List / switch AI provider",
+                            "/status — Current agent + provider",
+                            "/clear — Clear history",
+                        ]),
+                        ("MODES", [
+                            "/mode — Toggle chat / team / autonomous",
+                            "/arch — Switch architecture (single, sequential, parallel…)",
+                            "/teams — List teams",
+                            "/createteam <desc> — AI builds a team",
+                            "/putteam <n> <a1> <a2>... — Create/update team",
+                            "/useteam <name> — Activate team",
+                            "/stopteam — Deactivate team",
+                            "/tools — Available tools",
+                            "/effort — Show effort level",
+                            "/low|/normal|/medium|/high|/superhigh — Set effort",
+                            "/thinking off|extended|adaptive — Thinking mode",
+                        ]),
+                        ("MEDIA", [
+                            "/vision <prompt> — Analyze image (reply to photo)",
+                            "/draw <prompt> — Generate image",
+                            "/qr encode <text> — Generate QR",
+                            "/qr decode — Decode QR from replied photo",
+                        ]),
+                        ("RESEARCH", [
+                            "/search <query> — Web search + AI summary",
+                            "/youtube <url> — Transcript + summary",
+                            "/fetch <url> — Fetch & summarize any URL",
+                            "/translate <src>:<tgt> <text> — Translate",
+                            "/run python|js <code> — Sandboxed code exec",
+                        ]),
+                        ("DATA", [
+                            "/doc — List indexed docs",
+                            "/ask <question> — Query uploaded docs",
+                            "/context — Show auto-context",
+                            "/data list|query — Spreadsheet ops",
+                            "/export json|md — Export chat",
+                        ]),
+                        ("AUTOMATION", [
+                            "/schedule add|list|remove — Recurring AI tasks",
+                            "/remind <duration> <msg> — Reminder",
+                            "/digest — Summarize conversation",
+                            "/plugin load|list — Load/list plugins",
+                        ]),
+                        ("INTEGRATIONS", [
+                            "/n8n — Trigger n8n webhook",
+                            "/n8n-status — n8n health check",
+                            "/n8n-logs — Recent executions",
+                            "/github — Repo info, issues, PRs",
+                            "/gmail — Read Gmail inbox",
+                            "/sheets — Read Google Sheets",
+                            "/notion — Search / query Notion",
+                            "/crypto — CoinGecko price lookup",
+                        ]),
+                        ("SYSTEM", [
+                            "/routes — Provider health",
+                            "/gateway — Gateway stats + queue",
+                            "/webgateway — Web gateway status",
+                            "/toolfk — 200+ free utilities",
+                            "/synoxcloud — 434 tools + 52 AI models",
+                            "/stats — Your usage stats",
+                            "/myrole — Your ID + role",
+                            "/profile save|load|show|reset — Persist your settings",
+                        ]),
                     ]
+                    lines = []
+                    for title, items in categories:
+                        lines.append(f"╌ {title} ╌")
+                        for item in items:
+                            lines.append(f"  {item}")
+                        lines.append("")
                     if is_owner or is_admin:
-                        lines += [
-                            "/addprovider <name> <model> <url> <key> â€” Add provider",
-                            "/agentprovider <agent> <url> <key> <model> â€” Set agent-specific provider",
-                            "/createagent <desc> â€” AI creates an agent",
-                            "/repair â€” Reset provider health",
-                            "/pyrit <mode> <objective> â€” Run red-team attack (classic/parseltongue/crescendo/ultraplinian)",
-                        ]
+                        lines.append("╌ ADMIN ╌")
+                        lines.append("  /addprovider <name> <model> <url> <key> — Add provider")
+                        lines.append("  /agentprovider <agent> <url> <key> <model> — Agent-specific provider")
+                        lines.append("  /createagent <desc> — AI creates agent")
+                        lines.append("  /addprompt <agent> <prompt> — Set agent prompt")
+                        lines.append("  /repair — Reset provider health")
+                        lines.append("  /pyrit <mode> <objective> — Red-team attack")
                     if is_owner:
-                        lines += [
-                            "/addadmin <id> â€” Add admin",
-                            "/removeadmin <id> â€” Remove admin",
-                            "/adminlist â€” List admins",
-                            "/agentprovider <agent> <url> <key> <model> â€” Set agent-specific provider",
-                        ]
-                    lines += [
-                        "",
-                        f"Agent: {active_agent}",
-                        f"Provider: {active_provider} ({PROVIDERS[active_provider]['model']})",
-                        f"Mode: {active_mode}",
-                        f"Arch: {active_arch}",
-                        f"Team: {active_team or 'none'}",
-                    ]
+                        lines.append("  /addadmin <id> — Add admin")
+                        lines.append("  /removeadmin <id> — Remove admin")
+                        lines.append("  /adminlist — List admins")
+                    lines.append("")
+                    lines.append(f"Agent: {active_agent}  |  Provider: {active_provider} ({PROVIDERS[active_provider]['model']})")
+                    lines.append(f"Mode: {active_mode}  |  Arch: {active_arch}  |  Team: {active_team or 'none'}")
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/agents":
@@ -1547,6 +1568,42 @@ async def main():
                 elif cmd == "/myrole":
                     role = "owner" if uid == OWNER_ID else ("admin" if uid in admins else "user")
                     await send(chat, f"Your ID: {uid}\nRole: {role}")
+
+                elif cmd == "/profile":
+                    sub = parts[1] if len(parts) > 1 else "show"
+                    _pd = {}
+                    if os.path.exists(SESSIONS_FILE):
+                        try:
+                            with open(SESSIONS_FILE) as _f: _pd = json.load(_f)
+                        except: pass
+                    profiles = _pd.get("profiles", {})
+                    if sub == "save":
+                        profiles[str(uid)] = {"agent": active_agent, "provider": active_provider, "effort": effort, "thinking": thinking_mode, "arch": active_arch}
+                        _pd["profiles"] = profiles
+                        with open(SESSIONS_FILE, "w") as _f: json.dump(_pd, _f)
+                        await send(chat, "Profile saved.")
+                    elif sub == "load":
+                        p = profiles.get(str(uid))
+                        if not p:
+                            await send(chat, "No saved profile.")
+                            continue
+                        active_agent = p.get("agent", active_agent)
+                        active_provider = p.get("provider", active_provider)
+                        effort = p.get("effort", effort)
+                        thinking_mode = p.get("thinking", thinking_mode)
+                        active_arch = p.get("arch", active_arch)
+                        await send(chat, f"Profile loaded: agent={active_agent}, provider={active_provider}, effort={effort}")
+                    elif sub == "reset":
+                        profiles.pop(str(uid), None)
+                        _pd["profiles"] = profiles
+                        with open(SESSIONS_FILE, "w") as _f: json.dump(_pd, _f)
+                        await send(chat, "Profile reset.")
+                    else:
+                        p = profiles.get(str(uid), {})
+                        if p:
+                            await send(chat, f"Saved profile: agent={p.get('agent')}, provider={p.get('provider')}, effort={p.get('effort')}, thinking={p.get('thinking')}, arch={p.get('arch')}")
+                        else:
+                            await send(chat, "No saved profile. Use /profile save to create one.")
 
                 elif cmd == "/checkrole":
                     if len(parts) < 2:
@@ -2522,6 +2579,19 @@ async def main():
                         else:
                             await send(chat, "Could not parse duration. Use e.g. 30min, 2h, 90s")
 
+                elif cmd == "/digest":
+                    uid_s = sessions.get(uid, [])
+                    if len(uid_s) < 3:
+                        await send(chat, "Not enough conversation to summarize.")
+                        continue
+                    await typing(chat)
+                    chat_text = "\n".join(f"{m['role']}: {m['content'][:500]}" for m in uid_s[-15:])
+                    summary = await smart_call([
+                        {"role": "system", "content": "You are a conversation analyst. Produce a concise digest of this AI chat session. Structure: Key Topics Discussed, Decisions Made, Open Questions, Suggested Next Steps. Be specific and reference actual content."},
+                        {"role": "user", "content": f"Conversation:\n{chat_text}\n\nProduce a structured digest."},
+                    ], active_provider)
+                    await send(chat, f"Digest:\n{summary[:3500]}")
+
                 elif cmd == "/translate":
                     if len(parts) < 3:
                         await send(chat, "Usage: /translate <source>:<target> <text>\n       /translate en:fr Hello world\n       /translate :es Hello (auto-detect source)")
@@ -2654,7 +2724,7 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
