@@ -1876,30 +1876,7 @@ async def main():
                     except Exception as e:
                         await send(chat, f"PyRIT error: {e}")
 
-                elif cmd == "/update" and is_owner:
-                    await send(chat, "Pulling latest code from GitHub...")
-                    try:
-                        import subprocess
-                        result = subprocess.run(["git", "pull"], capture_output=True, text=True, timeout=30)
-                        out = result.stdout.strip() + result.stderr.strip()
-                        await send(chat, f"Git pull:\n{out[:500]}")
-                        if result.returncode == 0:
-                            await send(chat, "Done. Use /restart to apply.")
-                    except Exception as e:
-                        await send(chat, f"Update failed: {e}")
 
-                elif cmd == "/restart" and is_owner:
-                    await send(chat, "Restarting... (run.sh will auto-restart)")
-                    log("Bot restarting via /restart")
-                    sys.exit(0)
-
-                elif cmd == "/maintenance" and is_owner:
-                    lock_file = os.path.join(os.path.dirname(__file__), "maintenance.lock")
-                    with open(lock_file, "w") as f:
-                        f.write("1")
-                    await send(chat, "🔧 Bot going down for maintenance. Run /start to restart.")
-                    log("Maintenance mode triggered by owner - shutting down")
-                    sys.exit(0)
 
                 elif cmd == "/toolfk":
                     key_status = f"TOOLFK_TOKEN={'set' if TOOLFK_TOKEN else 'NOT SET'}"
@@ -2627,7 +2604,7 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/update", "/restart", "/maintenance", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
