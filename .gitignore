@@ -11,3 +11,4 @@ sessions.json
 agent_providers.json
 admins.json
 setenv.sh
+maintenance.lock
