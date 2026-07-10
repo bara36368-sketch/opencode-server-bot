@@ -442,6 +442,15 @@ def load_memory():
 
 TOOLFK_TOKEN = os.environ.get("TOOLFK_TOKEN", "")
 
+# Integration API keys
+N8N_URL = os.environ.get("N8N_URL", "").rstrip("/")
+N8N_API_KEY = os.environ.get("N8N_API_KEY", "")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GMAIL_USER = os.environ.get("GMAIL_USER", "")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
+SHEETS_CREDENTIALS = os.environ.get("SHEETS_CREDENTIALS", "")
+NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
+
 _TFK = [
     "rebang","lunar","clang","ip","dns","shorturl","qrcode","ocr",
     "txt2img","text2img","tts","password","barcode","regex","diff","unixtime",
@@ -1867,6 +1876,24 @@ async def main():
                     except Exception as e:
                         await send(chat, f"PyRIT error: {e}")
 
+                elif cmd == "/update" and is_owner:
+                    await send(chat, "Pulling latest code from GitHub...")
+                    try:
+                        import subprocess
+                        result = subprocess.run(["git", "pull"], capture_output=True, text=True, timeout=30)
+                        out = result.stdout.strip() + result.stderr.strip()
+                        await send(chat, f"Git pull:\n{out[:500]}")
+                        if result.returncode == 0:
+                            await send(chat, "Restarting...")
+                            os.execv(sys.executable, [sys.executable] + sys.argv)
+                    except Exception as e:
+                        await send(chat, f"Update failed: {e}")
+
+                elif cmd == "/maintenance" and is_owner:
+                    await send(chat, "🔧 Bot going down for maintenance. Run 'tmux new-session -s bot -d \"python opencode_bot.py\"' to restart.")
+                    log("Maintenance mode triggered by owner - shutting down")
+                    sys.exit(0)
+
                 elif cmd == "/toolfk":
                     key_status = f"TOOLFK_TOKEN={'set' if TOOLFK_TOKEN else 'NOT SET'}"
                     lines = [f"ToolFK.com API ({len(TOOLFK_ENDPOINTS)} endpoints, {key_status})"]
@@ -1895,6 +1922,353 @@ async def main():
                         lines.append(f"  {eid} â€” {path}")
                         shown += 1
                     await send(chat, "\n".join(lines))
+
+                elif cmd == "/n8n":
+                    if not N8N_URL:
+                        await send(chat, "N8N_URL not set. Add it to setenv.sh")
+                        continue
+                    parts2 = text.split(maxsplit=1)
+                    if len(parts2) < 2:
+                        await send(chat, "Usage: /n8n <workflow-path> [params as JSON]\nExample: /n8n webhook/chatbot {\"message\":\"hello\"}\n/n8n-status — check server\n/n8n-logs — recent executions")
+                        continue
+                    rest = parts2[1]
+                    if rest.startswith("{"):
+                        path = "webhook/chatbot"
+                        payload = json.loads(rest)
+                    elif " " in rest and rest.split(" ", 1)[1].startswith("{"):
+                        path, _, raw = rest.partition(" ")
+                        payload = json.loads(raw)
+                    else:
+                        path = rest
+                        payload = {}
+                    url = f"{N8N_URL}/{path.lstrip('/')}"
+                    headers = {}
+                    if N8N_API_KEY:
+                        headers["X-N8N-API-KEY"] = N8N_API_KEY
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        resp = await c.post(url, json=payload, headers=headers, timeout=30)
+                        out = resp.text[:2000]
+                        await send(chat, f"n8n response ({resp.status_code}):\n{out}")
+                    except Exception as e:
+                        await send(chat, f"n8n error: {e}")
+
+                elif cmd == "/n8n-status":
+                    if not N8N_URL:
+                        await send(chat, "N8N_URL not set.")
+                        continue
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        resp = await c.get(f"{N8N_URL}/healthz", timeout=10)
+                        await send(chat, f"n8n server: HTTP {resp.status_code} ✅" if resp.ok else f"n8n server: HTTP {resp.status_code}")
+                    except Exception:
+                        try:
+                            c = await get_http()
+                            resp = await c.get(f"{N8N_URL}/rest/health", timeout=10)
+                            await send(chat, f"n8n server: HTTP {resp.status_code} ✅" if resp.ok else f"n8n server: HTTP {resp.status_code}")
+                        except Exception as e2:
+                            await send(chat, f"n8n unreachable: {e2}")
+
+                elif cmd == "/n8n-logs":
+                    if not N8N_URL or not N8N_API_KEY:
+                        await send(chat, "N8N_URL and N8N_API_KEY required.")
+                        continue
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        resp = await c.get(f"{N8N_URL}/rest/executions?limit=10&take=10", headers={"X-N8N-API-KEY": N8N_API_KEY}, timeout=15)
+                        if not resp.ok:
+                            await send(chat, f"n8n API error: {resp.status_code}")
+                            continue
+                        data = resp.json()
+                        execs = data.get("data", [])
+                        if not execs:
+                            await send(chat, "No recent executions.")
+                            continue
+                        lines = ["Recent n8n executions:"]
+                        for ex in execs[:10]:
+                            wid = ex.get("workflowId", "?")
+                            status = ex.get("finished", False) and "✅" or "⏳"
+                            mode = ex.get("mode", "?")
+                            started = ex.get("startedAt", "?")[:19] if ex.get("startedAt") else "?"
+                            lines.append(f"  {status} {wid} [{mode}] {started}")
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"n8n logs error: {e}")
+
+                elif cmd == "/github":
+                    parts2 = text.split(maxsplit=2)
+                    if len(parts2) < 2:
+                        await send(chat, "Usage:\n/github repo <user/repo> — repo info\n/github issues <user/repo> — list issues\n/github issue <user/repo> <title>|<body> — create issue\n/github pr <user/repo> — list open PRs")
+                        continue
+                    sub = parts2[1].lower()
+                    gh_headers = {"Accept": "application/vnd.github.v3+json"}
+                    if GITHUB_TOKEN:
+                        gh_headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+                    c = await get_http()
+                    await typing(chat)
+                    try:
+                        if sub == "repo" and len(parts2) >= 3:
+                            repo = parts2[2]
+                            resp = await c.get(f"https://api.github.com/repos/{repo}", headers=gh_headers, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"GitHub error: {resp.status_code} {resp.text[:200]}")
+                                continue
+                            d = resp.json()
+                            lines = [
+                                f"📦 {d['full_name']}",
+                                f"⭐ {d['stargazers_count']}  🍴 {d['forks_count']}  👁 {d['subscribers_count']}",
+                                f"📝 {d.get('description', 'no description')}",
+                                f"🔗 {d['html_url']}",
+                                f"📅 created {d['created_at'][:10]}  updated {d['updated_at'][:10]}",
+                                f"🐛 open issues: {d['open_issues_count']}",
+                            ]
+                            if d.get("language"):
+                                lines.append(f"🔤 {d['language']}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "issues" and len(parts2) >= 3:
+                            repo = parts2[2]
+                            resp = await c.get(f"https://api.github.com/repos/{repo}/issues?state=open&per_page=10", headers=gh_headers, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"GitHub error: {resp.status_code}")
+                                continue
+                            data = resp.json()
+                            if not data:
+                                await send(chat, f"No open issues in {repo}")
+                                continue
+                            lines = [f"🐛 Open issues in {repo}:"]
+                            for issue in data:
+                                labels = ", ".join(l["name"] for l in issue.get("labels", []))
+                                label_str = f" [{labels}]" if labels else ""
+                                lines.append(f"  #{issue['number']} {issue['title']}{label_str}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "issue" and len(parts2) >= 3:
+                            repo = parts2[2]
+                            if "|" in repo:
+                                repo, _, body = repo.partition("|")
+                                title = body.strip()
+                                body_text = ""
+                            else:
+                                rest_text = text.split("/github issue " + repo + " ", 1)
+                                if len(rest_text) > 1 and "|" in rest_text[1]:
+                                    title, _, body_text = rest_text[1].partition("|")
+                                elif len(rest_text) > 1:
+                                    title = rest_text[1]
+                                    body_text = ""
+                                else:
+                                    await send(chat, "Usage: /github issue <user/repo> <title> | <body>")
+                                    continue
+                                title = title.strip()
+                                body_text = body_text.strip()
+                            if not title:
+                                await send(chat, "Title required.")
+                                continue
+                            resp = await c.post(f"https://api.github.com/repos/{repo}/issues", json={"title": title, "body": body_text}, headers=gh_headers, timeout=15)
+                            if resp.ok:
+                                d = resp.json()
+                                await send(chat, f"✅ Issue created: {d['html_url']}")
+                            else:
+                                await send(chat, f"GitHub error: {resp.status_code} {resp.text[:300]}")
+                        elif sub == "pr" and len(parts2) >= 3:
+                            repo = parts2[2]
+                            resp = await c.get(f"https://api.github.com/repos/{repo}/pulls?state=open&per_page=10", headers=gh_headers, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"GitHub error: {resp.status_code}")
+                                continue
+                            data = resp.json()
+                            if not data:
+                                await send(chat, f"No open PRs in {repo}")
+                                continue
+                            lines = [f"🔀 Open PRs in {repo}:"]
+                            for pr in data:
+                                lines.append(f"  #{pr['number']} {pr['title']} — {pr['user']['login']}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "Unknown subcommand. Use: repo, issues, issue, pr")
+                    except Exception as e:
+                        await send(chat, f"GitHub error: {e}")
+
+                elif cmd == "/gmail":
+                    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+                        await send(chat, "GMAIL_USER and GMAIL_APP_PASSWORD required in setenv.sh")
+                        continue
+                    parts2 = text.split(maxsplit=1)
+                    mode = parts2[1].lower() if len(parts2) > 1 else "inbox"
+                    await typing(chat)
+                    try:
+                        import imaplib, email
+                        from email.header import decode_header
+                        m = imaplib.IMAP4_SSL("imap.gmail.com")
+                        m.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+                        m.select("INBOX")
+                        if mode.startswith("search") and len(parts2) > 1:
+                            query = parts2[1][7:].strip()
+                            _, data = m.search(None, "ALL")
+                        else:
+                            _, data = m.search(None, "ALL")
+                        ids = data[0].split()
+                        recent = ids[-5:] if len(ids) >= 5 else ids
+                        lines = [f"📬 Recent Gmail ({mode}):"]
+                        for iid in reversed(recent):
+                            _, msg_data = m.fetch(iid, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                            for part in msg_data:
+                                if isinstance(part, tuple):
+                                    msg = email.message_from_bytes(part[1])
+                                    frm = msg.get("From", "?").split("<")[0].strip()
+                                    subj = msg.get("Subject", "?")
+                                    dt = msg.get("Date", "?")[:17]
+                                    lines.append(f"  {dt} {frm[:20]}: {subj[:40]}")
+                        m.logout()
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"Gmail error: {e}")
+
+                elif cmd == "/sheets":
+                    if not SHEETS_CREDENTIALS:
+                        await send(chat, "SHEETS_CREDENTIALS (path to JSON) required in setenv.sh\nUsage: /sheets <spreadsheet-id> <range>\nExample: /sheets 1abcd123 Sheet1!A1:C5")
+                        continue
+                    parts2 = text.split(maxsplit=2)
+                    if len(parts2) < 3:
+                        await send(chat, "Usage: /sheets <spreadsheet-id> <range>\nExample: /sheets 1abcd123 Sheet1!A1:C5")
+                        continue
+                    sheet_id = parts2[1]
+                    sheet_range = parts2[2]
+                    await typing(chat)
+                    try:
+                        import gspread
+                        from gspread.utils import extract_id_from_url
+                        gc = gspread.service_account(filename=SHEETS_CREDENTIALS)
+                        sh = gc.open_by_key(sheet_id)
+                        ws = sh.sheet1
+                        if "!" in sheet_range:
+                            ws_name, _, cell_range = sheet_range.partition("!")
+                            ws = sh.worksheet(ws_name)
+                        else:
+                            cell_range = sheet_range
+                        data = ws.get(cell_range)
+                        lines = [f"📊 Sheet data ({sheet_range}):"]
+                        for row in data[:20]:
+                            lines.append("  " + " | ".join(str(c)[:30] for c in row))
+                        await send(chat, "\n".join(lines))
+                    except ImportError:
+                        await send(chat, "gspread not installed. Run: pip install gspread")
+                    except Exception as e:
+                        await send(chat, f"Sheets error: {e}")
+
+                elif cmd == "/notion":
+                    if not NOTION_TOKEN:
+                        await send(chat, "NOTION_TOKEN required in setenv.sh\nGet it from https://www.notion.so/my-integrations")
+                        continue
+                    parts2 = text.split(maxsplit=2)
+                    if len(parts2) < 2:
+                        await send(chat, "Usage:\n/notion search <query> — search pages\n/notion page <page-id> — get page\n/notion db <db-id> — query database")
+                        continue
+                    sub = parts2[1].lower()
+                    nh = {"Authorization": f"Bearer {NOTION_TOKEN}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
+                    c = await get_http()
+                    await typing(chat)
+                    try:
+                        if sub == "search" and len(parts2) >= 3:
+                            query = parts2[2]
+                            resp = await c.post("https://api.notion.com/v1/search", json={"query": query}, headers=nh, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"Notion error: {resp.status_code}")
+                                continue
+                            data = resp.json()
+                            results = data.get("results", [])
+                            if not results:
+                                await send(chat, "No results.")
+                                continue
+                            lines = [f"🔍 Notion search results for '{query}':"]
+                            for r in results[:10]:
+                                title = "untitled"
+                                props = r.get("properties", {})
+                                for p in props.values():
+                                    if p.get("type") == "title":
+                                        tt = p.get("title", [])
+                                        if tt:
+                                            title = tt[0].get("plain_text", "untitled")
+                                        break
+                                pid = r["id"].replace("-", "")
+                                lines.append(f"  {title[:50]} ({pid[:12]}...)")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "page" and len(parts2) >= 3:
+                            pid = parts2[2].replace("-", "")
+                            resp = await c.get(f"https://api.notion.com/v1/pages/{pid}", headers=nh, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"Notion error: {resp.status_code}")
+                                continue
+                            page = resp.json()
+                            title = "untitled"
+                            props = page.get("properties", {})
+                            for p in props.values():
+                                if p.get("type") == "title":
+                                    tt = p.get("title", [])
+                                    if tt:
+                                        title = tt[0].get("plain_text", "untitled")
+                                    break
+                            url = page.get("url", "")
+                            lines = [f"📄 {title}", f"🔗 {url}"] if url else [f"📄 {title}"]
+                            await send(chat, "\n".join(lines))
+                        elif sub == "db" and len(parts2) >= 3:
+                            db_id = parts2[2].replace("-", "")
+                            resp = await c.post(f"https://api.notion.com/v1/databases/{db_id}/query", json={}, headers=nh, timeout=15)
+                            if not resp.ok:
+                                await send(chat, f"Notion error: {resp.status_code}")
+                                continue
+                            data = resp.json()
+                            results = data.get("results", [])
+                            if not results:
+                                await send(chat, "No entries in database.")
+                                continue
+                            lines = [f"🗄 Database entries ({len(results)} total):"]
+                            for r in results[:10]:
+                                title = "untitled"
+                                props = r.get("properties", {})
+                                for p in props.values():
+                                    if p.get("type") == "title":
+                                        tt = p.get("title", [])
+                                        if tt:
+                                            title = tt[0].get("plain_text", "untitled")
+                                        break
+                                lines.append(f"  {title[:60]}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "Unknown subcommand: search, page, db")
+                    except Exception as e:
+                        await send(chat, f"Notion error: {e}")
+
+                elif cmd == "/crypto":
+                    parts2 = text.split(maxsplit=1)
+                    coin = (parts2[1] if len(parts2) > 1 else "bitcoin").lower().strip()
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        resp = await c.get(f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true", timeout=15)
+                        if not resp.ok:
+                            await send(chat, f"Coin not found. Try: bitcoin, ethereum, solana, dogecoin, etc.")
+                            continue
+                        data = resp.json()
+                        info = data.get(coin)
+                        if not info:
+                            await send(chat, f"Coin '{coin}' not found.")
+                            continue
+                        price = info.get("usd", "?")
+                        change = info.get("usd_24h_change", 0)
+                        mcap = info.get("usd_market_cap", 0)
+                        arrow = "📈" if change >= 0 else "📉"
+                        mcap_str = f"${mcap:,.0f}" if mcap else "?"
+                        lines = [
+                            f"🪙 {coin.upper()}",
+                            f"💰 ${price:,.6f}" if isinstance(price, float) else f"💰 ${price}",
+                            f"{arrow} 24h: {change:+.2f}%" if change else "",
+                            f"🏛 Market Cap: {mcap_str}",
+                        ]
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"Crypto error: {e}")
 
                 elif cmd == "/vision":
                     await typing(chat)
@@ -2246,7 +2620,7 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/update", "/maintenance", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
