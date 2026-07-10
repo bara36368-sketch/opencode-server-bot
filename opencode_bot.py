@@ -1884,17 +1884,20 @@ async def main():
                         out = result.stdout.strip() + result.stderr.strip()
                         await send(chat, f"Git pull:\n{out[:500]}")
                         if result.returncode == 0:
-                            await send(chat, "Done. Restart manually:\n/restart or run: tmux kill-session -t bot && source setenv.sh && tmux new-session -s bot -d \"python opencode_bot.py\"")
+                            await send(chat, "Done. Use /restart to apply.")
                     except Exception as e:
                         await send(chat, f"Update failed: {e}")
 
                 elif cmd == "/restart" and is_owner:
-                    await send(chat, "Restarting... Run: tmux new-session -s bot -d \"python opencode_bot.py\"")
+                    await send(chat, "Restarting... (run.sh will auto-restart)")
                     log("Bot restarting via /restart")
                     sys.exit(0)
 
                 elif cmd == "/maintenance" and is_owner:
-                    await send(chat, "🔧 Bot going down for maintenance. Run 'tmux new-session -s bot -d \"python opencode_bot.py\"' to restart.")
+                    lock_file = os.path.join(os.path.dirname(__file__), "maintenance.lock")
+                    with open(lock_file, "w") as f:
+                        f.write("1")
+                    await send(chat, "🔧 Bot going down for maintenance. Run /start to restart.")
                     log("Maintenance mode triggered by owner - shutting down")
                     sys.exit(0)
 
