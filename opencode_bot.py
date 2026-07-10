@@ -1884,10 +1884,14 @@ async def main():
                         out = result.stdout.strip() + result.stderr.strip()
                         await send(chat, f"Git pull:\n{out[:500]}")
                         if result.returncode == 0:
-                            await send(chat, "Restarting...")
-                            os.execv(sys.executable, [sys.executable] + sys.argv)
+                            await send(chat, "Done. Restart manually:\n/restart or run: tmux kill-session -t bot && source setenv.sh && tmux new-session -s bot -d \"python opencode_bot.py\"")
                     except Exception as e:
                         await send(chat, f"Update failed: {e}")
+
+                elif cmd == "/restart" and is_owner:
+                    await send(chat, "Restarting... Run: tmux new-session -s bot -d \"python opencode_bot.py\"")
+                    log("Bot restarting via /restart")
+                    sys.exit(0)
 
                 elif cmd == "/maintenance" and is_owner:
                     await send(chat, "🔧 Bot going down for maintenance. Run 'tmux new-session -s bot -d \"python opencode_bot.py\"' to restart.")
@@ -2620,7 +2624,7 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/update", "/maintenance", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/update", "/restart", "/maintenance", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
