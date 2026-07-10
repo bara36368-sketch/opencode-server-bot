@@ -1,4 +1,7 @@
-﻿import asyncio, httpx, json, os, sys, uuid, time, copy, re, random
+﻿import sys
+print("Starting OpenCode Bot...", flush=True)
+sys.stdout.flush()
+import asyncio, httpx, json, os, sys, uuid, time, copy, re, random
 import pyrit_attacks
 import bot_features as bf
 
