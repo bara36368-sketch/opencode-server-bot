@@ -21,6 +21,11 @@ AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.
 SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
 
+LOG = open("bot.log", "a", encoding="utf-8")
+def log(msg):
+    LOG.write(f"{msg}\n")
+    LOG.flush()
+
 DEFAULT_RATE_LIMITS = {
     "groq": (30, 14400),
     "cerebras": (30, 14400),
@@ -1095,11 +1100,6 @@ sessions = {}
 team_sessions = {}
 load_sessions()
 load_memory()
-
-LOG = open("bot.log", "a", encoding="utf-8")
-def log(msg):
-    LOG.write(f"{msg}\n")
-    LOG.flush()
 
 async def tg(method, data=None):
     c = await get_http()
