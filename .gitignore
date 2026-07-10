@@ -12,3 +12,7 @@ agent_providers.json
 admins.json
 setenv.sh
 maintenance.lock
+bot_startup.txt
+bot_crash.txt
+check_chars.py
+clean_file.py

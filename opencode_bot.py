@@ -1,4 +1,4 @@
-﻿import sys, os, traceback as _tb, io as _io
+import sys, os, traceback as _tb, io as _io
 try:
     _dbg = open("bot_startup.txt", "w")
     _dbg.write("1\n")
@@ -64,10 +64,14 @@ AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.
 SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
 
-LOG = open("bot.log", "a", encoding="utf-8")
+try:
+    LOG = open("bot.log", "a", encoding="utf-8")
+except:
+    LOG = None
 def log(msg):
-    LOG.write(f"{msg}\n")
-    LOG.flush()
+    if LOG:
+        LOG.write(f"{msg}\n")
+        LOG.flush()
 
 DEFAULT_RATE_LIMITS = {
     "groq": (30, 14400),
