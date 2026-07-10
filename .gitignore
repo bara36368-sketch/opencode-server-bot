@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.log
+*.ps1
+*.bat
+deploy.zip
+.DS_Store
+vansrouter/
+providers.json
+sessions.json
+agent_providers.json
+admins.json
+*.bat

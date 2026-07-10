@@ -1,0 +1,2292 @@
+﻿import asyncio, httpx, json, os, sys, uuid, time, copy, re, random
+import pyrit_attacks
+import bot_features as bf
+
+_http = None
+_save_counter = 0
+
+async def get_http():
+    global _http
+    if _http is None or _http.is_closed:
+        _http = httpx.AsyncClient(timeout=120, limits=httpx.Limits(max_keepalive_connections=10, max_connections=20))
+    return _http
+
+AGENTS_FILE = os.path.join(os.path.dirname(__file__), "agents.json")
+PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "providers.json")
+PREMADE_SKILLS_FILE = os.path.join(os.path.dirname(__file__), "premade_skills.json")
+TEAMS_FILE = os.path.join(os.path.dirname(__file__), "teams.json")
+SESSIONS_FILE = os.path.join(os.path.dirname(__file__), "sessions.json")
+ADMINS_FILE = os.path.join(os.path.dirname(__file__), "admins.json")
+AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.json")
+SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
+SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
+
+DEFAULT_RATE_LIMITS = {
+    "groq": (30, 14400),
+    "cerebras": (30, 14400),
+    "gemini": (15, 1500),
+    "sambanova": (20, 20),
+    "nvidia": (40, 2000),
+    "openrouter": (10, 1000),
+    "deepseek": (30, 10000),
+    "mistral": (30, 10000),
+    "vansrouter": (9999, 999999),
+    "github": (30, 15000),
+    "together": (30, 10000),
+    "fireworks": (30, 10000),
+    "cohere": (20, 5000),
+    "xai": (30, 10000),
+    "lepton": (20, 5000),
+    "imarena": (30, 60000),
+    "synoxcloud": (30, 60000),
+    "bitrouter": (9999, 999999),
+}
+
+class SlidingWindow:
+    def __init__(self, rpm, rpd):
+        self.rpm = rpm
+        self.rpd = rpd
+        self.min_ts = []
+        self.day_ts = []
+    def is_allowed(self):
+        now = time.time()
+        self.min_ts = [t for t in self.min_ts if t > now - 60]
+        self.day_ts = [t for t in self.day_ts if t > now - 86400]
+        return len(self.min_ts) < self.rpm and len(self.day_ts) < self.rpd
+    def record(self):
+        now = time.time()
+        self.min_ts.append(now)
+        self.day_ts.append(now)
+    def remaining(self):
+        now = time.time()
+        self.min_ts = [t for t in self.min_ts if t > now - 60]
+        return max(0, self.rpm - len(self.min_ts))
+    def wait_seconds(self):
+        if len(self.min_ts) < self.rpm:
+            return 0
+        sorted_ts = sorted(self.min_ts, reverse=True)
+        return max(0, sorted_ts[self.rpm - 1] + 60 - time.time())
+
+def _is_configured(key):
+    return bool(key) and "YOUR_" not in key and key != "not configured"
+
+class ProviderGateway:
+    def __init__(self):
+        self.health = {}
+        self.ratelimits = {}
+        self.requests = {}
+        self._queue = asyncio.Queue()
+        self._worker = None
+    def init_providers(self):
+        for name in PROVIDERS:
+            configured = _is_configured(PROVIDERS[name].get("key", ""))
+            self.health[name] = {"success": 0, "failure": 0, "last_fail": 0, "cooldown_until": 0, "avg_latency": 0.0, "configured": configured}
+            rpm, rpd = DEFAULT_RATE_LIMITS.get(name, (30, 1000))
+            self.ratelimits[name] = SlidingWindow(rpm, rpd)
+            self.requests[name] = 0
+    def can_try(self, name):
+        h = self.health.get(name, {})
+        if not h.get("configured", False):
+            return False
+        if h.get("cooldown_until", 0) > time.time():
+            return False
+        rl = self.ratelimits.get(name)
+        if rl and not rl.is_allowed():
+            return False
+        return True
+    def record(self, name, elapsed, success):
+        h = self.health[name]
+        self.requests[name] += 1
+        if success:
+            h["success"] += 1
+            h["avg_latency"] = (h["avg_latency"] * (h["success"] - 1) + elapsed) / h["success"]
+            self.ratelimits[name].record()
+        else:
+            h["failure"] += 1
+            h["last_fail"] = time.time()
+            h["cooldown_until"] = time.time() + min(60 * max(h["failure"] - h["success"], 1), 300)
+    def best_available(self):
+        candidates = []
+        for name in PROVIDERS:
+            if not self.can_try(name):
+                continue
+            h = self.health[name]
+            score = h.get("avg_latency", 5) + h.get("failure", 0) * 5
+            candidates.append((score, name))
+        if not candidates:
+            return None
+        candidates.sort()
+        return candidates[0][1]
+    def fallback_chain(self, preferred, count=4):
+        available = [n for n in PROVIDERS if self.can_try(n)]
+        random.shuffle(available)
+        chain = [preferred] if preferred in available else []
+        for n in available:
+            if n not in chain and len(chain) < count:
+                chain.append(n)
+        return chain
+    def next_available(self):
+        best = 9999
+        for name in PROVIDERS:
+            h = self.health.get(name, {})
+            cd = h.get("cooldown_until", 0) - time.time()
+            if cd > 0:
+                best = min(best, cd)
+                continue
+            rl = self.ratelimits.get(name)
+            if rl:
+                w = rl.wait_seconds()
+                if w > 0:
+                    best = min(best, w)
+                else:
+                    return 0
+        return best if best < 9999 else 60
+    async def execute(self, messages, preferred):
+        chain = self.fallback_chain(preferred)
+        t0 = time.time()
+        errors = []
+        for provider in chain:
+            t1 = time.time()
+            try:
+                result = await asyncio.wait_for(call_provider(messages, provider), timeout=25)
+                elapsed = time.time() - t1
+                if "error" in result.lower()[:20]:
+                    self.record(provider, elapsed, False)
+                    errors.append(f"{provider}: {result[:80]}")
+                    continue
+                self.record(provider, elapsed, True)
+                log(f"gateway: {provider} in {time.time()-t0:.1f}s")
+                return result
+            except asyncio.TimeoutError:
+                self.record(provider, 25, False)
+                errors.append(f"{provider}: timeout")
+            except Exception as e:
+                self.record(provider, time.time()-t1, False)
+                errors.append(f"{provider}: {e}")
+        wait = self.next_available()
+        if 0 < wait < 120:
+            log(f"gateway: waiting {wait:.0f}s for retry")
+            await asyncio.sleep(min(wait, 30))
+            return await self.execute(messages, preferred)
+        return f"All providers failed.\n" + "\n".join(errors) + f"\nNext available in {wait:.0f}s."
+    def get_route_health(self):
+        lines = []
+        for name in sorted(PROVIDERS.keys()):
+            h = self.health[name]
+            if not h.get("configured", False):
+                lines.append(f"  {name}: not configured")
+                continue
+            status = "OK" if h["cooldown_until"] <= time.time() else f"cooldown {h['cooldown_until']-time.time():.0f}s"
+            rl = self.ratelimits[name]
+            m = " << active" if name == active_provider else ""
+            lines.append(f"  {name}{m}: {status} | RPM {rl.remaining()}/{rl.rpm} | {h['success']}ok/{h['failure']}fail | {h['avg_latency']:.1f}s | {self.requests[name]}req")
+        return "\n".join(lines)
+    def get_gateway_stats(self):
+        lines = [f"Gateway stats ({len(PROVIDERS)} providers):"]
+        for name in sorted(PROVIDERS.keys()):
+            h = self.health[name]
+            if not h.get("configured", False):
+                lines.append(f"  {name}: not configured")
+                continue
+            rl = self.ratelimits[name]
+            status = "OK" if h["cooldown_until"] <= time.time() else f"CD {h['cooldown_until']-time.time():.0f}s"
+            lines.append(f"  {name}: {status} | RPM {rl.remaining()}/{rl.rpm} | {h['success']}/{h['failure']} | {h['avg_latency']:.1f}s | {self.requests[name]}req")
+        wait = self.next_available()
+        if wait > 0:
+            lines.append(f"\nNext provider free: {wait:.0f}s")
+        lines.append(f"Queue: ~{self._queue.qsize()} pending")
+        return "\n".join(lines)
+    async def start_worker(self):
+        self._worker = asyncio.create_task(self._queue_worker())
+    async def enqueue(self, messages, preferred, chat_id, uid):
+        await self._queue.put((messages, preferred, chat_id, uid))
+    async def _queue_worker(self):
+        while True:
+            try:
+                messages, preferred, chat_id, uid = await self._queue.get()
+                result = await self.execute(messages, preferred)
+                if not result.startswith("All providers failed"):
+                    sessions.setdefault(uid, [])
+                    sessions[uid].append({"role": "assistant", "content": result})
+                    save_sessions()
+                await send(chat_id, result)
+            except Exception as e:
+                log(f"Queue worker error: {e}")
+            await asyncio.sleep(0.5)
+
+gateway = ProviderGateway()
+
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
+OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
+TG_API = f"https://api.telegram.org/bot{TOKEN}"
+
+DEFAULT_AGENTS = {
+    "orchestrator": {
+        "desc": "Orchestrates and delegates tasks to specialized agents",
+        "prompt": "You are the orchestrator. Analyze the user's request and coordinate with appropriate specialized agents to solve their problem. Route tasks to the right expert and synthesize results.",
+    },
+    "ai-researcher": {
+        "desc": "This agent is for AI research and ML prototyping",
+        "prompt": "You analyze research papers, design and run experiments, prototype novel ML approaches, and stay current with state-of-the-art AI and deep learning advances.",
+    },
+    "analytics-engineer": {
+        "desc": "This agent is for BI dashboards and SQL reporting",
+        "prompt": "You build analytics pipelines, design BI dashboards, write complex SQL queries, create reports, and transform raw data into business intelligence insights.",
+    },
+    "api-dev": {
+        "desc": "This agent is for REST, GraphQL, and gRPC API design",
+        "prompt": "You design and implement APIs using REST, GraphQL, gRPC, and WebSocket protocols with proper versioning, pagination, error handling, and documentation.",
+    },
+    "backend-dev": {
+        "desc": "This agent is for NodeJS/Python backend services",
+        "prompt": "You build backend services with NodeJS and Python, design REST and GraphQL APIs, implement authentication, and structure scalable server architectures.",
+    },
+    "blockchain-dev": {
+        "desc": "This agent is for Solidity smart contracts and web3",
+        "prompt": "You develop smart contracts in Solidity, build decentralized applications, integrate web3 libraries, and implement blockchain protocols and tokenomics.",
+    },
+    "cloud-architect": {
+        "desc": "This agent is for AWS, Azure, GCP cloud architecture",
+        "prompt": "You design cloud architectures, plan migrations, optimize costs, implement serverless solutions, and ensure Well-Architected Framework compliance across AWS, Azure, and GCP.",
+    },
+    "computer-vision-specialist": {
+        "desc": "This agent is for object detection and image processing",
+        "prompt": "You implement computer vision solutions including object detection, image classification, segmentation, and real-time video processing using OpenCV and deep learning.",
+    },
+    "data-analyst": {
+        "desc": "This agent is for Excel, Tableau, and data insights",
+        "prompt": "You analyze data with Excel, build dashboards in Tableau and PowerBI, identify trends and patterns, and deliver data-driven business recommendations.",
+    },
+    "data-engineer": {
+        "desc": "This agent is for ETL pipelines and Spark/Airflow",
+        "prompt": "You build data pipelines, design ETL workflows, orchestrate with Airflow, process large datasets with Spark, and manage data warehouse architectures.",
+    },
+    "data-scientist": {
+        "desc": "This agent is for pandas, numpy, and statistics",
+        "prompt": "You analyze data using pandas and numpy, apply statistical methods, create visualizations, and derive actionable insights from structured and unstructured data.",
+    },
+    "database-admin": {
+        "desc": "This agent is for PostgreSQL/MySQL/MongoDB admin",
+        "prompt": "You administer relational and NoSQL databases, optimize queries, manage indexes, configure replication, and tune performance for production workloads.",
+    },
+    "database-architect": {
+        "desc": "This agent is for schema design and data replication",
+        "prompt": "You design database schemas, plan sharding strategies, configure replication, optimize data distribution, and architect scalable and resilient data storage systems.",
+    },
+    "devops-engineer": {
+        "desc": "This agent is for Docker, K8s, CI/CD, and Terraform",
+        "prompt": "You configure Docker containers, manage Kubernetes clusters, build CI/CD pipelines, and provision infrastructure with Terraform following GitOps practices.",
+    },
+    "embedded-dev": {
+        "desc": "This agent is for C/C++/Rust firmware and IoT",
+        "prompt": "You develop firmware for microcontrollers, write C/C++ and Rust for embedded systems, implement IoT protocols, and optimize for memory and power constraints.",
+    },
+    "etl-developer": {
+        "desc": "This agent is for data ingestion and warehousing",
+        "prompt": "You build ETL pipelines for data ingestion, perform transformations, load data into warehouses, handle streaming and batch processing, and ensure data quality.",
+    },
+    "frontend-dev": {
+        "desc": "This agent is for React, CSS, TypeScript, NextJS",
+        "prompt": "You build React components, write modular CSS, implement type-safe TypeScript, and develop NextJS applications with App Router and server components.",
+    },
+    "fullstack-dev": {
+        "desc": "This agent is for full-stack web applications",
+        "prompt": "You build complete web applications across frontend and backend, design system architecture, integrate APIs with UIs, and ensure end-to-end data flow and security.",
+    },
+    "ml-engineer": {
+        "desc": "This agent is for PyTorch/TensorFlow model training",
+        "prompt": "You train and deploy machine learning models with PyTorch and TensorFlow, design training pipelines, tune hyperparameters, and evaluate model performance.",
+    },
+    "mlops-engineer": {
+        "desc": "This agent is for ML model deployment and monitoring",
+        "prompt": "You deploy and monitor ML models in production, build CI/CD pipelines for ML, manage model registries, implement A/B testing, and automate retraining workflows.",
+    },
+    "mobile-dev": {
+        "desc": "This agent is for ReactNative/Flutter mobile apps",
+        "prompt": "You build cross-platform mobile apps with React Native and Flutter, implement native features, handle platform-specific code, and optimize UI performance.",
+    },
+    "nlp-specialist": {
+        "desc": "This agent is for LLMs, RAG, and embeddings",
+        "prompt": "You build NLP solutions with LLMs and transformers, implement RAG pipelines, create embeddings, fine-tune models, and optimize prompt engineering strategies.",
+    },
+    "performance-engineer": {
+        "desc": "This agent is for profiling, caching, and optimization",
+        "prompt": "You profile application performance, implement caching strategies, optimize database queries, reduce latency, and improve throughput across the stack.",
+    },
+    "qa-engineer": {
+        "desc": "This agent is for Playwright/Jest test automation",
+        "prompt": "You write and maintain test suites, automate E2E tests with Playwright, implement unit tests with Jest, and ensure quality gates across the SDLC.",
+    },
+    "security-engineer": {
+        "desc": "This agent is for pentesting and vulnerability assessment",
+        "prompt": "You conduct security assessments, identify vulnerabilities, implement authentication and authorization, configure encryption, and apply OWASP best practices.",
+    },
+    "system-admin": {
+        "desc": "This agent is for Linux servers and network admin",
+        "prompt": "You administer Linux servers, configure networking and firewalls, set up monitoring and alerting, manage users and permissions, and troubleshoot system issues.",
+    },
+    "n8n-expert": {
+        "desc": "Expert n8n workflow automation, AI agents, and node configuration",
+        "prompt": "You are an n8n expert. You specialize in building n8n workflows using webhooks, HTTP requests, AI agents, MCP triggers and tools, database operations, batch processing with SplitInBatches, scheduled tasks, and error handling with onError continueErrorOutput and exponential retry backoff. You know sub-workflow contracts with mode all vs each, binary data preservation via Merge combineByPosition, Code node return format as array of json objects, webhook response mode responseNode, MCP initialization and the Database not found error fix using npx n8n-mcp init and N8N_MCP_DATA_DIR, AI agent design with maxIterations 15-200 and tool descriptions as verb-first phrases, hierarchical multi-agent patterns with sequential parallel and gatekeeper routing, guardrails for PII and jailbreak detection, and self-hosting with queue mode and Docker Compose. You output structured JSON schemas, Code node JavaScript, error wiring, and complete workflow topologies.",
+    },
+    "animate-text": {
+        "desc": "Text animation expert for CSS, GSAP, Motion, and WAAPI effects",
+        "prompt": "You are a text animation specialist. You design and implement text animations using CSS keyframes, GSAP timelines, Framer Motion variants, Motion library, WAAPI Element.animate, and Lottie JSON. You specialize in effects like soft-blur-in, typewriter, shared-axis-y, kinetic-center-build, short-slide-down, stagger crossfade, line reveal, and per-character builds. You preserve target mode whole per-character per-word or per-line, map enter exit durations easing and stagger directly into the target stack, and handle transform opacity blur scale rotation and spacing fields."
+    },
+    "github-actions": {
+        "desc": "GitHub Actions CI/CD pipeline expert",
+        "prompt": "You are a GitHub Actions expert. You design CI/CD workflows using YAML syntax with jobs, steps, matrix builds, reusable workflows, composite actions, environment secrets, artifacts caching, OIDC authentication, and deployment gates. You know triggers including push, pull_request, schedule, workflow_dispatch, repository_dispatch, and workflow_call. You handle multi-platform builds across ubuntu, windows, and macos runners, Docker container jobs, service containers for integration tests, concurrency groups for cancel-in-progress, and GitHub-hosted vs self-hosted runner configuration. You output complete .github/workflows YAML files."
+    },
+    "docker-compose": {
+        "desc": "Docker and Docker Compose infrastructure specialist",
+        "prompt": "You are a Docker and Docker Compose expert. You design multi-service architectures with Dockerfiles using multi-stage builds, layer caching, distroless base images, healthchecks, and security scanning. You configure Docker Compose with service dependencies, volumes, networks, environment files, restart policies, resource limits, and profiles. You handle production patterns with Traefik or Caddy reverse proxy, Let's Encrypt SSL, Redis caching, Postgres replication, volume backups, and log shipping. You output complete Dockerfile and docker-compose.yml files."
+    },
+    "kubernetes": {
+        "desc": "Kubernetes deployment and orchestration specialist",
+        "prompt": "You are a Kubernetes expert. You design and deploy containerized applications on K8s using Deployments, StatefulSets, DaemonSets, Services, Ingress, ConfigMaps, Secrets, PersistentVolumeClaims, HorizontalPodAutoscalers, NetworkPolicies, RBAC roles, and PodDisruptionBudgets. You write Helm charts with values.yaml templating, create Kustomize overlays for dev/staging/prod, configure service meshes with Istio or Linkerd, set up monitoring with Prometheus Operator and Grafana dashboards, and implement GitOps with ArgoCD or Flux. You output complete YAML manifests."
+    },
+    "database-designer": {
+        "desc": "Database schema designer for SQL and NoSQL",
+        "prompt": "You are a database design expert. You design relational schemas with proper normalization, indexes, foreign keys, check constraints, views, materialized views, stored procedures, triggers, and partitioning strategies. You work with PostgreSQL, MySQL, SQLite, SQL Server, and MariaDB. You also design NoSQL schemas for MongoDB with embedded vs reference patterns, Firestore with collection group queries, and DynamoDB with single-table design and composite keys. You output CREATE TABLE statements, migration scripts, and ER diagrams in text format."
+    },
+    "api-tester": {
+        "desc": "API testing and Postman collection specialist",
+        "prompt": "You are an API testing expert. You design comprehensive API test suites covering happy path, error codes, edge cases, rate limiting, auth failures, pagination, and idempotency. You write Postman collections with dynamic variables, pre-request scripts, test assertions in pm.test, chaining requests with pm.environment, and Newman CLI runners. You also write curl commands, httpx Python tests, and k6 load test scripts with thresholds and virtual users. You output ready-to-import Postman JSON and k6 JavaScript."
+    },
+    "design_arena": {
+        "desc": "Web design specialist â€” HTML, CSS, JS, UI/UX, responsive layouts",
+        "prompt": "You are a web design expert. You create beautiful, responsive websites using HTML, CSS, and JavaScript. You specialize in modern CSS layouts (flexbox, grid), animations, responsive design, accessibility, color theory, typography, and UI/UX best practices. You output complete single-file HTML with embedded CSS and JS, or separate files as needed."
+    },
+    "custom": {
+        "desc": "This agent is for custom tasks (use /addprompt to set prompt)",
+        "prompt": "You are a helpful assistant. Answer the user's questions accurately and concisely.",
+    },
+}
+
+def save_agents():
+    with open(AGENTS_FILE, "w") as f:
+        json.dump(AGENTS, f, indent=2)
+
+def save_providers():
+    with open(PROVIDERS_FILE, "w") as f:
+        json.dump(PROVIDERS, f, indent=2)
+
+def save_admins():
+    with open(ADMINS_FILE, "w") as f:
+        json.dump(list(admins), f)
+
+def save_premade():
+    with open(PREMADE_SKILLS_FILE, "w") as f:
+        json.dump(PREMADE_SKILLS, f, indent=2)
+
+def save_teams():
+    with open(TEAMS_FILE, "w") as f:
+        json.dump(TEAMS, f, indent=2)
+
+def save_sessions():
+    global _save_counter
+    _save_counter += 1
+    if _save_counter % 3 != 0:
+        return
+    with open(SESSIONS_FILE, "w") as f:
+        json.dump({"sessions": {str(k): v for k, v in sessions.items()}, "team_sessions": {str(k): v for k, v in team_sessions.items()}}, f)
+
+def load_sessions():
+    if os.path.exists(SESSIONS_FILE):
+        try:
+            with open(SESSIONS_FILE) as f:
+                data = json.load(f)
+                sessions.update({int(k): v for k, v in data.get("sessions", {}).items()})
+                team_sessions.update({int(k): v for k, v in data.get("team_sessions", {}).items()})
+        except: pass
+
+ARCHITECTURES = {
+    "single": {"desc": "Single agent mode (default, no team coordination)"},
+    "sequential": {"desc": "Agents run one after another, each gets previous output"},
+    "parallel": {"desc": "All agents run simultaneously, orchestrator merges results"},
+    "hierarchical": {"desc": "Orchestrator delegates to sub-agents, collects reports"},
+    "mesh": {"desc": "All agents collaborate freely with shared context"},
+    "voting": {"desc": "Each agent answers independently, best answer selected"},
+}
+
+MODES = {
+    "chat": {"desc": "Single agent chat, no planning"},
+    "team": {"desc": "Multi-agent team with architecture patterns"},
+    "autonomous": {"desc": "Autonomous agent with planner, executor, tools, and memory"},
+}
+
+MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
+vector_memory = {}
+memory_buffers = {}
+
+def save_memory():
+    with open(MEMORY_FILE, "w") as f:
+        json.dump({"vector": vector_memory, "buffers": {str(k): v for k, v in memory_buffers.items()}}, f)
+
+def load_memory():
+    global vector_memory, memory_buffers
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE) as f:
+                data = json.load(f)
+                vector_memory.update(data.get("vector", {}))
+                memory_buffers.update({int(k): v for k, v in data.get("buffers", {}).items()})
+        except: pass
+
+TOOLFK_TOKEN = os.environ.get("TOOLFK_TOKEN", "")
+
+_TFK = [
+    "rebang","lunar","clang","ip","dns","shorturl","qrcode","ocr",
+    "txt2img","text2img","tts","password","barcode","regex","diff","unixtime",
+    "rmbg","upscale","img2prompts","morseenc","morsedec",
+    "b64enc","b64dec","md2html","jsonfmt","sqlfmt","htmlfmt",
+    "encdec","encryption","compress","byte","base-converter","hex",
+    "csv","xml","yaml","markdown","css","javascript",
+    "htaccess2nginx","curl","crontab","cdnjs","sequence","difftext",
+    "mobile","idcard","bankcardinfo","youjia","tax","poem","couplets","copybook",
+    "text2video","img2video","image-recognition","paint","screenshot",
+    "idphotos","pdf2word","qwen-image-editor","ai-image-editor","nanobanana",
+    "pdf-decrypt","decompile-apk","base64-to-pdf","watermark",
+    "hf-wan-image-to-video","pdf2image","videoparser","ai-photo-to-cartoon",
+    "website-mirror","convert-text","ai-watermark-remover","online-mind",
+    "online-bazi","online-http","python-confuse","turbo-image-generator",
+    "base64-to-audio","online-photoshop","online-designer",
+    "ai-photo-to-oil-painting","word-to-pdf","seedream-image-generator",
+    "audio-to-base64","online-run","flux-image-generator","ai-clothes-changer",
+    "online-ocr","pdf-to-ppt","online-images-compression","online-jigsaw",
+    "online-php-confuse","ai-photo-to-sketch","pdf-to-text","online-morse",
+    "base64-to-video","online-run-haskell","online-run-python3","java-confuse",
+    "format-css","online-plotter","online-gushi-name","online-run-java",
+    "online-run-php","online-safe-domain","ai-emoji-maker","format-javascript",
+    "online-website-port","online-tibetan-poems","online-run-c",
+    "online-pdf-encrypt","format-yaml","online-run-c++","base64-to-image",
+    "online-text-to-pdf","ai-turn-photo-into-line-drawing","online-run-lisp",
+    "online-runwebsocket","game-calculator","online-tao","base64-to-file",
+    "online-excel-to-pdf","convert-unixtime","online-run-lua","base64-to-hex",
+    "encdec-transform","online-cdnjs","generate-crontab","image-to-base64",
+    "online-sequence","online-foto","base64-to-text","convert-csv",
+    "online-pdf-to-html","convert-svg","online-ppt-to-pdf","convert-markdown",
+    "hex-to-base64","online-run-csharp","online-run-golang","hf-image-to-text",
+    "file-to-base64","ai-photo-to-painting","online-run-rust","online-run-swift",
+    "online-run-kotlin","url-to-base64","online-run-ruby","online-run-erlang",
+    "online-runjs","online-run-scala","online-run-perl","text-to-base64",
+    "online-run-elixir","base64-to-ascii","online-run-clojure",
+]
+
+TOOLFK_ENDPOINTS = sorted(set(_TFK))
+del _TFK
+
+def _tfk_desc(name):
+    m = {
+        "rebang":"Today's hot news topics", "lunar":"Chinese lunar calendar",
+        "clang":"Chinese text converter (simplified/traditional/pinyin)",
+        "ip":"IP address geolocation lookup", "dns":"DNS records lookup",
+        "shorturl":"URL shortener", "qrcode":"QR code generator",
+        "ocr":"Optical character recognition from image",
+        "txt2img":"AI text-to-image generation","text2img":"AI text-to-image",
+        "tts":"Text-to-speech","password":"Random password generator",
+        "barcode":"Barcode generator (EAN13, Code39, etc)",
+        "regex":"Regex pattern tester","diff":"Compare two texts",
+        "unixtime":"Unix timestamp converter",
+        "rmbg":"Remove image background","upscale":"AI image upscaler",
+        "img2prompts":"Convert image to AI art prompts",
+        "morseenc":"Encode text to Morse","morsedec":"Decode Morse to text",
+        "b64enc":"Base64 encode","b64dec":"Base64 decode",
+        "md2html":"Markdown to HTML","jsonfmt":"JSON formatter/validator",
+        "sqlfmt":"SQL formatter","htmlfmt":"HTML formatter/minifier",
+        "encdec":"Encrypt/decrypt text (AES, DES)","encryption":"Hash text (MD5,SHA)",
+        "compress":"Lossless image compression","byte":"Byte unit converter",
+        "base-converter":"Number base converter","hex":"Hex converter",
+        "csv":"CSV converter","xml":"XML formatter/validator",
+        "yaml":"YAML formatter","markdown":"Markdown converter",
+        "css":"CSS formatter/minifier","javascript":"JS formatter/minifier",
+        "htaccess2nginx":".htaccess to Nginx converter",
+        "curl":"cURL to code converter","crontab":"Crontab evaluator",
+        "cdnjs":"cdnjs library lookup","sequence":"UML sequence diagram",
+        "difftext":"Side-by-side text diff","mobile":"Chinese phone lookup",
+        "idcard":"Chinese ID card validator","bankcardinfo":"Chinese bank card lookup",
+        "youjia":"Chinese oil prices","tax":"Chinese salary/tax calculator",
+        "poem":"AI poem generator","couplets":"Chinese couplets generator",
+        "copybook":"Chinese character practice sheets",
+        "text2video":"AI text-to-video","img2video":"AI image-to-video",
+        "image-recognition":"AI image recognition","paint":"Online drawing board",
+        "screenshot":"Image beautifier/editor","idphotos":"AI ID photo generator",
+        "pdf2word":"PDF to Word converter",
+        "qwen-image-editor":"AI Qwen image editor",
+        "ai-image-editor":"AI image editor",
+        "nanobanana":"Nanobanana AI image generator",
+        "pdf-decrypt":"PDF password remover","decompile-apk":"APK decompiler",
+        "base64-to-pdf":"Base64 to PDF","watermark":"Image watermark tool",
+        "hf-wan-image-to-video":"Wan AI image-to-video",
+        "pdf2image":"PDF to image converter","videoparser":"Video URL parser",
+        "ai-photo-to-cartoon":"AI photo to cartoon",
+        "website-mirror":"Website mirror/download tool",
+        "convert-text":"AI article generator",
+        "ai-watermark-remover":"AI watermark remover",
+        "online-mind":"Mind mapper / flowchart",
+        "online-bazi":"Chinese Bazi (Four Pillars) calculator",
+        "online-http":"HTTP request simulator",
+        "python-confuse":"Python code obfuscator",
+        "turbo-image-generator":"Turbo AI image generator",
+        "base64-to-audio":"Base64 to audio","online-photoshop":"Online PS editor",
+        "online-designer":"SQL schema designer",
+        "ai-photo-to-oil-painting":"AI photo to oil painting",
+        "word-to-pdf":"Word to PDF converter",
+        "seedream-image-generator":"Seedream AI image generator",
+        "audio-to-base64":"Audio to Base64","online-run":"Multi-language code runner",
+        "flux-image-generator":"Flux AI image generator",
+        "ai-clothes-changer":"AI clothes changer",
+        "online-ocr":"Image OCR text extractor","pdf-to-ppt":"PDF to PPT converter",
+        "online-images-compression":"Image compression tool",
+        "online-jigsaw":"Jigsaw puzzle generator",
+        "online-php-confuse":"PHP obfuscator/encryptor",
+        "ai-photo-to-sketch":"AI photo to sketch",
+        "pdf-to-text":"PDF to text converter","online-morse":"Morse code translator",
+        "base64-to-video":"Base64 to video",
+        "online-run-haskell":"Haskell online compiler",
+        "online-run-python3":"Python3 online compiler",
+        "java-confuse":"Java code obfuscator","format-css":"CSS formatter",
+        "online-plotter":"Function plotter (FooPlot)",
+        "online-gushi-name":"Chinese baby name generator",
+        "online-run-java":"Java online compiler",
+        "online-run-php":"PHP online compiler",
+        "online-safe-domain":"Domain security checker",
+        "ai-emoji-maker":"AI emoji generator",
+        "format-javascript":"JavaScript formatter",
+        "online-website-port":"Website port scanner",
+        "online-tibetan-poems":"Tibetan/acrostic poem generator",
+        "online-run-c":"C online compiler",
+        "online-pdf-encrypt":"Password protect PDF",
+        "format-yaml":"YAML formatter","online-run-c++":"C++ online compiler",
+        "base64-to-image":"Base64 to image",
+        "online-text-to-pdf":"Text to PDF converter",
+        "ai-turn-photo-into-line-drawing":"Turn photo into line drawing",
+        "online-run-lisp":"Lisp online compiler",
+        "online-runwebsocket":"WebSocket test tool",
+        "game-calculator":"Scientific notation calculator",
+        "online-tao":"Taoist calendar","base64-to-file":"Base64 to file",
+        "online-excel-to-pdf":"Excel to PDF converter",
+        "convert-unixtime":"Unix time converter",
+        "online-run-lua":"Lua online compiler","base64-to-hex":"Base64 to hex",
+        "encdec-transform":"Base64 URL converter",
+        "online-cdnjs":"cdnjs CDN library lookup",
+        "generate-crontab":"Crontab expression generator",
+        "image-to-base64":"Image to Base64","online-sequence":"UML diagram tool",
+        "online-foto":"Buddhist calendar","base64-to-text":"Base64 to text",
+        "convert-csv":"CSV converter","online-pdf-to-html":"PDF to HTML",
+        "convert-svg":"SVG to image","online-ppt-to-pdf":"PPT to PDF",
+        "convert-markdown":"Markdown converter","hex-to-base64":"Hex to Base64",
+        "online-run-csharp":"C# online compiler",
+        "online-run-golang":"Go online compiler",
+        "hf-image-to-text":"Image to text (AI)",
+        "file-to-base64":"File to Base64 encoder",
+        "ai-photo-to-painting":"AI photo to painting",
+        "online-run-rust":"Rust online compiler",
+        "online-run-swift":"Swift online compiler",
+        "online-run-kotlin":"Kotlin online compiler",
+        "url-to-base64":"URL to Base64 encoder",
+        "online-run-ruby":"Ruby online compiler",
+        "online-run-erlang":"Erlang online compiler",
+        "online-runjs":"JavaScript code runner",
+        "online-run-scala":"Scala online compiler",
+        "online-run-perl":"Perl online compiler",
+        "text-to-base64":"Text to Base64",
+        "online-run-elixir":"Elixir online compiler",
+        "base64-to-ascii":"Base64 to ASCII",
+        "online-run-clojure":"Clojure online compiler",
+    }
+    return m.get(name, name.replace("-"," ").title())
+
+TOOLFK_DESC = {e: _tfk_desc(e) for e in TOOLFK_ENDPOINTS}
+
+TOOLS = {
+    "web-scrape": {"desc": "Fetch and extract text content from a URL"},
+    "web-search": {"desc": "Search the internet for information"},
+    "python-exec": {"desc": "Execute Python code and return output"},
+    "toolfk": {"desc": f"Call a ToolFK.com API ({len(TOOLFK_ENDPOINTS)} endpoints). Use /toolfk to list them. Pass endpoint=X&param=Y."},
+    "synoxcloud": {"desc": "Call a SynoxCloud API endpoint. Use /synoxcloud to list endpoints. Pass endpoint=X&param=Y."},
+}
+
+async def execute_tool(name, args):
+    c = await get_http()
+    if name == "web-scrape":
+        url = args.get("url", "")
+        r = await c.get(url, timeout=30)
+        text = r.text[:5000]
+        return f"Content from {url}:\n{text[:2000]}"
+    if name == "web-search":
+        q = args.get("query", "")
+        r = await c.get(f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1", timeout=15)
+        data = r.json()
+        return f"Results for '{q}': {str(data.get('AbstractText', 'No results'))[:2000]}"
+    if name == "python-exec":
+        code = args.get("code", "")
+        try:
+            local_vars = {}
+            exec(code, {}, local_vars)
+            result = str(local_vars.get("result", "Code executed (no result variable)"))
+            return f"Output: {result[:2000]}"
+        except Exception as e:
+            return f"Error: {e}"
+    if name == "toolfk":
+        endpoint = args.get("endpoint", "")
+        tool_params = {k: v for k, v in args.items() if k not in ("endpoint", "tool")}
+        if not endpoint:
+            return f"Usage: pass endpoint=NAME (one of: {', '.join(TOOLFK_ENDPOINTS[:10])}...)"
+        if not TOOLFK_TOKEN:
+            return f"TOOLFK_TOKEN not set. Register at https://toolfk.com to get a token, then set the env var."
+        try:
+            c = await get_http()
+            payload = {"token": TOOLFK_TOKEN, **tool_params}
+            r = await c.post(f"http://api.toolfk.com/api/{endpoint}", data=payload, timeout=30)
+            text = r.text[:5000]
+            return f"[toolfk/{endpoint}] Result:\n{text[:2000]}"
+        except Exception as e:
+            return f"[toolfk/{endpoint}] Error: {e}"
+    if name == "synoxcloud":
+        endpoint = args.get("endpoint", "")
+        tool_params = {k: v for k, v in args.items() if k not in ("endpoint", "tool")}
+        if not endpoint:
+            return f"Usage: pass endpoint=NAME. Use /synoxcloud to list. Pass endpoint=X&param=Y."
+        ep_path = SYNOXCLOUD_ENDPOINTS.get(endpoint)
+        if not ep_path:
+            return f"Unknown endpoint '{endpoint}'. Use /synoxcloud to list all."
+        try:
+            url = f"https://api.synoxcloud.xyz{ep_path}"
+            for k, v in tool_params.items():
+                url += f"&{k}={v}" if "?" in url else f"?{k}={v}"
+            c = await get_http()
+            r = await c.get(url, timeout=30)
+            text = r.text[:5000]
+            return f"[synoxcloud/{endpoint}] Result:\n{text[:2000]}"
+        except Exception as e:
+            return f"[synoxcloud/{endpoint}] Error: {e}"
+    return f"Unknown tool: {name}"
+
+def format_agent_messages(log):
+    if not log: return ""
+    return "\n".join(f"[{e['sender']} -> {e['receiver']}] ({e['type']}): {e['content'][:300]}" for e in log[-8:])
+
+checkpoint_counter = 0
+
+async def save_checkpoint(uid, tag, data):
+    global checkpoint_counter
+    checkpoint_counter += 1
+    cp = {"tag": tag, "data": data, "time": time.time()}
+    key = f"ckpt_{uid}"
+    all_ckpts = {}
+    if os.path.exists("checkpoints.json"):
+        try:
+            with open("checkpoints.json") as f: all_ckpts = json.load(f)
+        except: pass
+    all_ckpts.setdefault(str(uid), []).append(cp)
+    if len(all_ckpts[str(uid)]) > 20: all_ckpts[str(uid)] = all_ckpts[str(uid)][-20:]
+    with open("checkpoints.json", "w") as f: json.dump(all_ckpts, f)
+
+async def run_architecture(arch, agents_in_team, user_text, provider, uid=None, msg_log=None):
+    if msg_log is None: msg_log = []
+
+    if arch == "single":
+        return await smart_call([{"role": "user", "content": user_text}], provider)
+
+    team_def = TEAMS.get(active_team, {})
+    plan = team_def.get("plan", [])
+
+    if arch == "sequential":
+        context = user_text
+        if plan:
+            for step in plan:
+                agent_name = step["agent"]
+                if agent_name not in AGENTS: continue
+                task_desc = step.get("task", "Process the request")
+                chat_log = format_agent_messages(msg_log)
+                prompt = AGENTS[agent_name]["prompt"]
+                messages = [{"role": "system", "content": f"{prompt}\n\nYour specific task: {task_desc}\n\nPrevious agent messages:\n{chat_log}"}, {"role": "user", "content": context}]
+                result = await smart_call(messages, provider)
+                msg_log.append({"sender": agent_name, "receiver": "coordinator", "type": "report", "content": result})
+                context = context + f"\n\n[{agent_name}]: {result}"
+                if uid: await save_checkpoint(uid, f"sequential_{agent_name}", {"context": context, "msg_log": msg_log})
+        else:
+            for agent_name in agents_in_team:
+                if agent_name not in AGENTS: continue
+                prompt = AGENTS[agent_name]["prompt"]
+                messages = [{"role": "system", "content": prompt}, {"role": "user", "content": context}]
+                result = await smart_call(messages, provider)
+                msg_log.append({"sender": agent_name, "receiver": "coordinator", "type": "report", "content": result})
+                context = context + f"\n\n[{agent_name}]: {result}"
+                if uid: await save_checkpoint(uid, f"sequential_{agent_name}", {"context": context})
+        return context
+
+    if arch == "parallel":
+        tasks = []
+        for agent_name in agents_in_team:
+            if agent_name not in AGENTS: continue
+            prompt = AGENTS[agent_name]["prompt"]
+            messages = [{"role": "system", "content": prompt}, {"role": "user", "content": user_text}]
+            tasks.append(smart_call(messages, provider))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        merged = []
+        for i, agent_name in enumerate(agents_in_team):
+            r = results[i] if i < len(results) else "Error"
+            merged.append(f"[{agent_name}]: {r}")
+            msg_log.append({"sender": agent_name, "receiver": "coordinator", "type": "report", "content": str(r)[:300]})
+        merge_prompt = f"Merge these agent responses into one coherent answer:\n\n" + "\n\n".join(merged)
+        final = await smart_call([{"role": "user", "content": merge_prompt}], provider)
+        msg_log.append({"sender": "coordinator", "receiver": "user", "type": "final", "content": final})
+        if uid: await save_checkpoint(uid, "parallel_done", {"final": final, "msg_log": msg_log})
+        return final
+
+    if arch == "hierarchical":
+        orc = AGENTS.get("orchestrator", {}).get("prompt", "You are a coordinator.")
+        sub_agents = [a for a in agents_in_team if a in AGENTS and a != "orchestrator"]
+        chat_log = format_agent_messages(msg_log)
+        plan_prompt = f"{orc}\n\nTask: {user_text}\n\nAvailable agents: {', '.join(sub_agents)}\n\nAgent messages so far:\n{chat_log}\n\nDecide which agents to use and create a plan."
+        plan = await smart_call([{"role": "system", "content": plan_prompt}], provider)
+        msg_log.append({"sender": "orchestrator", "receiver": "coordinator", "type": "plan", "content": plan})
+        tasks = []
+        used_agents = []
+        for agent_name in sub_agents[:3]:
+            prompt = AGENTS[agent_name]["prompt"]
+            assign_msg = f"Task: {user_text}\n\nCoordinator plan: {plan}\n\nAgent messages:\n{chat_log}"
+            messages = [{"role": "system", "content": prompt}, {"role": "user", "content": assign_msg}]
+            tasks.append(smart_call(messages, provider))
+            used_agents.append(agent_name)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        reports = []
+        for i, agent_name in enumerate(used_agents):
+            r = results[i] if not isinstance(results[i], Exception) else f"Error: {results[i]}"
+            reports.append(f"[{agent_name}]: {r}")
+            msg_log.append({"sender": agent_name, "receiver": "orchestrator", "type": "report", "content": str(r)[:300]})
+        reports_str = "\n\n".join(reports)
+        final = await smart_call([{"role": "system", "content": orc}, {"role": "user", "content": f"Task: {user_text}\n\nPlan: {plan}\n\nReports:\n{reports_str}\n\nSynthesize the final answer based on all agent reports."}], provider)
+        msg_log.append({"sender": "orchestrator", "receiver": "user", "type": "final", "content": final})
+        if uid: await save_checkpoint(uid, "hierarchical_done", {"final": final, "msg_log": msg_log})
+        return final
+
+    if arch == "mesh":
+        agents_used = [a for a in agents_in_team[:4] if a in AGENTS]
+        chat_log = format_agent_messages(msg_log)
+        prompts = "\n\n".join(f"[{a}]: {AGENTS[a]['prompt']}" for a in agents_used)
+        messages = [{"role": "system", "content": f"You are a team of specialists collaborating. Available:\n\n{prompts}\n\nAgent messages:\n{chat_log}\n\nDiscuss and solve the task together."}, {"role": "user", "content": user_text}]
+        result = await smart_call(messages, provider)
+        msg_log.append({"sender": "mesh-team", "receiver": "user", "type": "final", "content": result})
+        if uid: await save_checkpoint(uid, "mesh_done", {"final": result})
+        return result
+
+    if arch == "voting":
+        tasks = []
+        agents_used = [a for a in agents_in_team[:5] if a in AGENTS]
+        for agent_name in agents_used:
+            prompt = AGENTS[agent_name]["prompt"]
+            messages = [{"role": "system", "content": prompt}, {"role": "user", "content": user_text}]
+            tasks.append(smart_call(messages, provider))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, agent_name in enumerate(agents_used):
+            r = results[i] if not isinstance(results[i], Exception) else "Error"
+            msg_log.append({"sender": agent_name, "receiver": "judge", "type": "vote", "content": str(r)[:300]})
+        votes = "\n\n".join(f"[{agents_used[i]}]: {results[i]}" if not isinstance(results[i], Exception) else f"[{agents_used[i]}]: Error" for i in range(len(agents_used)))
+        vote_prompt = f"Review these answers and select the best one. Explain your choice.\n\nQuestion: {user_text}\n\nAnswers:\n{votes}"
+        final = await smart_call([{"role": "user", "content": vote_prompt}], provider)
+        msg_log.append({"sender": "judge", "receiver": "user", "type": "final", "content": final})
+        if uid: await save_checkpoint(uid, "voting_done", {"final": final})
+        return final
+
+    return await smart_call([{"role": "user", "content": user_text}], provider)
+
+async def run_autonomous(goal, uid):
+    memory_buffers.setdefault(uid, [])
+    recent = memory_buffers[uid][-6:]
+    context = "\n".join(recent) if recent else "No prior context."
+
+    plan_prompt = (
+        f"You are an autonomous agent planner. Break this goal into executable steps.\n"
+        f"Goal: {goal}\nRecent memory:\n{context}\n\n"
+        f"Respond with ONLY a JSON array of steps (no markdown):\n"
+        f'[{{\"step\":1,\"type\":\"reason|tool\",\"tool\":null|\"web-scrape\"|\"web-search\"|\"python-exec\"|\"toolfk\"|\"synoxcloud\",'
+        f'"task\":\"description\",\"input\":{{}},\"expected\":\"what this produces\"}}]\n\n'
+        f"Use 'reason' for LLM thinking, 'tool' to use a tool. For toolfk/synoxcloud pass {{\"endpoint\":\"NAME\",...params}}. 500+ synoxcloud endpoints available. Max 5 steps."
+    )
+    raw = await smart_call([{"role": "user", "content": plan_prompt}], active_provider)
+    raw = raw.strip()
+    if raw.startswith("```"): raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    match = re.search(r'\[.*\]', raw, re.DOTALL)
+    if not match:
+        return f"Planner failed to produce steps. Raw:\n{raw[:300]}"
+    try:
+        steps = json.loads(match.group())
+    except:
+        return f"Planner JSON parse error. Raw:\n{raw[:300]}"
+
+    log(f"Autonomous plan ({len(steps)} steps) for uid {uid}")
+
+    results = []
+    for i, step in enumerate(steps):
+        step_type = step.get("type", "reason")
+        task = step.get("task", f"Step {i+1}")
+        memory_buffers[uid].append(f"[PLAN] Step {i+1}: {task}")
+
+        if step_type == "tool":
+            tool_name = step.get("tool")
+            tool_input = step.get("input", {})
+            tool_result = await execute_tool(tool_name, tool_input)
+            results.append(f"Step {i+1} ({tool_name}): {tool_result[:500]}")
+            memory_buffers[uid].append(f"[TOOL] {tool_name}: {tool_result[:200]}")
+        else:
+            reason_prompt = (
+                f"You are executing step {i+1} of an autonomous plan.\n"
+                f"Goal: {goal}\nYour task: {task}\n"
+                f"Previous results:\n" + "\n".join(results[-3:]) + "\n\n"
+                f"Memory context:\n{context}\n\n"
+                f"Complete your task."
+            )
+            reason_result = await smart_call([{"role": "user", "content": reason_prompt}], active_provider)
+            results.append(f"Step {i+1} ({step_type}): {reason_result[:500]}")
+            memory_buffers[uid].append(f"[REASON] Step {i+1}: {reason_result[:200]}")
+
+        if uid: await save_checkpoint(uid, f"auto_step_{i+1}", {"step": step, "result": results[-1]})
+
+    synthesis_prompt = (
+        f"Synthesize the final answer for this goal based on all step results.\n"
+        f"Goal: {goal}\n\nResults:\n" + "\n".join(results)
+    )
+    final = await smart_call([{"role": "user", "content": synthesis_prompt}], active_provider)
+    memory_buffers[uid].append(f"[FINAL] {final[:200]}")
+    save_memory()
+    steps_summary = "\n".join(f"  {s.get('step',i+1)}. [{s.get('type','?')}] {s.get('task','')}" for i, s in enumerate(steps[:8]))
+    return f"ðŸ¤– Autonomous Mode â€” Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
+
+DEFAULT_PREMADE_SKILLS = {
+    "fullstack-web": {
+        "desc": "Frontend, backend, API, and database for complete web apps",
+        "agents": ["frontend-dev", "backend-dev", "api-dev", "database-architect"],
+    },
+    "data-pipeline": {
+        "desc": "ETL, data engineering, analytics, and data warehousing",
+        "agents": ["data-engineer", "etl-developer", "analytics-engineer", "data-analyst"],
+    },
+    "ml-ai": {
+        "desc": "ML training, data science, NLP, and MLOps deployment",
+        "agents": ["ml-engineer", "data-scientist", "nlp-specialist", "mlops-engineer"],
+    },
+    "devops-cloud": {
+        "desc": "DevOps, cloud architecture, containers, and system admin",
+        "agents": ["devops-engineer", "cloud-architect", "system-admin", "performance-engineer"],
+    },
+    "mobile-app": {
+        "desc": "Mobile dev, backend API, UI design, and database",
+        "agents": ["mobile-dev", "backend-dev", "api-dev", "database-admin"],
+    },
+    "security-audit": {
+        "desc": "Security assessment, pentesting, and hardening",
+        "agents": ["security-engineer", "system-admin", "cloud-architect"],
+    },
+    "api-service": {
+        "desc": "API design, backend implementation, and database",
+        "agents": ["api-dev", "backend-dev", "database-architect", "fullstack-dev"],
+    },
+    "ai-research": {
+        "desc": "Research, prototyping, CV, and NLP experimentation",
+        "agents": ["ai-researcher", "computer-vision-specialist", "nlp-specialist", "data-scientist"],
+    },
+    "web-scraper": {
+        "desc": "Data extraction, ETL processing, and storage",
+        "agents": ["backend-dev", "data-engineer", "etl-developer", "database-admin"],
+    },
+    "blockchain-web3": {
+        "desc": "Smart contracts, dApps, backend, and security",
+        "agents": ["blockchain-dev", "backend-dev", "api-dev", "security-engineer"],
+    },
+    "quality-assurance": {
+        "desc": "Testing, QA automation, and performance monitoring",
+        "agents": ["qa-engineer", "performance-engineer", "devops-engineer"],
+    },
+    "embedded-iot": {
+        "desc": "Firmware, embedded systems, and hardware integration",
+        "agents": ["embedded-dev", "backend-dev", "security-engineer"],
+    },
+}
+
+AGENTS = copy.deepcopy(DEFAULT_AGENTS)
+if os.path.exists(AGENTS_FILE):
+    try:
+        with open(AGENTS_FILE) as f:
+            AGENTS.update(json.load(f))
+    except: pass
+
+AGENT_PROVIDERS = {}
+if os.path.exists(AGENT_PROVIDERS_FILE):
+    try:
+        with open(AGENT_PROVIDERS_FILE) as f:
+            AGENT_PROVIDERS.update(json.load(f))
+    except: pass
+
+PREMADE_SKILLS = copy.deepcopy(DEFAULT_PREMADE_SKILLS)
+if os.path.exists(PREMADE_SKILLS_FILE):
+    try:
+        with open(PREMADE_SKILLS_FILE) as f:
+            PREMADE_SKILLS.update(json.load(f))
+    except: pass
+
+TEAMS = {}
+if os.path.exists(TEAMS_FILE):
+    try:
+        with open(TEAMS_FILE) as f:
+            TEAMS.update(json.load(f))
+    except: pass
+
+PROVIDERS = {
+    "nvidia": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "meta/llama-3.3-70b-instruct",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
+    },
+    "groq": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "model": "llama-3.3-70b-versatile",
+        "key": os.environ.get("GROQ_KEY", "set-via-env-var"),
+    },
+    "gemini": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "model": "gemini-2.0-flash",
+        "key": os.environ.get("GEMINI_KEY", "set-via-env-var"),
+    },
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "gryphe/mythomax-l2-13b",
+        "key": os.environ.get("OPENROUTER_KEY", "set-via-env-var"),
+    },
+    "deepseek": {
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "model": "deepseek-chat",
+        "key": os.environ.get("DEEPSEEK_KEY", "set-via-env-var"),
+    },
+    "mistral": {
+        "url": "https://api.mistral.ai/v1/chat/completions",
+        "model": "mistral-small-latest",
+        "key": os.environ.get("MISTRAL_KEY", "set-via-env-var"),
+    },
+    "sambanova": {
+        "url": "https://api.sambanova.ai/v1/chat/completions",
+        "model": "Meta-Llama-3.3-70B-Instruct",
+        "key": os.environ.get("SAMBANOVA_KEY", "set-via-env-var"),
+    },
+    "cerebras": {
+        "url": "https://api.cerebras.ai/v1/chat/completions",
+        "model": "llama3.1-70b",
+        "key": os.environ.get("CEREBRAS_KEY", "set-via-env-var"),
+    },
+    "github": {
+        "url": "https://models.inference.ai.azure.com/chat/completions",
+        "model": "gpt-4o-mini",
+        "key": os.environ.get("GITHUB_KEY", "set-via-env-var"),
+    },
+    "together": {
+        "url": "https://api.together.xyz/v1/chat/completions",
+        "model": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+        "key": os.environ.get("TOGETHER_KEY", "set-via-env-var"),
+    },
+    "fireworks": {
+        "url": "https://api.fireworks.ai/inference/v1/chat/completions",
+        "model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "key": os.environ.get("FIREWORKS_KEY", "set-via-env-var"),
+    },
+    "cohere": {
+        "url": "https://api.cohere.ai/v1/chat/completions",
+        "model": "command-r-plus-08-2024",
+        "key": os.environ.get("COHERE_KEY", "set-via-env-var"),
+    },
+    "xai": {
+        "url": "https://api.x.ai/v1/chat/completions",
+        "model": "grok-2-1212",
+        "key": os.environ.get("XAI_KEY", "set-via-env-var"),
+    },
+    "lepton": {
+        "url": "https://mixtral-8x22b.lepton.run/api/v1/chat/completions",
+        "model": "mixtral-8x22b",
+        "key": os.environ.get("LEPTON_KEY", "set-via-env-var"),
+    },
+    "imarena": {
+        "url": "https://api.preview.arena.ai/v1/chat/completions",
+        "model": "auto",
+        "key": "not configured"
+    },
+
+    "synoxcloud": {
+        "url": "https://api.synoxcloud.xyz/api/ai-chat",
+        "model": "gpt-5",
+        "key": "free"
+    },
+
+    "bitrouter": {
+        "url": "http://127.0.0.1:4356/v1/chat/completions",
+        "model": "qwen/qwen3.6-flash",
+        "key": "skip-auth"
+    },
+}
+
+if os.path.exists(PROVIDERS_FILE):
+    try:
+        with open(PROVIDERS_FILE) as f:
+            PROVIDERS.update(json.load(f))
+    except: pass
+
+SYNOXCLOUD_ENDPOINTS = {}
+SYNOXCLOUD_AI_MODELS = {}
+
+if os.path.exists(SYNOXCLOUD_ENDPOINTS_FILE):
+    try:
+        with open(SYNOXCLOUD_ENDPOINTS_FILE, encoding="utf-8") as f:
+            _sd = json.load(f)
+        for _cat in _sd.get("endpoints", []):
+            for _item in _cat.get("items", []):
+                SYNOXCLOUD_ENDPOINTS[_item["id"]] = _item["path"]
+    except: pass
+
+if os.path.exists(SYNOXCLOUD_AI_MODELS_FILE):
+    try:
+        with open(SYNOXCLOUD_AI_MODELS_FILE, encoding="utf-8") as f:
+            SYNOXCLOUD_AI_MODELS = json.load(f)
+        for _mid in SYNOXCLOUD_AI_MODELS:
+            _key = f"synox-{_mid}"
+            if _key not in PROVIDERS:
+                _m = SYNOXCLOUD_AI_MODELS[_mid]
+                PROVIDERS[_key] = {
+                    "url": "https://api.synoxcloud.xyz/ai-chat",
+                    "model": _mid,
+                    "key": "free",
+                }
+    except: pass
+
+gateway.init_providers()
+
+try:
+    import web_gateway
+    _gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
+    _gw_status = web_gateway.start(_gw_port)
+    log(_gw_status)
+except Exception as e:
+    log(f"Web gateway not started: {e}")
+
+EFFORT_LEVELS = {
+    "low": {"max_tokens": 512, "desc": "Fast, concise responses (512 tokens)"},
+    "normal": {"max_tokens": 2048, "desc": "Balanced speed and detail (2048 tokens)"},
+    "medium": {"max_tokens": 4096, "desc": "Moderate effort, more thorough (4096 tokens)"},
+    "high": {"max_tokens": 8192, "desc": "High effort, detailed responses (8192 tokens)"},
+    "superhigh": {"max_tokens": 16384, "desc": "Maximum effort, most thorough (16384 tokens)"},
+}
+effort = "medium"
+thinking_mode = "off"
+
+active_agent = "orchestrator"
+active_provider = "groq"
+active_team = None
+active_arch = "single"
+active_mode = "chat"
+admins = {OWNER_ID}
+if os.path.exists(ADMINS_FILE):
+    try:
+        with open(ADMINS_FILE) as f:
+            admins.update(json.load(f))
+    except: pass
+last_update = 0
+processed = set()
+last_user_msg = {}
+sessions = {}
+team_sessions = {}
+load_sessions()
+load_memory()
+
+LOG = open("bot.log", "a", encoding="utf-8")
+def log(msg):
+    LOG.write(f"{msg}\n")
+    LOG.flush()
+
+async def tg(method, data=None):
+    c = await get_http()
+    r = await c.post(f"{TG_API}/{method}", json=data or {}, timeout=15)
+    if not r.json().get("ok"):
+        log(f"TG API error: {method} {r.json()}")
+    return r.json()
+
+async def send(chat, text):
+    await tg("sendMessage", {"chat_id": chat, "text": str(text)[:4000]})
+
+async def typing(chat):
+    await tg("sendChatAction", {"chat_id": chat, "action": "typing"})
+
+async def call_provider(messages, provider, override=None):
+    if override:
+        p = override
+    else:
+        p = PROVIDERS[provider]
+    c = await get_http()
+    max_tokens = EFFORT_LEVELS[effort]["max_tokens"]
+    msgs = copy.deepcopy(messages)
+
+    if thinking_mode == "extended":
+        thinking_msg = "You MUST reason step-by-step before answering. Think through the problem carefully, showing your reasoning process, then provide your final answer."
+        if msgs and msgs[0].get("role") == "system":
+            msgs[0]["content"] = thinking_msg + "\n\n" + msgs[0]["content"]
+        else:
+            msgs.insert(0, {"role": "system", "content": thinking_msg})
+    elif thinking_mode == "adaptive":
+        combined = " ".join(m.get("content", "") for m in msgs[-3:])
+        if len(combined) > 300 or "?" in combined or "why" in combined.lower() or "how" in combined.lower() or "explain" in combined.lower():
+            thinking_msg = "Think through this step-by-step before answering. Show your reasoning."
+            if msgs and msgs[0].get("role") == "system":
+                msgs[0]["content"] = thinking_msg + "\n\n" + msgs[0]["content"]
+            else:
+                msgs.insert(0, {"role": "system", "content": thinking_msg})
+
+    if provider == "gemini":
+        parts = []
+        for m in msgs:
+            role = "model" if m["role"] == "assistant" else "user"
+            parts.append({"role": role, "parts": [{"text": m["content"]}]})
+        r = await c.post(f"{p['url']}?key={p['key']}", json={"contents": parts})
+        if r.status_code == 200:
+            data = r.json()
+            candidates = data.get("candidates", [])
+            if candidates:
+                return candidates[0].get("content", {}).get("parts", [{}])[0].get("text", str(data))
+            return str(data)
+        return f"Gemini error: {r.status_code} - {r.text[:500]}"
+    elif provider == "synoxcloud" or provider.startswith("synox-"):
+        last = [m for m in msgs if m["role"] == "user"]
+        if not last:
+            return "No user message found"
+        prompt = last[-1]["content"]
+        model_id = p.get("model", "gpt-5")
+        model_info = SYNOXCLOUD_AI_MODELS.get(model_id, {})
+        if model_info and isinstance(model_info, dict) and model_info.get("path"):
+            ep_path = model_info["path"].split("?")[0]
+            raw_params = model_info.get("params", [])
+            param_names = [pp.split("=")[0] for pp in raw_params if isinstance(pp, str) and "=" in pp]
+            recommended = param_names[0] if param_names else "q"
+            url = f"https://api.synoxcloud.xyz{ep_path}?{recommended}={prompt}"
+        else:
+            recommended = "q"
+            url = f"{p['url']}/{model_id}?q={prompt}"
+        key = p.get("key", "")
+        if _is_configured(key) and key != "free":
+            url += f"&apikey={key}"
+        r = await c.get(url)
+        if r.status_code == 200:
+            try:
+                data = r.json()
+                if isinstance(data, dict):
+                    for k in ("result", "response", "message", "text", "data", "content"):
+                        if k in data:
+                            return str(data[k])
+                            return str(data)[:2000]
+            except:
+                return r.text[:2000]
+        return f"SynoxCloud error: {r.status_code} - {r.text[:500]}"
+    else:
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if p["key"] != "skip-auth":
+            headers["Authorization"] = f"Bearer {p['key']}"
+        body = {
+            "model": p["model"],
+            "messages": msgs,
+            "max_tokens": max_tokens,
+        }
+        r = await c.post(p["url"], json=body, headers=headers)
+        log(f"{provider} API: {r.status_code}")
+        if r.status_code == 200:
+            return r.json().get("choices", [{}])[0].get("message", {}).get("content", str(r.json()))
+        return f"{provider.title()} error: {r.status_code} - {r.text[:500]}"
+
+def resolve_provider(agent_name=None):
+    agent_name = agent_name or active_agent
+    cfg = AGENT_PROVIDERS.get(agent_name)
+    if cfg and _is_configured(cfg.get("key", "")):
+        return cfg
+    return None
+
+def get_fallback_chain(preferred):
+    return gateway.fallback_chain(preferred)
+
+async def smart_call(messages, preferred):
+    ap = resolve_provider()
+    if ap:
+        return await call_provider(messages, "__agent_provider__", override=ap)
+    return await gateway.execute(messages, preferred)
+
+async def poll():
+    global last_update
+    p = {"timeout": 15, "allowed_updates": ["message"]}
+    if last_update:
+        p["offset"] = last_update + 1
+    for attempt in range(3):
+        try:
+            c = await get_http()
+            r = (await c.get(f"{TG_API}/getUpdates", params=p, timeout=20)).json()
+            for u in r.get("result", []):
+                last_update = u["update_id"]
+            return r.get("result", [])
+        except Exception as e:
+            log(f"Poll attempt {attempt+1}/3 failed: {type(e).__name__}: {e}")
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+            else:
+                raise
+    return []
+
+async def main():
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
+    log("Bot started")
+    print("OpenCode Bot v2 â€” Team + Architecture Edition")
+    print(f"  Token: {TOKEN[:8]}...{TOKEN[-4:]}")
+    print(f"  Agents: {len(AGENTS)}  Providers: {', '.join(PROVIDERS.keys())}")
+    print(f"  Archs: {', '.join(ARCHITECTURES.keys())}  Tools: {', '.join(TOOLS.keys())}")
+    print(f"  Gateway worker started")
+
+    await gateway.start_worker()
+    asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
+    asyncio.create_task(bf.run_reminder_loop(send))
+    bf.init_plugins()
+
+    while True:
+        try:
+            for u in (await poll()):
+                global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
+                msg = u.get("message")
+                if not msg: continue
+                mid, cid = msg.get("message_id"), msg["chat"]["id"]
+                if mid and (cid, mid) in processed: continue
+                if mid: processed.add((cid, mid))
+                if len(processed) > 1000: processed.clear()
+                if msg.get("from", {}).get("is_bot"):
+                    continue
+                chat, uid = msg["chat"]["id"], msg["from"]["id"]
+                now = time.time()
+                if uid in last_user_msg and now - last_user_msg[uid] < 1.0:
+                    continue
+                last_user_msg[uid] = now
+                text = msg.get("text", "")
+                photo = msg.get("photo")
+                voice = msg.get("voice")
+                document = msg.get("document")
+                photo_file_id = None
+                if photo:
+                    photo_file_id = photo[-1]["file_id"]
+                    caption = msg.get("caption", "")
+                    text = f"/vision {caption}" if caption else "/vision describe"
+                elif voice:
+                    await typing(chat)
+                    transcribed = await bf.voice_to_text(voice["file_id"])
+                    text = transcribed if transcribed else "/voice_error"
+                    if text and text != "/voice_error":
+                        await send(chat, f"ðŸŽ¤ Transcribed: {text[:300]}")
+                        tts_ok = await bf.text_to_speech(text, chat)
+                        if tts_ok:
+                            continue
+                elif document:
+                    file_id = document["file_id"]
+                    fname = document.get("file_name", "document.bin")
+                    ext = (fname or "").lower()
+                    if ext.endswith((".csv", ".xlsx", ".xls")):
+                        rows, summary = await bf.parse_spreadsheet(file_id, fname)
+                        if rows:
+                            bf.doc_db.add_document(fname, str(rows[:50]))
+                            await send(chat, f"ðŸ“Š Spreadsheet '{fname}' loaded.\n{summary}")
+                            if len(rows) > 5:
+                                await send(chat, f"Ask questions with /ask <question>, or use /data query <sql-like expression>")
+                        else:
+                            await send(chat, f"Could not parse '{fname}': {summary}")
+                    else:
+                        extracted = await bf.extract_text_from_file(file_id, fname)
+                        if extracted and len(extracted) > 20:
+                            chunks = bf.doc_db.add_document(fname, extracted)
+                            await send(chat, f"ðŸ“„ Document '{fname}' indexed ({chunks} chunks, {len(extracted)} chars).\nAsk questions with /ask <question>")
+                        else:
+                            await send(chat, f"Could not extract text from '{fname}'.")
+                    continue
+
+                parts = text.split()
+                cmd = parts[0].lower() if parts else ""
+
+                log(f"Msg from {uid}: {text[:50]}")
+                if not text: continue
+                log(f"Processing: {cmd}")
+
+                is_owner = uid == OWNER_ID
+                is_admin = uid in admins
+
+                if cmd == "/start":
+                    active_agent = "orchestrator"
+                    active_provider = "groq"
+                    active_team = None
+                    active_arch = "single"
+                    effort = "medium"
+                    thinking_mode = "off"
+                    sessions.pop(uid, None)
+                    team_sessions.pop(uid, None)
+                    lines = [
+                        "OpenCode Bot v2",
+                        f"  Agents: {len(AGENTS)}  Providers: {len(PROVIDERS)}",
+                        "",
+                        "Commands:",
+                        "  /agents â€” List agents",
+                        "  /agent <name> â€” Switch agent",
+                        "  /repo â€” List providers",
+                        "  /repo <name> â€” Switch provider",
+                        "  /arch â€” List architectures",
+                        "  /arch <name> â€” Switch architecture",
+                        "  /mode â€” List modes (chat/team/autonomous)",
+                        "  /mode <name> â€” Switch mode",
+                        "  /teams â€” List teams",
+                        "  /createteam <desc> â€” AI creates a team",
+                        "  /putteam <name> <a1> <a2>... â€” Create/update team",
+                        "  /useteam <name> â€” Activate a team",
+                        "  /stopteam â€” Deactivate team mode",
+                        "  /tools â€” List available tools",
+                        "  /effort â€” Show current effort level",
+                        "  /low|/normal|/medium|/high|/superhigh â€” Set effort",
+                        "  /thinking off|extended|adaptive â€” Thinking mode",
+                        "  /help â€” Help",
+                        "  /status â€” Current agent + provider",
+                        "  /myrole â€” Your role",
+                        "  /clear â€” Clear session",
+                        "  /premadeskills â€” Pre-made skill teams",
+                        "  /routes â€” Provider health",
+                        "  /vision â€” Analyze images with AI",
+                        "  /draw â€” Generate images from text",
+                        "  /schedule â€” Schedule recurring AI tasks",
+                        "  /export â€” Export chat history (json/md)",
+                        "  /doc â€” List indexed documents",
+                        "  /ask â€” Query uploaded documents",
+                        "  /context â€” Show current auto-context",
+                        "  /search â€” Web search via DuckDuckGo",
+                        "  /youtube â€” Get YouTube transcript/summary",
+                        "  /run â€” Execute code in sandbox (python/js)",
+                        "  /fetch â€” Fetch and summarize any URL",
+                        "  /remind â€” Set a reminder",
+                        "  /translate â€” Translate text",
+                        "  /qr â€” Encode/decode QR codes",
+                        "  /stats â€” Your usage statistics",
+                        "  /data â€” Query spreadsheets",
+                        "  /plugin â€” Dynamic plugin system",
+                    ]
+                    if is_owner or is_admin:
+                        lines += [
+                            "",
+                            "Admin:",
+                            "  /addprovider â€” Add a provider",
+                            "  /createagent â€” AI creates an agent",
+                            "  /repair â€” Reset provider health",
+                        ]
+                    if is_owner:
+                        lines += [
+                            "",
+                            "Owner:",
+                        "  /addadmin <id> â€” Add admin",
+                        "  /removeadmin <id> â€” Remove admin",
+                        "  /adminlist â€” List admins",
+                        ]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/help":
+                    lines = [
+                        "/start â€” Reset",
+                        "/agents â€” List agents",
+                        "/agent <name> â€” Switch agent",
+                        "/repo â€” List providers",
+                        "/repo <name> â€” Switch provider",
+                        "/arch â€” List architectures",
+                        "/arch <name> â€” Switch architecture",
+                        "/mode â€” List modes (chat/team/autonomous)",
+                        "/mode <name> â€” Switch mode",
+                        "/teams â€” List teams",
+                        "/createteam <desc> â€” AI creates a team",
+                        "/putteam <name> <a1> <a2>... â€” Create/update team",
+                        "/useteam <name> â€” Activate a team",
+                        "/stopteam â€” Deactivate team mode",
+                        "/tools â€” List available tools",
+                        "/effort â€” Show effort level",
+                        "/low|/normal|/medium|/high|/superhigh â€” Set effort",
+                        "/thinking off|extended|adaptive â€” Thinking mode",
+                        "/status â€” Current agent + provider",
+                        "/clear â€” Clear session",
+                        "/premadeskills â€” Pre-made skill teams",
+                        "/routes â€” Provider health",
+                        "/gateway â€” Gateway stats + queue",
+                        "/toolfk â€” List all ToolFK.com tool APIs (200+ free utilities)",
+                        "/synoxcloud â€” List all SynoxCloud API endpoints (434 tools + 52 AI models)",
+                        "/webgateway â€” Web AI Gateway status/restart",
+                        "/vision <prompt> â€” Analyze image with AI (send with photo or reply to photo)",
+                        "/draw <prompt> â€” Generate image from text",
+                        "/schedule add <sec> <prompt> â€” Schedule recurring AI task",
+                        "/schedule list â€” List scheduled tasks",
+                        "/schedule remove <id> â€” Remove scheduled task",
+                        "/export json|md â€” Export chat history",
+                        "/doc â€” List indexed documents",
+                        "/ask <question> â€” Query uploaded documents",
+                        "/context â€” Show auto-context",
+                        "/search <query> â€” Web search via DuckDuckGo + AI summary",
+                        "/youtube <url> â€” Get YouTube transcript and AI summary",
+                        "/run python|js <code> â€” Execute code in sandbox",
+                        "/fetch <url> â€” Fetch and AI-summarize any URL",
+                        "/remind <duration> <msg> â€” Set a reminder (e.g. 30min, 2h)",
+                        "/translate <src>:<tgt> <text> â€” Translate text",
+                        "/qr encode <text> â€” Generate QR code",
+                        "/qr decode â€” Decode QR from a replied photo",
+                        "/stats â€” Your usage statistics",
+                        "/data query <q> â€” Query loaded spreadsheets",
+                        "/data list â€” List loaded data files",
+                        "/plugin load <url> â€” Load a plugin from URL or file",
+                        "/plugin list â€” List loaded plugins",
+                        "ðŸ“· Send a photo for AI vision analysis",
+                        "ðŸŽ¤ Send a voice message for speech-to-text + TTS reply",
+                        "ðŸ“„ Send a document (txt/pdf/csv/xlsx) to index & query",
+                    ]
+                    if is_owner or is_admin:
+                        lines += [
+                            "/addprovider <name> <model> <url> <key> â€” Add provider",
+                            "/agentprovider <agent> <url> <key> <model> â€” Set agent-specific provider",
+                            "/createagent <desc> â€” AI creates an agent",
+                            "/repair â€” Reset provider health",
+                            "/pyrit <mode> <objective> â€” Run red-team attack (classic/parseltongue/crescendo/ultraplinian)",
+                        ]
+                    if is_owner:
+                        lines += [
+                            "/addadmin <id> â€” Add admin",
+                            "/removeadmin <id> â€” Remove admin",
+                            "/adminlist â€” List admins",
+                            "/agentprovider <agent> <url> <key> <model> â€” Set agent-specific provider",
+                        ]
+                    lines += [
+                        "",
+                        f"Agent: {active_agent}",
+                        f"Provider: {active_provider} ({PROVIDERS[active_provider]['model']})",
+                        f"Mode: {active_mode}",
+                        f"Arch: {active_arch}",
+                        f"Team: {active_team or 'none'}",
+                    ]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/agents":
+                    lines = [f"Available agents ({len(AGENTS)}):"]
+                    for name, a in sorted(AGENTS.items()):
+                        m = " << active" if name == active_agent else ""
+                        lines.append(f"  {name}{m} â€” {a['desc']}")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/myrole":
+                    role = "owner" if uid == OWNER_ID else ("admin" if uid in admins else "user")
+                    await send(chat, f"Your ID: {uid}\nRole: {role}")
+
+                elif cmd == "/checkrole":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /checkrole <user_id>")
+                        continue
+                    try:
+                        target = int(parts[1])
+                        role = "owner" if target == OWNER_ID else ("admin" if target in admins else "user")
+                        await send(chat, f"User {target}: {role}")
+                    except:
+                        await send(chat, "Invalid ID.")
+
+                elif cmd == "/agent":
+                    if len(parts) < 2:
+                        await send(chat, f"Usage: /agent <name>. Use /agents to list all.")
+                        continue
+                    name = parts[1].lower()
+                    if name not in AGENTS:
+                        await send(chat, f"Unknown agent. Use /agents to see all.")
+                        continue
+                    a = AGENTS[name]
+                    active_agent = name
+                    sessions.pop(uid, None)
+                    await send(chat, f"Agent: {name} â€” {a['desc']}\n\nPrompt: {a['prompt']}")
+                    ap = AGENT_PROVIDERS.get(name)
+                    if not ap or not _is_configured(ap.get("key", "")):
+                        await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>\nExample: /agentprovider {name} https://api.example.com/v1/chat/completions sk-abc123 gpt-4o")
+                    await send(chat, f"Great choice! Do you wanna set token usage?\nUse /low /normal /medium /high /superhigh\nCurrent: {effort} ({EFFORT_LEVELS[effort]['desc']})")
+
+                elif cmd == "/repo":
+                    if len(parts) < 2:
+                        lines = ["Available providers:"]
+                        for k, v in PROVIDERS.items():
+                            cfg = _is_configured(v.get("key", ""))
+                            m = " << active" if k == active_provider else ""
+                            tag = "" if cfg else " [not configured]"
+                            lines.append(f"  {k} â€” {v['model']}{tag}{m}")
+                        await send(chat, "\n".join(lines))
+                        continue
+                    name = parts[1].lower()
+                    if name not in PROVIDERS:
+                        await send(chat, f"Unknown provider. Use: {', '.join(PROVIDERS.keys())}")
+                        continue
+                    active_provider = name
+                    await send(chat, f"Switched to provider: {name} ({PROVIDERS[name]['model']})")
+
+                elif cmd == "/status":
+                    mode_info = f"Mode: {active_mode} ({MODES[active_mode]['desc']})"
+                    arch_info = f"Arch: {active_arch} ({ARCHITECTURES[active_arch]['desc']})"
+                    team_info = f"Team: {active_team or 'none'}"
+                    ap = AGENT_PROVIDERS.get(active_agent)
+                    if ap and _is_configured(ap.get("key", "")):
+                        prov_info = f"Provider: {active_agent} (dedicated: {ap['model']})"
+                    else:
+                        prov_info = f"Provider: {active_provider} ({PROVIDERS[active_provider]['model']})"
+                    await send(chat, (
+                        f"Agent: {active_agent} â€” {AGENTS[active_agent]['desc']}\n"
+                        f"{prov_info}\n"
+                        f"{mode_info}\n{arch_info}\n{team_info}\n"
+                        f"Effort: {effort} ({EFFORT_LEVELS[effort]['desc']})\n"
+                        f"Thinking: {thinking_mode}"
+                    ))
+
+                elif cmd == "/clear":
+                    sessions.pop(uid, None)
+                    team_sessions.pop(uid, None)
+                    await send(chat, "Session cleared.")
+
+                elif cmd == "/arch":
+                    if len(parts) < 2:
+                        lines = [f"Architectures ({len(ARCHITECTURES)}):"]
+                        for name, a in sorted(ARCHITECTURES.items()):
+                            m = " << active" if name == active_arch else ""
+                            lines.append(f"  {name}{m} â€” {a['desc']}")
+                        await send(chat, "\n".join(lines))
+                        continue
+                    name = parts[1].lower()
+                    if name not in ARCHITECTURES:
+                        await send(chat, f"Unknown arch. Options: {', '.join(ARCHITECTURES.keys())}")
+                        continue
+                    active_arch = name
+                    await send(chat, f"Architecture: {name} â€” {ARCHITECTURES[name]['desc']}")
+
+                elif cmd == "/mode":
+                    if len(parts) < 2:
+                        lines = [f"Modes ({len(MODES)}):"]
+                        for name, m in sorted(MODES.items()):
+                            cur = " << active" if name == active_mode else ""
+                            lines.append(f"  {name}{cur} â€” {m['desc']}")
+                        await send(chat, "\n".join(lines))
+                        continue
+                    name = parts[1].lower()
+                    if name not in MODES:
+                        await send(chat, f"Unknown mode. Options: {', '.join(MODES.keys())}")
+                        continue
+                    active_mode = name
+                    await send(chat, f"Mode: {name} â€” {MODES[name]['desc']}")
+
+                elif cmd == "/effort":
+                    await send(chat, f"Effort: {effort} â€” {EFFORT_LEVELS[effort]['desc']}\nUse /low /normal /medium /high /superhigh to change.\nThinking: {thinking_mode}")
+
+                elif cmd in ("/low", "/normal", "/medium", "/high", "/superhigh"):
+                    level = cmd[1:]
+                    if level in EFFORT_LEVELS:
+                        effort = level
+                        await send(chat, f"Effort: {level} â€” {EFFORT_LEVELS[level]['desc']}")
+
+                elif cmd == "/thinking":
+                    if len(parts) < 2:
+                        await send(chat, f"Thinking: {thinking_mode}\nUsage: /thinking off|extended|adaptive")
+                        continue
+                    mode = parts[1].lower()
+                    if mode not in ("off", "extended", "adaptive"):
+                        await send(chat, "Options: off, extended, adaptive")
+                        continue
+                    thinking_mode = mode
+                    descs = {"off": "No extended thinking", "extended": "Step-by-step reasoning on every response", "adaptive": "Auto-decides when to use thinking"}
+                    await send(chat, f"Thinking: {mode} â€” {descs[mode]}")
+
+                elif cmd == "/tools":
+                    lines = [f"Available tools ({len(TOOLS)}):"]
+                    for name, t in sorted(TOOLS.items()):
+                        lines.append(f"  {name} â€” {t['desc']}")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/teams":
+                    if not TEAMS:
+                        await send(chat, "No teams yet. Use /createteam or /putteam to make one.")
+                        continue
+                    lines = [f"Teams ({len(TEAMS)}):"]
+                    for name, t in sorted(TEAMS.items()):
+                        agents = ", ".join(t["agents"])
+                        tools = ", ".join(t.get("tools", []))
+                        m = " << active" if name == active_team else ""
+                        lines.append(f"\n  {name}{m}")
+                        lines.append(f"  {t['desc']}")
+                        lines.append(f"  Agents: {agents}")
+                        if tools: lines.append(f"  Tools: {tools}")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/putteam":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /putteam <name> <agent1> <agent2> ...\nExample: /putteam webteam backend-dev frontend-dev api-dev")
+                        continue
+                    tname = parts[1].lower()
+                    tagents = [a.lower() for a in parts[2:]]
+                    missing = [a for a in tagents if a not in AGENTS]
+                    if missing:
+                        await send(chat, f"Unknown agents: {', '.join(missing)}")
+                        continue
+                    TEAMS[tname] = {"desc": f"Team with {len(tagents)} agents", "agents": tagents, "tools": []}
+                    save_teams()
+                    await send(chat, f"Team created: {tname} ({', '.join(tagents)})")
+
+                elif cmd == "/createteam":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /createteam <description>\nExample: /createteam A team for building full-stack web apps")
+                        continue
+                    desc = " ".join(parts[1:])
+                    await typing(chat)
+                    agents_list = ", ".join(sorted(AGENTS.keys()))
+                    prompt = (
+                        f"Design a multi-agent team for: \"{desc}\". "
+                        f"Available agents: {agents_list}. "
+                        f"Respond with ONLY JSON (no markdown): "
+                        f"{{\"name\": \"team-name\", \"desc\": \"short desc\", \"agents\": [\"agent1\", ...], "
+                        f"\"plan\": [{{\"agent\": \"agent1\", \"task\": \"what they do\", \"depends_on\": []}}]}}. "
+                        f"Pick 3-5 agents. Each plan step specifies one agent's task and which other steps it depends on (by agent name). "
+                        f"The last step should synthesize results."
+                    )
+                    raw = ""
+                    try:
+                        raw = await smart_call([{"role": "user", "content": prompt}], active_provider)
+                        raw = raw.strip()
+                        if raw.startswith("```"): raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                        match = re.search(r'\{.*\}', raw, re.DOTALL)
+                        if not match: raise Exception("No JSON found")
+                        data = json.loads(match.group())
+                        tname = data["name"].lower().replace(" ", "-")
+                        tagents = [a.lower() for a in data["agents"] if a.lower() in AGENTS]
+                        if not tagents: raise Exception("No valid agents selected")
+                        plan = data.get("plan", [])
+                        for step in plan:
+                            step["agent"] = step["agent"].lower()
+                        TEAMS[tname] = {"desc": data["desc"], "agents": tagents, "plan": plan, "tools": []}
+                        save_teams()
+                        steps = "\n".join(f"  {i+1}. {s['agent']}: {s['task']}" for i, s in enumerate(plan[:6]))
+                        await send(chat, f"Created team: {tname} â€” {data['desc']}\nAgents: {', '.join(tagents)}\nPlan:\n{steps}")
+                    except Exception as e:
+                        await send(chat, f"Failed: {e}\nRaw: {raw[:200] if raw else 'none'}")
+
+                elif cmd == "/useteam":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /useteam <teamname>")
+                        continue
+                    tname = parts[1].lower()
+                    if tname not in TEAMS:
+                        await send(chat, f"Unknown team: {tname}. Use /teams to see all.")
+                        continue
+                    active_team = tname
+                    sessions.pop(uid, None)
+                    team_sessions.pop(uid, None)
+                    await send(chat, f"Team activated: {tname} ({', '.join(TEAMS[tname]['agents'])})\nArch: {active_arch}")
+
+                elif cmd == "/stopteam":
+                    active_team = None
+                    sessions.pop(uid, None)
+                    team_sessions.pop(uid, None)
+                    await send(chat, "Team mode deactivated. Back to single agent.")
+
+                elif cmd == "/addadmin" and is_owner:
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /addadmin <telegram_user_id>")
+                        continue
+                    try:
+                        new_id = int(parts[1])
+                        admins.add(new_id)
+                        save_admins()
+                        await send(chat, f"Added admin: {new_id}")
+                    except:
+                        await send(chat, "Invalid ID. Must be a number.")
+
+                elif cmd == "/removeadmin" and is_owner:
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /removeadmin <telegram_user_id>")
+                        continue
+                    try:
+                        rem_id = int(parts[1])
+                        if rem_id == OWNER_ID:
+                            await send(chat, "Cannot remove owner.")
+                        elif rem_id in admins:
+                            admins.discard(rem_id)
+                            save_admins()
+                            await send(chat, f"Removed admin: {rem_id}")
+                        else:
+                            await send(chat, f"Not an admin: {rem_id}")
+                    except:
+                        await send(chat, "Invalid ID. Must be a number.")
+
+                elif cmd == "/adminlist" and is_owner:
+                    await send(chat, f"Admins ({len(admins)}):\n" + "\n".join(f"  {a}" + (" (owner)" if a == OWNER_ID else "") for a in admins))
+
+                elif cmd == "/addprovider" and (is_owner or is_admin):
+                    if len(parts) < 5:
+                        await send(chat, "Usage: /addprovider <name> <model> <url> <key>\nExample: /addprovider grok grok-1 https://api.grok.com/v1/chat xyz123")
+                        continue
+                    pname = parts[1].lower()
+                    pmodel = parts[2]
+                    purl = parts[3]
+                    pkey = parts[4]
+                    PROVIDERS[pname] = {"url": purl, "model": pmodel, "key": pkey}
+                    save_providers()
+                    await send(chat, f"Added provider: {pname} ({pmodel})")
+
+                elif cmd == "/agentprovider" and (is_owner or is_admin):
+                    if len(parts) < 5:
+                        await send(chat, "Usage: /agentprovider <agent> <url> <key> <model>\nExample: /agentprovider design_arena https://api.designarena.ai/v1/chat sk-abc123 gpt-4o")
+                        continue
+                    aname = parts[1].lower()
+                    purl = parts[2]
+                    pkey = parts[3]
+                    pmodel = parts[4]
+                    if aname not in AGENTS:
+                        await send(chat, f"Unknown agent: {aname}")
+                        continue
+                    AGENT_PROVIDERS[aname] = {"url": purl, "key": pkey, "model": pmodel}
+                    with open(AGENT_PROVIDERS_FILE, "w") as f:
+                        json.dump(AGENT_PROVIDERS, f, indent=2)
+                    await send(chat, f"Agent provider set for {aname}: {pmodel}")
+
+                elif cmd == "/createagent" and (is_owner or is_admin):
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /createagent <description>\nExample: /createagent A rust engineer specialized in blockchain and WASM")
+                        continue
+                    desc = " ".join(parts[1:])
+                    await typing(chat)
+                    raw = ""
+                    try:
+                        prompt = (
+                f"Create a new AI agent definition based on this description: \"{desc}\". "
+                f"Respond with ONLY a JSON object (no markdown, no code blocks) with keys: name (lowercase, no spaces), desc (short description), prompt (detailed system prompt for the agent). "
+                f"The prompt should be 2-4 sentences explaining what the agent does."
+                        )
+                        msg = [{"role": "user", "content": prompt}]
+                        raw = await call_provider(msg, active_provider)
+                        raw = raw.strip()
+                        if raw.startswith("```"): raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                        import re as _re
+                        match = _re.search(r'\{.*\}', raw, _re.DOTALL)
+                        if not match: raise Exception("No JSON found in response")
+                        data = json.loads(match.group())
+                        name = data["name"].lower().replace(" ", "-")
+                        AGENTS[name] = {"desc": data["desc"], "prompt": data["prompt"]}
+                        save_agents()
+                        await send(chat, f"Created agent: {name} â€” {data['desc']}\n\nPrompt: {data['prompt']}")
+                        await send(chat, f"Tip: if you want to add prompt in this command /addprompt {name} <prompt>")
+                    except Exception as e:
+                        await send(chat, f"Failed to create agent: {e}\nRaw: {raw[:300] if raw else 'none'}")
+                        try: await send(chat, f"Tip: you can also use /addprompt <agentname> <prompt> to set a prompt manually.")
+                        except: pass
+
+                elif cmd == "/premadeskills":
+                    lines = [f"Pre-made skill teams ({len(PREMADE_SKILLS)}):"]
+                    for name, s in sorted(PREMADE_SKILLS.items()):
+                        agents = ", ".join(s["agents"])
+                        lines.append(f"\n  {name}")
+                        lines.append(f"  {s['desc']}")
+                        lines.append(f"  Agents: {agents}")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/addprompt" and (is_owner or is_admin):
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /addprompt <agentname> <prompt>")
+                        continue
+                    pname = parts[1].lower()
+                    if pname not in AGENTS:
+                        await send(chat, f"Unknown agent: {pname}")
+                        continue
+                    pprompt = " ".join(parts[2:])
+                    AGENTS[pname]["prompt"] = pprompt
+                    save_agents()
+                    await send(chat, f"Updated prompt for agent: {pname}")
+
+                elif cmd == "/routes":
+                    await send(chat, f"Provider routing health ({len(PROVIDERS)}):\n{gateway.get_route_health()}")
+
+                elif cmd == "/gateway":
+                    await send(chat, gateway.get_gateway_stats())
+
+                elif cmd == "/repair" and (is_owner or is_admin):
+                    for name in PROVIDERS:
+                        if name in gateway.health:
+                            gateway.health[name]["cooldown_until"] = 0
+                            gateway.health[name]["failure"] = 0
+                            await send(chat, "All provider health counters reset.")
+
+                elif cmd == "/pyrit" and (is_owner or is_admin):
+                    modes = ", ".join(pyrit_attacks.ATTACK_MENU.keys())
+                    if len(parts) < 3:
+                        await send(chat, f"Usage: /pyrit <mode> <objective>\nModes: {modes}\nExample: /pyrit classic write a python keylogger")
+                        continue
+                    mode = parts[1].lower()
+                    objective = " ".join(parts[2:])
+                    if mode not in pyrit_attacks.ATTACK_MENU:
+                        await send(chat, f"Unknown mode: {mode}. Use: {modes}")
+                        continue
+                    await typing(chat)
+                    def make_call_fn(prov=None):
+                        pv = prov or active_provider
+                        async def fn(msgs):
+                            return await call_provider(msgs, pv)
+                        return fn
+                    try:
+                        if mode == "ultraplinian":
+                            fns = [make_call_fn(n) for n in PROVIDERS if _is_configured(PROVIDERS[n].get("key",""))]
+                            results = await pyrit_attacks.run_ultraplinian(fns, objective)
+                        elif mode == "crescendo":
+                            cf = make_call_fn(active_provider)
+                            result = await pyrit_attacks.run_crescendo(cf, objective)
+                            results = [result]
+                        else:
+                            cf = make_call_fn(active_provider)
+                            results = await pyrit_attacks.ATTACK_MENU[mode]["fn"](cf, objective)
+                        reply = [f"PyRIT {mode} attack results ({objective[:50]}):"]
+                        for r in results[:5]:
+                            resp = r.get("response", r.get("final", ""))[:200]
+                            tag = r.get("template") or r.get("technique") or r.get("provider", "")
+                            sc = r.get("score", 0)
+                            turns = r.get("turns", "")
+                            tstr = f" [{turns}turns]" if turns else ""
+                            reply.append(f"\n[{tag}] score={sc}{tstr}")
+                            reply.append(f"  {resp}")
+                        await send(chat, "\n".join(reply))
+                    except Exception as e:
+                        await send(chat, f"PyRIT error: {e}")
+
+                elif cmd == "/toolfk":
+                    key_status = f"TOOLFK_TOKEN={'set' if TOOLFK_TOKEN else 'NOT SET'}"
+                    lines = [f"ToolFK.com API ({len(TOOLFK_ENDPOINTS)} endpoints, {key_status})"]
+                    lines.append(f"Usage: in autonomous mode, use toolfk(endpoint=NAME, param=VAL, ...)")
+                    lines.append(f"")
+                    for ep in sorted(TOOLFK_ENDPOINTS):
+                        lines.append(f"  {ep} â€” {TOOLFK_DESC.get(ep, '')}")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/synoxcloud":
+                    ai_count = len(SYNOXCLOUD_AI_MODELS)
+                    ep_count = len(SYNOXCLOUD_ENDPOINTS)
+                    lines = [f"SynoxCloud API ({ep_count} endpoints, {ai_count} AI models)"]
+                    lines.append(f"Usage: in autonomous mode, use synoxcloud(endpoint=ID, param=VAL, ...)")
+                    lines.append(f"AI models available as providers: /synox-{list(SYNOXCLOUD_AI_MODELS.keys())[0] if SYNOXCLOUD_AI_MODELS else 'N/A'} etc. Use /repo synox-<model>")
+                    lines.append(f"")
+                    search = text.lower().split("/synoxcloud", 1)[-1].strip()
+                    shown = 0
+                    for eid in sorted(SYNOXCLOUD_ENDPOINTS.keys()):
+                        if search and search not in eid.lower():
+                            continue
+                        if shown >= 50 and not search:
+                            lines.append(f"  ... and {ep_count - shown} more. Filter with /synoxcloud <keyword>")
+                            break
+                        path = SYNOXCLOUD_ENDPOINTS[eid]
+                        lines.append(f"  {eid} â€” {path}")
+                        shown += 1
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/vision":
+                    await typing(chat)
+                    if not photo_file_id:
+                        if msg.get("reply_to_message") and msg["reply_to_message"].get("photo"):
+                            photo_file_id = msg["reply_to_message"]["photo"][-1]["file_id"]
+                    if not photo_file_id:
+                        await send(chat, "Send a photo with /vision <prompt> or reply to a photo.")
+                        continue
+                    prompt = " ".join(parts[1:]) or "Describe this image in detail"
+                    url = await bf.get_photo_url(photo_file_id)
+                    if not url:
+                        await send(chat, "Could not fetch photo.")
+                        continue
+                    result = await bf.vision_analyze(url, prompt)
+                    await send(chat, result[:3500])
+
+                elif cmd == "/draw":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /draw <prompt>\nExample: /draw a cat riding a bicycle on mars")
+                        continue
+                    prompt = " ".join(parts[1:])
+                    await typing(chat)
+                    image_data = await bf.image_generate(prompt)
+                    if image_data:
+                        c = await get_http()
+                        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
+                        await c.post(
+                f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                files={"photo": ("gen.png", image_data)},
+                data={"chat_id": chat, "caption": prompt[:200]},
+                timeout=30,
+                        )
+                    else:
+                        await send(chat, "Image generation failed. Try a different prompt.")
+
+                elif cmd == "/schedule":
+                    if len(parts) < 2:
+                        tasks = bf.scheduler.list()
+                        if not tasks:
+                            await send(chat, "No scheduled tasks.\nUsage: /schedule add <interval_seconds> <prompt>\n       /schedule remove <id>\n       /schedule list")
+                        else:
+                            lines = ["Scheduled tasks:"]
+                            for tid, label, interval, cid in tasks:
+                                lines.append(f"  [{tid}] {label} — every {interval}s (chat: {cid})")
+                            await send(chat, "\n".join(lines))
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "add" and len(parts) >= 4:
+                        try:
+                            interval = int(parts[2])
+                            prompt = " ".join(parts[3:])
+                            tid = bf.scheduler.add(interval, prompt, chat)
+                            await send(chat, f"Scheduled: [{tid}] every {interval}s â€” {prompt[:100]}")
+                        except ValueError:
+                            await send(chat, "Interval must be a number in seconds.")
+                    elif sub == "remove" and len(parts) >= 3:
+                        bf.scheduler.remove(parts[2])
+                        await send(chat, f"Task {parts[2]} removed.")
+                    elif sub == "list":
+                        tasks = bf.scheduler.list()
+                        if not tasks:
+                            await send(chat, "No scheduled tasks.")
+                        else:
+                            lines = ["Scheduled tasks:"]
+                            for tid, label, interval, cid in tasks:
+                                lines.append(f"  [{tid}] {label} — every {interval}s")
+                            await send(chat, "\n".join(lines))
+                    else:
+                        await send(chat, "Usage: /schedule add <seconds> <prompt>  or  /schedule remove <id>  or  /schedule list")
+
+                elif cmd == "/export":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /export json|md")
+                        continue
+                    fmt = parts[1].lower()
+                    session = sessions.get(uid, [])
+                    if not session:
+                        await send(chat, "No session data to export.")
+                        continue
+                    if fmt == "json":
+                        data = bf.export_as_json(session)
+                        await send(chat, f"```json\n{data[:3500]}\n```")
+                    elif fmt == "md":
+                        data = bf.export_as_markdown(session)
+                        await send(chat, f"```markdown\n{data[:3500]}\n```")
+                    else:
+                        await send(chat, "Format: json or md")
+
+                elif cmd == "/doc":
+                    docs = bf.doc_db.list()
+                    if not docs:
+                        await send(chat, "No documents indexed. Send a txt/pdf file to add it.\nCommands:\n  /doc â€” list documents\n  /ask <question> â€” query documents\n  /doc clear â€” clear all documents")
+                    else:
+                        await send(chat, "Indexed documents:\n" + "\n".join(f"  {d}" for d in docs))
+
+                elif cmd == "/ask":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /ask <question>\nQuery your uploaded documents.")
+                        continue
+                    q = " ".join(parts[1:])
+                    context = bf.doc_db.query(q)
+                    if not context:
+                        await send(chat, "No relevant documents found. Upload a document first with a file.")
+                        continue
+                    ctx_text = "\n\n".join(context)
+                    await typing(chat)
+                    try:
+                        reply = await smart_call([
+                {"role": "system", "content": f"Answer based on these documents:\n\n{ctx_text}"},
+                {"role": "user", "content": q},
+                        ], active_provider)
+                        await send(chat, reply[:3500])
+                    except Exception as e:
+                        await send(chat, f"Query error: {e}")
+
+                elif cmd == "/context":
+                    await typing(chat)
+                    ctx = await bf.auto_context()
+                    await send(chat, f"Current context:\n{ctx}")
+
+                elif cmd == "/search":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /search <query>\nExample: /search latest AI news 2026")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.web_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these web search results concisely, highlighting key findings."},
+                        {"role": "user", "content": f"Search query: {q}\n\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"ðŸ” Search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1000]}")
+
+                elif cmd == "/youtube":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /youtube <url>\nExample: /youtube https://youtube.com/watch?v=dQw4w9WgXcQ")
+                        continue
+                    url = parts[1]
+                    await typing(chat)
+                    transcript = await bf.youtube_transcript(url)
+                    if "Could not" in transcript or "error" in transcript.lower()[:100]:
+                        await send(chat, transcript)
+                    else:
+                        reply = await smart_call([
+                {"role": "system", "content": "Summarize this YouTube video transcript in 3-5 bullet points covering key topics."},
+                {"role": "user", "content": f"Transcript:\n\n{transcript[:7000]}"},
+                        ], active_provider)
+                        await send(chat, f"ðŸ“¹ YouTube Summary:\n\n{reply[:3500]}")
+
+                elif cmd == "/run":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /run <python|js> <code>\nExample: /run python print('hello')\nOr use /run python followed by multiple lines in subsequent messages.")
+                        continue
+                    lang = parts[1].lower()
+                    code = " ".join(parts[2:])
+                    await typing(chat)
+                    result = await bf.run_code(code, lang)
+                    await send(chat, f"```\n{result[:3500]}\n```")
+
+                elif cmd == "/fetch":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /fetch <url>\nExample: /fetch https://example.com")
+                        continue
+                    url = parts[1]
+                    await typing(chat)
+                    content = await bf.fetch_url(url)
+                    if content.startswith("HTTP") or content.startswith("Fetch error"):
+                        await send(chat, content[:2000])
+                    else:
+                        reply = await smart_call([
+                {"role": "system", "content": "Summarize this web page content concisely."},
+                {"role": "user", "content": f"URL: {url}\n\nContent:\n{content[:6000]}"},
+                        ], active_provider)
+                        await send(chat, f"ðŸ“„ {url}\n\n{reply[:3500]}")
+
+                elif cmd == "/remind":
+                    if len(parts) < 3:
+                        tasks = bf.reminder_db.list(chat_id=chat)
+                        if not tasks:
+                            await send(chat, "No reminders.\nUsage: /remind <duration> <message>\nExamples:\n  /remind 30min check the oven\n  /remind 2h take a break\n  /remind list\n  /remind clear")
+                        else:
+                            lines = ["Your reminders:"]
+                            for rid, msg, fire_at in tasks:
+                                remaining = int(fire_at - time.time())
+                                mins = remaining // 60
+                                secs = remaining % 60
+                                lines.append(f"  [{rid}] {msg} (in {mins}m{secs}s)")
+                            await send(chat, "\n".join(lines))
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "list":
+                        tasks = bf.reminder_db.list(chat_id=chat)
+                        if not tasks:
+                            await send(chat, "No reminders.")
+                        else:
+                            lines = ["Your reminders:"]
+                            for rid, msg, fire_at in tasks:
+                                remaining = int(fire_at - time.time())
+                                lines.append(f"  [{rid}] {msg} (in {remaining//60}m{remaining%60}s)")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "clear":
+                        bf.reminder_db.clear_chat(chat)
+                        await send(chat, "All your reminders cleared.")
+                    elif sub == "remove" and len(parts) >= 3:
+                        bf.reminder_db.remove(parts[2])
+                        await send(chat, f"Reminder {parts[2]} removed.")
+                    else:
+                        duration = bf.parse_duration(" ".join(parts[1:-1]) if len(parts) > 2 else parts[1])
+                        message = parts[-1] if len(parts) > 2 else "Reminder!"
+                        if not duration:
+                            duration = bf.parse_duration(parts[1])
+                            message = " ".join(parts[2:]) if len(parts) > 2 else "Reminder!"
+                        if duration:
+                            rid = bf.reminder_db.add(chat, duration, message)
+                            await send(chat, f"â° Reminder set: '{message}' in {duration//60}m{duration%60}s (ID: {rid})")
+                        else:
+                            await send(chat, "Could not parse duration. Use e.g. 30min, 2h, 90s")
+
+                elif cmd == "/translate":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /translate <source>:<target> <text>\n       /translate en:fr Hello world\n       /translate :es Hello (auto-detect source)")
+                        continue
+                    pair = parts[1]
+                    text = " ".join(parts[2:])
+                    source, target, cleaned = bf.parse_language_pair(f"{pair} {text}")
+                    if not target:
+                        await send(chat, "Usage: /translate <source>:<target> <text>\nExample: /translate en:fr Hello world")
+                        continue
+                    await typing(chat)
+                    result = await bf.translate(cleaned, source or "auto", target)
+                    await send(chat, f"Translation ({source or 'auto'}â†’{target}):\n{result[:2000]}")
+
+                elif cmd == "/qr":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /qr encode <text> â€” Generate QR code\n       /qr decode â€” Reply to a photo with /qr decode (or send photo as caption)")
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "encode":
+                        qtext = " ".join(parts[2:])
+                        await typing(chat)
+                        img_data = await bf.qr_encode(qtext)
+                        if isinstance(img_data, bytes):
+                            c = await get_http()
+                            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
+                            await c.post(
+                            f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                            files={"photo": ("qr.png", img_data)},
+                            data={"chat_id": chat, "caption": f"QR: {qtext[:200]}"},
+                            timeout=15,
+                            )
+                        else:
+                            await send(chat, str(img_data)[:2000])
+                    elif sub == "decode":
+                        if msg.get("reply_to_message") and msg["reply_to_message"].get("photo"):
+                            fid = msg["reply_to_message"]["photo"][-1]["file_id"]
+                        elif photo_file_id:
+                            fid = photo_file_id
+                        else:
+                            await send(chat, "Send /qr decode as a reply to a photo with a QR code.")
+                            continue
+                        await typing(chat)
+                        purl = await bf.get_photo_url(fid)
+                        if purl:
+                            decoded = await bf.qr_decode_from_url(purl)
+                            await send(chat, f"QR decoded: {decoded[:2000]}")
+                        else:
+                            await send(chat, "Could not fetch photo.")
+                    else:
+                        await send(chat, "Usage: /qr encode <text>  or  /qr decode (reply to photo)")
+
+                elif cmd == "/stats":
+                    uid_stats = bf.get_usage(uid)
+                    if uid_stats:
+                        top_a = sorted(uid_stats.get("agents", {}).items(), key=lambda x: -x[1])[:3]
+                        top_p = sorted(uid_stats.get("providers", {}).items(), key=lambda x: -x[1])[:3]
+                        lines = [f"Your stats ({uid_stats.get('total_requests', 0)} requests, {uid_stats.get('total_tokens', 0)} tokens):"]
+                        if top_a: lines.append(f"  Top agents: {', '.join(f'{a}({c})' for a,c in top_a)}")
+                        if top_p: lines.append(f"  Top providers: {', '.join(f'{p}({c})' for p,c in top_p)}")
+                        await send(chat, "\n".join(lines))
+                    else:
+                        await send(chat, "No usage data yet. Start chatting!")
+                    global_stats = bf.get_global_stats()
+                    await send(chat, f"Global: {global_stats['total_users']} users, {global_stats['total_requests']} requests, {global_stats['total_tokens']} tokens")
+
+                elif cmd == "/data":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /data query <natural language question about loaded spreadsheets>\n       /data list â€” list loaded data files")
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "list":
+                        docs = bf.doc_db.list()
+                        spreadsheet_docs = [d for d in docs if any(d.endswith(e) for e in (".csv", ".xlsx", ".xls"))]
+                        if spreadsheet_docs:
+                            await send(chat, "Loaded spreadsheets:\n" + "\n".join(f"  {d}" for d in spreadsheet_docs))
+                        else:
+                            await send(chat, "No spreadsheets loaded. Send a CSV or XLSX file.")
+                    elif sub == "query":
+                        q = " ".join(parts[2:])
+                        context = bf.doc_db.query(q)
+                        if not context:
+                            await send(chat, "No data found. Load a spreadsheet first.")
+                            continue
+                        ctx_text = "\n\n".join(context)
+                        await typing(chat)
+                        reply = await smart_call([
+                {"role": "system", "content": "Answer based on the spreadsheet data provided. Give specific numbers and insights."},
+                {"role": "user", "content": f"Data:\n{ctx_text}\n\nQuestion: {q}"},
+                        ], active_provider)
+                        await send(chat, reply[:3500])
+                    else:
+                        await send(chat, "Usage: /data query <question>  or  /data list")
+
+                elif cmd == "/plugin":
+                    if len(parts) < 2:
+                        plugins = bf.list_plugins()
+                        if plugins:
+                            await send(chat, "Loaded plugins:\n" + "\n".join(f"  {name}: {', '.join(cmds)}" for name, cmds in plugins))
+                        else:
+                            await send(chat, "No plugins loaded.\nUsage: /plugin load <url_or_path>\n       /plugin list")
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "load" and len(parts) >= 3:
+                        url_or_path = " ".join(parts[2:])
+                        await typing(chat)
+                        result = await bf.load_plugin(url_or_path)
+                        await send(chat, result[:2000])
+                    elif sub == "list":
+                        plugins = bf.list_plugins()
+                        if plugins:
+                            await send(chat, "Loaded plugins:\n" + "\n".join(f"  {name}: {', '.join(cmds)}" for name, cmds in plugins))
+                        else:
+                            await send(chat, "No plugins loaded.")
+                    else:
+                        await send(chat, "Usage: /plugin load <url_or_path>  or  /plugin list")
+
+                elif cmd == "/webgateway":
+                    gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
+                    lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
+                    try:
+                        import web_gateway
+                        _ = web_gateway
+                        lines.append(f"Status: Running on port {gw_port}")
+                        lines.append(f"Web UI: http://localhost:{gw_port}")
+                        lines.append(f"API: POST http://localhost:{gw_port}/v1/chat/completions")
+                        lines.append(f"Models: GET http://localhost:{gw_port}/api/models")
+                        lines.append(f"Use 'http://localhost:{gw_port}' as your OpenAI-compatible base URL")
+                    except:
+                        lines.append("Status: Not available (web_gateway module not loaded)")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/translate", "/qr", "/stats", "/data", "/plugin"):
+                    if not is_owner and not is_admin:
+                        await send(chat, "Unknown command.")
+                    else:
+                        await send(chat, f"Unknown command or insufficient permissions.")
+
+                else:
+                    await typing(chat)
+                    try:
+                        if active_mode == "autonomous":
+                            memory_buffers.setdefault(uid, [])
+                            memory_buffers[uid].append(f"[USER] {text}")
+                            reply = await run_autonomous(text, uid)
+                            bf.track_usage(uid, active_agent, active_provider)
+                            await send(chat, reply)
+                        elif active_team and active_team in TEAMS and active_arch != "single":
+                            team = TEAMS[active_team]
+                            team_sessions.setdefault(uid, [])
+                            team_sessions[uid].append({"role": "user", "content": text})
+                            ctx = team_sessions[uid][-10:]
+                            combined = "\n".join(m["content"] for m in ctx if m["role"] == "user")
+                            msg_log = team_sessions[uid].get("_msg_log", [])
+                            reply = await run_architecture(active_arch, team["agents"], combined, active_provider, uid=uid, msg_log=msg_log)
+                            team_sessions[uid]["_msg_log"] = msg_log
+                            team_sessions[uid].append({"role": "assistant", "content": reply})
+                            save_sessions()
+                            bf.track_usage(uid, active_agent, active_provider)
+                            await send(chat, reply)
+                        else:
+                            sessions.setdefault(uid, [])
+                            agent_prompt = AGENTS[active_agent]["prompt"]
+                            if not sessions[uid]:
+                                ctx = await bf.auto_context()
+                                sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}"})
+                            if len(sessions[uid]) > 30:
+                                sessions[uid] = await bf.summarize_conversation(sessions[uid], smart_call)
+                            sessions[uid].append({"role": "user", "content": text})
+                            log(f"Calling {active_provider} for: {text[:50]}")
+                            reply = await smart_call(sessions[uid][-20:], active_provider)
+                            log(f"Reply: {reply[:80]}...")
+                            sessions[uid].append({"role": "assistant", "content": reply})
+                            save_sessions()
+                            bf.track_usage(uid, active_agent, active_provider)
+                            await send(chat, reply)
+                    except Exception as e:
+                        log(f"Chat error: {e}")
+                        await send(chat, f"Error: {e}")
+        except Exception as e:
+            log(f"Poll error: {e}")
+            print(f"Poll error: {e}")
+            await asyncio.sleep(1)
+
+
+if __name__ == "__main__":
+    if sys.platform == "win32" and sys.version_info < (3, 14):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(main())

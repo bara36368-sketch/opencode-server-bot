@@ -1,0 +1,180 @@
+{
+  "architecture": {
+    "name": "Hierarchical Multi-Agent AI Team",
+    "stack": "n8n",
+    "levels": 4,
+    "total_agents": 488210,
+    "communication": "MCP Trigger + MCP Client Tool nodes",
+    "mcp_package": "n8n-mcp",
+    "mcp_db_error": "Database not found. Tried paths: /var/task/web-app/node_modules/n8n-mcp/data/nodes.db, /var/task/node_modules/n8n-mcp/data/nodes.db, /var/task/web-app/web-app/node_modules/n8n-mcp/data/nodes.db",
+    "mcp_db_fix": "npx n8n-mcp init or set N8N_MCP_DATA_DIR=/tmp/n8n-mcp/data and fs.cpSync from bundled node_modules",
+    "serverless_platforms": ["AWS Lambda", "Azure Functions", "Google Cloud Run"],
+    "serverless_env_vars": {
+      "aws_lambda": "AWS_EXECUTION_ENV",
+      "azure_functions": "FUNCTIONS_WORKER_RUNTIME",
+      "google_cloud_run": "K_SERVICE"
+    },
+    "bitrouter": {
+      "provider_number": 10,
+      "port": 4356,
+      "auth": "skip_auth",
+      "routable_models": 47,
+      "model_format": "provider/model-name",
+      "tested_model": "qwen/qwen3.6-flash",
+      "tested_response": "Hi there everyone",
+      "tested_provider": "OpenRouter"
+    },
+    "claude_builder_comparison": "Claude Builder is Level-1-only flat agent creation. This architecture is 4 levels deep with 480,000x more granularity."
+  },
+  "level_1_primary_agents": [
+    {
+      "id": 1,
+      "name": "purchase-tracker",
+      "desc": "Monitors Gmail via Gmail API or IMAP for purchases, invoices, receipts, payment confirmations",
+      "delegates_to": 20,
+      "secondary_agents": ["email-scanner", "receipt-extractor", "vendor-identifier", "amount-validator", "categorization-engine", "currency-detector", "subscription-detector", "refund-matcher"],
+      "trigger": "Gmail trigger node polling every 5 minutes",
+      "keywords": ["receipt", "invoice", "order confirmation", "payment received", "shipping confirmation"]
+    },
+    {
+      "id": 2,
+      "name": "data-archiver",
+      "desc": "Stores extracted data in structured archive organized by year, month, vendor with deduplication",
+      "delegates_to": 20,
+      "secondary_agents": ["sheet-writer", "local-db-committer", "deduplication-checker", "backup-coordinator", "audit-logger", "archive-consistency-validator", "retention-policy-enforcer"]
+    },
+    {
+      "id": 3,
+      "name": "comms-manager",
+      "desc": "Central communication hub for email, Slack, Telegram, Discord",
+      "delegates_to": 20,
+      "secondary_agents": ["email-sender", "slack-notifier", "telegram-bot", "digest-compiler", "alert-prioritizer"]
+    },
+    {
+      "id": 4,
+      "name": "research-agent",
+      "desc": "Web research, competitor analysis, market intelligence",
+      "delegates_to": 20
+    },
+    {
+      "id": 5,
+      "name": "content-pipeline",
+      "desc": "Generates blog posts, social media content, newsletters, marketing copy",
+      "delegates_to": 20
+    },
+    {
+      "id": 6,
+      "name": "sales-crm",
+      "desc": "Lead management, follow-ups, deal pipeline, pipeline reports",
+      "delegates_to": 20
+    },
+    {
+      "id": 7,
+      "name": "support-triage",
+      "desc": "Customer support ticket categorization by urgency and topic, routing to handler",
+      "delegates_to": 20
+    },
+    {
+      "id": 8,
+      "name": "financial-ops",
+      "desc": "Expense tracking, budget monitoring, invoice matching, spending alerts",
+      "delegates_to": 20
+    },
+    {
+      "id": 9,
+      "name": "devops-monitor",
+      "desc": "GitHub repository watching, deployment pipeline monitoring, uptime and incident tracking",
+      "delegates_to": 20
+    },
+    {
+      "id": 10,
+      "name": "knowledge-base",
+      "desc": "Documentation, wikis, SOP management by aggregating outputs from all other agents",
+      "delegates_to": 20
+    }
+  ],
+  "level_2_secondary_agents": {
+    "count": 200,
+    "delegates_to": 40,
+    "operations": ["single-field extraction", "single-vendor lookups", "format conversions", "validation checks", "notification dispatches", "data transformations", "conditional routing decisions"],
+    "error_handling": {
+      "error_to_catch": "Database not found",
+      "path_pattern": "/n8n-mcp/data/nodes.db",
+      "step_1": "Check if N8N_MCP_DATA_DIR is set, default to /tmp/n8n-mcp/data",
+      "step_2": "Code node: fs.existsSync on all 3 known paths, log results",
+      "step_3": "npx n8n-mcp init or fs.cpSync from bundled node_modules",
+      "retry": {
+        "max_retries": 3,
+        "backoff": "exponential starting at 2s doubling to 30s max"
+      },
+      "escalation": "Call escalation webhook with trace ID, agent name, node, stack trace → comms-manager notifies admin"
+    }
+  },
+  "level_3_sub_agents": {
+    "count": 8000,
+    "delegates_to": 60,
+    "input_schema": "JSON with required and optional fields",
+    "output_schema": "JSON with confidence scores for extracted values",
+    "error_malformed_input": "Return structured error object, never crash or hang",
+    "retry": {
+      "max_retries": 5,
+      "backoff": "exponential starting at 1s doubling to 5s max"
+    },
+    "timeout": "15 seconds per sub-agent",
+    "deployment_recovery": {
+      "aws_lambda": "Copy from /var/task/node_modules/n8n-mcp/data to /tmp/n8n-mcp/data at cold start",
+      "azure_functions": "Copy from /home/site/wwwroot/node_modules to /home/site/wwwroot/tmp/n8n-mcp/data",
+      "google_cloud_run": "Initialize in Dockerfile CMD or ENTRYPOINT"
+    },
+    "audit_log_fields": ["deployment_platform", "database_path", "success_or_failure", "time_ms", "retry_count"]
+  },
+  "level_4_mini_sub_agents": {
+    "count": 480000,
+    "operations": [
+      "single-character sanitization (Unicode, zero-width spaces, control chars)",
+      "whitespace normalization (collapse spaces, tabs, newlines)",
+      "date-format validation (ISO 8601, RFC 2822, US, European, Japanese, Chinese)",
+      "currency symbol detection (150 major and minor currencies)",
+      "vendor name fuzzy matching (Levenshtein distance at configurable thresholds)",
+      "tax rate lookup by jurisdiction",
+      "unit price calculation and validation",
+      "confidence scoring (OCR quality, field completeness, consistency, historical accuracy)"
+    ],
+    "error_code_mcp_db_not_found": "ERR_MCP_DB_NOT_FOUND",
+    "severity": "CRITICAL",
+    "recommended_action": "RESTART_PARENT_WORKFLOW",
+    "thundering_herd_prevention": "First mini sub-agent reports error upward → parent runs self-healing → subsequent agents pause via Wait node with 5s polling interval → MCP_READY signal broadcast through static data store",
+    "retry_policy": "stateless and idempotent, safe to retry and scale horizontally"
+  },
+  "purchase_tracking_pipeline": {
+    "trigger": "Gmail trigger node polling every 5 minutes",
+    "search_keywords": ["receipt", "invoice", "order confirmation", "shipping confirmation"],
+    "flow": [
+      "Gmail trigger → MCP Client Tool",
+      "MCP Client Tool → email-scanner (secondary)",
+      "email-scanner → receipt-extractor (sub-agent)",
+      "receipt-extractor orchestrates 40 sub-agents each with 60 mini sub-agents",
+      "OCR parsing, line-item splitting, date normalization",
+      "Validated data flows up to data-archiver (primary)"
+    ],
+    "storage": {
+      "google_sheets": "Separate tabs per year, columns: date, vendor, amount, category, payment method, status",
+      "sqlite": "Full-text search via FTS5 indexes on vendor name, category, notes"
+    },
+    "deduplication": {
+      "window": "48 hours sliding",
+      "compare_fields": ["vendor name", "amount", "date"],
+      "action_on_match": "Merge or silently discard based on config"
+    },
+    "needs_review": {
+      "threshold_confidence": 50,
+      "trigger": "Extraction confidence below 50% or cross-field validation errors",
+      "action": "Route to needs-review sheet + Telegram notification to admin with Google Sheets link"
+    },
+    "feedback_loop": {
+      "node": "n8n Evaluation Trigger",
+      "process": "Compare corrected extraction vs original AI extraction → adjust confidence weighting for that vendor and document type",
+      "result": "Continuous improvement without manual prompt engineering"
+    }
+  }
+}

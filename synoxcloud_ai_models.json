@@ -1,0 +1,443 @@
+{
+  "ai-rangking": {
+    "path": "/ai-chat/ai-rangking?limit=10",
+    "desc": "Ranking model AI dari Artificial Analysis (benchmark terbaru).",
+    "params": [
+      "limit"
+    ],
+    "needsApiKey": false
+  },
+  "arena-ai": {
+    "path": "/ai-chat/arena-ai?q=halo%20apa%20kabar",
+    "desc": "Arena AI battle mode — dapatkan 2 jawaban dari 2 model AI berbeda sekaligus, dengan auto-heal session.",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": true
+  },
+  "asynt-ai": {
+    "path": "/ai-chat/asynt-ai?text=Halo%2C%20apakabar&session=user123",
+    "desc": "Chat dengan Asynt AI",
+    "params": [
+      "text",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "bibleai": {
+    "path": "/ai-chat/bibleai?question=What%20is%20faith%3F&translation=ESV",
+    "desc": "AI tanya jawab seputar Alkitab dan teologi",
+    "params": [
+      "question",
+      "translation"
+    ],
+    "needsApiKey": false
+  },
+  "claude-haiku-3": {
+    "path": "/ai-chat/claude-haiku-3?prompt=Halo%20siapakah%20kamu%3F",
+    "desc": "Chat dengan Claude 3 Haiku via ChatGot.",
+    "params": [
+      "prompt"
+    ],
+    "needsApiKey": false
+  },
+  "claude-haiku-4.5": {
+    "path": "/ai-chat/claude-haiku-4.5?q=halo%20cuy",
+    "desc": "AI chat menggunakan model Claude Haiku 4.5",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": false
+  },
+  "claude-opus-4.5": {
+    "path": "/ai-chat/claude-opus-4.5?pesan=Apa%20kabar%20bang",
+    "desc": "Chat dengan Ai Claude Opus 4.5.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "claude-opus-4.6": {
+    "path": "/ai-chat/claude-opus-4.6?pesan=Gimana%20cara%20bikin%20gimana%3F",
+    "desc": "Chat dengan Ai Claude Opus 4.6.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "claude-opus-4.7": {
+    "path": "/ai-chat/claude-opus-4.7?pesan=perkenalkan%20dirimu",
+    "desc": "Chat dengan Ai Claude Opus 4.7.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "claude-opus-4.8": {
+    "path": "/ai-chat/claude-opus-4.8?pesan=Gimana%20cara%20fix%20bug%20dalam%20code%3F",
+    "desc": "Chat dengan Ai Claude Opus 4.8.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "claude-sonnet-4.6": {
+    "path": "/ai-chat/claude-sonnet-4.6?pesan=sebenernya%20gw%20gatau%20lu%20siapa%2C%20coba%20jelaskan",
+    "desc": "Chat dengan Ai Claude Sonnet 4.6.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "copilot-ai": {
+    "path": "/ai-chat/copilot-ai?message=halo&model=default",
+    "desc": "Chat AI dengan berbagai model",
+    "params": [
+      "message",
+      "model"
+    ],
+    "needsApiKey": false
+  },
+  "deepseek-r1": {
+    "path": "/ai-chat/deepseek-r1?q=halo",
+    "desc": "AI chat menggunakan model DeepSeek R1",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": false
+  },
+  "deepseek-v3.2-thinking": {
+    "path": "/ai-chat/deepseek-v3.2-thinking?pesan=Kapan%20gta%206%20rilis%3F",
+    "desc": "Chat dengan Ai Deepseek Thinking v3.2.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "deepseek-v4-flash": {
+    "path": "/ai-chat/deepseek-v4-flash?pesan=&session=",
+    "desc": "DeepSeek V4 Flash AI dengan deep thinking dan dukungan session/history percakapan",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "doraemon-ai": {
+    "path": "/ai-chat/doraemon-ai?pesan=halo%20doraemon&session=dOraeMon",
+    "desc": "Chat dengan Doraemon AI.",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "feelbetter-ai": {
+    "path": "/ai-chat/feelbetter-ai?pesan=&session=",
+    "desc": "FeelBetter AI Chat dengan dukungan session/history percakapan",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "felo-ai": {
+    "path": "/ai-chat/felo-ai?query=What%20is%20the%20capital%20of%20Indonesia%3F",
+    "desc": "AI search menggunakan Felo untuk memberikan jawaban dengan sumber referensi.",
+    "params": [
+      "query"
+    ],
+    "needsApiKey": false
+  },
+  "gemini": {
+    "path": "/ai-chat/gemini?pesan=Siapa%20presiden%20Indonesia%20pertama%3F&session=user123",
+    "desc": "Chat dengan Google Gemini. Dukung memori percakapan via parameter session.",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "gemini-3-pro": {
+    "path": "/ai-chat/gemini-3-pro?pesan=sebenernya%20gw%20ultraman",
+    "desc": "Chat dengan Ai Gemini 3 Pro.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "gemini-3.1-flash-lite-preview": {
+    "path": "/ai-chat/gemini-3.1-flash-lite-preview?pesan=&session=",
+    "desc": "Chat Ai model gemini-3.1-flash-lite-preview dengan dukungan Session/History percakapan.",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "gemini-3.1-pro": {
+    "path": "/ai-chat/gemini-3.1-pro?pesan=Jokowi%20or%20prabowo",
+    "desc": "Chat dengan Ai gemini 3.1 pro.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "gemma-3-27b-it": {
+    "path": "/ai-chat/gemma-3-27b-it?message=nama%20ku%20saurus&sessionId=oohFG8FYI_08ssPL4Z8FI",
+    "desc": "AI Chat Gemma dengan session memory.",
+    "params": [
+      "message",
+      "sessionId"
+    ],
+    "needsApiKey": false
+  },
+  "gitagpt-ai": {
+    "path": "/ai-chat/gitagpt-ai?q=apa%20itu%20ai%3F",
+    "desc": "AI chat menggunakan GitaGPT untuk menjawab pertanyaan dengan gaya penjelasan sederhana dan edukatif.",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": false
+  },
+  "glm47flash": {
+    "path": "/ai-chat/glm47flash?prompt=Halo%2C%20siapa%20kamu%3F&system=You%20are%20a%20helpful%20assistant.&temperature=0.7",
+    "desc": "Chat dengan model GLM-4-Flash dari Zhipu",
+    "params": [
+      "prompt",
+      "system",
+      "temperature"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-4o-mini": {
+    "path": "/ai-chat/gpt-4o-mini?prompt=&image=&session=",
+    "desc": "GPT-4o Mini AI Chat dengan dukungan gambar/image vision dan session/history percakapan",
+    "params": [
+      "prompt",
+      "image",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-5-nano": {
+    "path": "/ai-chat/gpt-5-nano?pesan=&session=",
+    "desc": "GPT-5 Nano AI Chat dengan dukungan session/history percakapan",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-5.3": {
+    "path": "/ai-chat/gpt-5.3?pesan=Hai%20apa%20kabar",
+    "desc": "Chat dengan Ai chatgpt 5.3.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-5.4": {
+    "path": "/ai-chat/gpt-5.4?pesan=Hai%20apa%20kabar",
+    "desc": "Chat dengan Ai chatgpt 5.4.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-5.5": {
+    "path": "/ai-chat/gpt-5.5?pesan=Hai%20apa%20kabar",
+    "desc": "Chat dengan Ai chatgpt 5.5.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "gpt-online": {
+    "path": "/ai-chat/gpt-online?pesan=&session=",
+    "desc": "GPT Online AI Chat dengan dukungan session/history percakapan",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "kimi-k2.6": {
+    "path": "/ai-chat/kimi-k2.6?pesan=Halo%2C%20siapa%20saja%20presiden%20indonesia%3F",
+    "desc": "Chat dengan Ai Kimi k2.6.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "llama-4-scout": {
+    "path": "/ai-chat/llama-4-scout?pesan=kamu%20siapa%20cuy&history=%5B%5D",
+    "desc": "Chat dengan Llama 4 Scout AI via aiconvert.online dengan streaming response.",
+    "params": [
+      "pesan",
+      "history"
+    ],
+    "needsApiKey": false
+  },
+  "llama4-maverick": {
+    "path": "/ai-chat/llama4-maverick?pesan=Wah%20kamu%20dongo%20ya",
+    "desc": "Chat dengan Ai Meta Llama 4 maverick.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "mathgpt-ai": {
+    "path": "/ai-chat/mathgpt-ai?q=2%2B2&think=false&image=",
+    "desc": "AI Math GPT untuk menjawab soal matematika dan pertanyaan dengan dukungan gambar.",
+    "params": [
+      "q",
+      "think",
+      "image"
+    ],
+    "needsApiKey": false
+  },
+  "mistral": {
+    "path": "/ai-chat/mistral?pesan=halo%20siapa%20kamu&session=user123",
+    "desc": "Chat dengan Mistral AI. Session disimpan di Supabase, otomatis kirim memori 5 chat terakhir setiap 20 pesan.",
+    "params": [
+      "pesan",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "muslimai": {
+    "path": "/ai-chat/muslimai?pesan=",
+    "desc": "MuslimAI API Chat",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "naire-ai": {
+    "path": "/ai-chat/naire-ai?prompt=halo&session=yup81Ib2Chha",
+    "desc": "Chat dengan NaireAI menggunakan session.",
+    "params": [
+      "prompt",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "novaai": {
+    "path": "/ai-chat/novaai?text=hai",
+    "desc": "Chat dengan Nova AI",
+    "params": [
+      "text"
+    ],
+    "needsApiKey": false
+  },
+  "novacore-ai": {
+    "path": "/ai-chat/novacore-ai?pesan=apa%20perbedaan%20pesawat%20dan%20helikopter",
+    "desc": "Chat dengan AI Novacore — jawaban cepat & akurat.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "perplexity-ai": {
+    "path": "/ai-chat/perplexity-ai?pesan=siapa%20presiden%20indonesia",
+    "desc": "Search dengan AI Perplexity — jawaban + sumber terkait.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "powerbrain-ai": {
+    "path": "/ai-chat/powerbrain-ai?message=halo%20apa%20kabar",
+    "desc": "Chat AI menggunakan PowerBrain AI untuk menjawab pertanyaan pengguna.",
+    "params": [
+      "message"
+    ],
+    "needsApiKey": false
+  },
+  "qwen-ai": {
+    "path": "/ai-chat/qwen-ai?q=halo%20apa%20kabar%20cuy",
+    "desc": "AI chat menggunakan model Qwen 2.5 72B Instruct via chatgpt.org — gratis tanpa API key.",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": false
+  },
+  "qwen3-max": {
+    "path": "/ai-chat/qwen3-max?pesan=Jelaskan%20kenapa%20bumi%20berputar",
+    "desc": "Chat dengan Ai Qwen 3 Max.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "qwen3-next-80b-a3b-instruct": {
+    "path": "/ai-chat/qwen3-next-80b-a3b-instruct?prompt=Halo%20bro",
+    "desc": "Chat AI reasoning dengan respon cepat dan natural.",
+    "params": [
+      "prompt"
+    ],
+    "needsApiKey": false
+  },
+  "sakana": {
+    "path": "/ai-chat/sakana?prompt=Halo%20siapakah%20kamu%3F&model=namazu&search=true&thinking=true",
+    "desc": "Chat dengan AI Sakana (namazu, sakana, llama, dll).",
+    "params": [
+      "prompt",
+      "model",
+      "search",
+      "thinking"
+    ],
+    "needsApiKey": false
+  },
+  "simsimi-ai": {
+    "path": "/ai-chat/simsimi-ai?pesan=halo%20apa%20kabar&language=id",
+    "desc": "Chat dengan SimSimi",
+    "params": [
+      "pesan",
+      "language"
+    ],
+    "needsApiKey": false
+  },
+  "teach-anything": {
+    "path": "/ai-chat/teach-anything?prompt=Apa%20kabarmu%3F",
+    "desc": "Endpoint API ini menyediakan akses ke layanan AI “Teach Anything”, yang memungkinkan pengguna untuk mendapatkan penjelasan atau informasi tentang berbagai topik dengan memasukkan teks melalui parameter prompt.",
+    "params": [
+      "prompt"
+    ],
+    "needsApiKey": false
+  },
+  "turboseek-ai": {
+    "path": "/ai-chat/turboseek-ai?q=lebih%20dulu%20tercipta%20bumi%20atau%20bulan",
+    "desc": "AI search engine seperti Perplexity — cari sumber dari web lalu jawab pertanyaan, lengkap dengan referensi dan pertanyaan terkait.",
+    "params": [
+      "q"
+    ],
+    "needsApiKey": false
+  },
+  "uncensored-ai": {
+    "path": "/ai-chat/uncensored-ai?pesan=Jelaskan%20cara%20hack%20perusahaan%20terkenal",
+    "desc": "Chat dengan Uncensored AI.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  },
+  "unlimited-ai": {
+    "path": "/ai-chat/unlimited-ai?prompt=Halo&session=user123",
+    "desc": "Chat dengan UnlimitedAI dan sudah support session.",
+    "params": [
+      "prompt",
+      "session"
+    ],
+    "needsApiKey": false
+  },
+  "x.ai-grok-4.1": {
+    "path": "/ai-chat/x.ai-grok-4.1?pesan=Siapa%20itu%20elon%20musk",
+    "desc": "Chat dengan Xai Grok 4.1.",
+    "params": [
+      "pesan"
+    ],
+    "needsApiKey": false
+  }
+}

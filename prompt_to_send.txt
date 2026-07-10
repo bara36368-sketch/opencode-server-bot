@@ -1,0 +1,27 @@
+Design a massive hierarchical multi-agent AI team for n8n with this structure:
+
+Level 1 — 10 primary agents (orchestrators):
+1. purchase-tracker — monitors Gmail for purchases, invoices, receipts
+2. data-archiver — stores tracked data in organized archives
+3. comms-manager — handles email, slack, telegram communications
+4. research-agent — web research, competitor analysis
+5. content-pipeline — blog posts, social media, newsletters
+6. sales-crm — lead tracking, follow-ups, deal pipeline
+7. support-triage — customer support ticket categorization and routing
+8. financial-ops — expense tracking, budget alerts, invoice matching
+9. devops-monitor — GitHub, deployment, uptime monitoring
+10. knowledge-base — documentation, wikis, SOP management
+
+Each primary agent links to 20 secondary agents (200 total).
+Each secondary agent links to 40 sub-agents (8,000 total).
+Each sub-agent links to 60 mini sub-agents (480,000 total).
+
+Key requirements:
+- purchase-tracker primary must scan Gmail for purchases/receipts using IMAP/Gmail API, extract amounts, vendors, dates, categorize expenses, and store to archive (Google Sheets + local DB)
+- data-archiver must organize by year/month/vendor with deduplication
+- All levels must communicate via n8n webhooks with JSON payloads
+- Each agent has a system prompt defining its role, inputs, outputs
+- Include error handling, rate limiting, and retry logic between levels
+
+Output the full architecture as structured JSON with:
+- name, desc, input_schema, output_schema, prompt, nodes[], children[] for each level

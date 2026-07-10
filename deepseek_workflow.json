@@ -1,0 +1,125 @@
+{
+  "name": "DeepSeek Web Research",
+  "nodes": [
+    {
+      "id": "webhook-receive",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "deepseek-research",
+        "options": {}
+      },
+      "webhookId": "deepseek-research"
+    },
+    {
+      "id": "parse-input",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst query = data.body?.query || data.query || data.body?.message?.text || 'tell me something interesting';\nreturn [{ query: query }];"
+      }
+    },
+    {
+      "id": "web-search",
+      "name": "Web Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 300],
+      "parameters": {
+        "url": "https://api.duckduckgo.com/?q={{ encodeURIComponent($json.query) }}&format=json&no_html=1&skip_disambig=1",
+        "method": "GET",
+        "authentication": "none",
+        "sendBody": false,
+        "sendHeaders": false,
+        "sendQuery": false
+      }
+    },
+    {
+      "id": "extract-search",
+      "name": "Extract Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst abstract = r.AbstractText || r.Abstract || '';\nconst heading = r.Heading || '';\nconst infobox = r.Infobox ? JSON.stringify(r.Infobox).substring(0,500) : '';\nconst related = (r.RelatedTopics || []).slice(0,5).map(t => t.Text || t.FirstURL || '').filter(Boolean).join('\\n');\nconst source = r.AbstractURL || r.Source || '';\nreturn [{\n  query: $json.query,\n  heading: heading,\n  abstract: abstract,\n  infobox: infobox,\n  related: related,\n  source: source\n}];"
+      }
+    },
+    {
+      "id": "deepseek-call",
+      "name": "DeepSeek Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 300],
+      "parameters": {
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\"model\":\"deepseek-chat\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a research analyst. Analyze the search results and provide a clear, structured answer.\"},{\"role\":\"user\",\"content\":\"Query: {{$json.query}}\\n\\nSearch Results:\\nHeading: {{$json.heading}}\\nAbstract: {{$json.abstract}}\\nRelated: {{$json.related}}\\n\\nProvide a comprehensive answer based on these results.\"}],\"max_tokens\":1024}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.DEEPSEEK_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extract-deepseek",
+      "name": "Extract Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300],
+      "parameters": {
+        "jsCode": "const d = typeof $json.body === 'string' ? JSON.parse($json.body) : $json.body;\nconst content = d.choices?.[0]?.message?.content || 'No response generated';\nreturn [{\n  query: $json.query,\n  answer: content,\n  source: $json.source,\n  model: 'deepseek-chat'\n}];"
+      }
+    },
+    {
+      "id": "respond-webhook",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1750, 300],
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseData": "allEntries",
+          "responseContentType": "application/json"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": {
+      "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]]
+    },
+    "Parse Input": {
+      "main": [[{ "node": "Web Search", "type": "main", "index": 0 }]]
+    },
+    "Web Search": {
+      "main": [[{ "node": "Extract Search Results", "type": "main", "index": 0 }]]
+    },
+    "Extract Search Results": {
+      "main": [[{ "node": "DeepSeek Analysis", "type": "main", "index": 0 }]]
+    },
+    "DeepSeek Analysis": {
+      "main": [[{ "node": "Extract Answer", "type": "main", "index": 0 }]]
+    },
+    "Extract Answer": {
+      "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "staticData": null,
+  "tags": [],
+  "active": false
+}
