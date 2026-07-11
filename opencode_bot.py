@@ -1124,21 +1124,6 @@ PROVIDERS = {
     },
 
 
-    "local": {
-        "url": "http://127.0.0.1:8080/v1/chat/completions",
-        "model": "qwen2.5-3b-instruct",
-        "key": "skip-auth"
-    },
-    "local-qwen3b": {
-        "url": "http://127.0.0.1:8080/v1/chat/completions",
-        "model": "qwen2.5-3b-instruct",
-        "key": "skip-auth"
-    },
-    "local-phi3": {
-        "url": "http://127.0.0.1:8080/v1/chat/completions",
-        "model": "phi-3-mini-3.8b-instruct",
-        "key": "skip-auth"
-    },
     "bitrouter": {
         "url": "http://127.0.0.1:4356/v1/chat/completions",
         "model": "qwen/qwen3.6-flash",
