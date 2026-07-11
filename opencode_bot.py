@@ -64,6 +64,7 @@ AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.
 SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
 ROUTINES_FILE = os.path.join(os.path.dirname(__file__), "routines.json")
+MULTI_FILE = os.path.join(os.path.dirname(__file__), "multi_sessions.json")
 
 try:
     LOG = open("bot.log", "a", encoding="utf-8")
@@ -474,6 +475,19 @@ def load_routines():
                 routines = json.load(f)
         except:
             routines = {}
+
+multi_sessions = {}
+def save_multi():
+    with open(MULTI_FILE, "w") as f:
+        json.dump(multi_sessions, f)
+def load_multi():
+    global multi_sessions
+    if os.path.exists(MULTI_FILE):
+        try:
+            with open(MULTI_FILE) as f:
+                multi_sessions = json.load(f)
+        except:
+            multi_sessions = {}
 
 ARCHITECTURES = {
     "single": {"desc": "Single agent mode (default, no team coordination)"},
@@ -1203,6 +1217,7 @@ team_sessions = {}
 load_sessions()
 load_memory()
 load_routines()
+load_multi()
 
 async def tg(method, data=None):
     c = await get_http()
@@ -2712,6 +2727,55 @@ async def main():
                     else:
                         await send(chat, "Subcommands: create, list, show, delete, run")
 
+                elif cmd == "/multi":
+                    sub = parts[1] if len(parts) > 1 else ""
+                    chat_multi = multi_sessions.get(str(chat), {})
+                    if sub == "start":
+                        available = [n for n in PROVIDERS if _is_configured(PROVIDERS[n].get("key", ""))]
+                        if len(parts) < 3:
+                            await send(chat, f"Usage: /multi start <provider1> <provider2> [rounds=2]\nAvailable: {', '.join(available[:20])}")
+                            continue
+                        p1, p2 = parts[2], parts[3] if len(parts) > 3 else "zenmux"
+                        rounds = int(parts[4]) if len(parts) > 4 else 2
+                        bad = [p for p in (p1, p2) if p not in PROVIDERS or not _is_configured(PROVIDERS[p].get("key", ""))]
+                        if bad:
+                            await send(chat, f"Unavailable: {', '.join(bad)}.\nAvailable: {', '.join(available[:12])}")
+                            continue
+                        multi_sessions[str(chat)] = {
+                            "providers": [p1, p2],
+                            "rounds": max(1, min(rounds, 5)),
+                            "history": [],
+                            "active": True
+                        }
+                        save_multi()
+                        await send(chat, f"Multi-AI started: {p1} + {p2}, {rounds} rounds.\nSend any message and both AIs will respond. Use /multi stop to end.")
+                    elif sub == "stop":
+                        if not chat_multi:
+                            await send(chat, "No active multi-AI session.")
+                            continue
+                        multi_sessions.pop(str(chat), None)
+                        save_multi()
+                        await send(chat, "Multi-AI session stopped.")
+                    elif sub == "status":
+                        if not chat_multi:
+                            await send(chat, "No active multi-AI session.")
+                            continue
+                        p = chat_multi["providers"]
+                        await send(chat, f"Multi-AI active\nProviders: {p[0]} + {p[1]}\nRounds: {chat_multi['rounds']}\nExchanges: {len(chat_multi['history'])//2}")
+                    else:
+                        available = [n for n in PROVIDERS if _is_configured(PROVIDERS[n].get("key", ""))]
+                        msg_lines = [
+                            "Multi-AI - Talk to 2 AIs at once, they debate each other",
+                            "",
+                            f"Available providers: {', '.join(available[:12])}",
+                            "",
+                            "Commands:",
+                            "  /multi start <p1> [p2] [rounds=2]  - Start multi-AI session",
+                            "  /multi stop                        - Stop current session",
+                            "  /multi status                      - Show session info",
+                        ]
+                        await send(chat, "\n".join(msg_lines))
+
                 elif cmd == "/translate":
                     if len(parts) < 3:
                         await send(chat, "Usage: /translate <source>:<target> <text>\n       /translate en:fr Hello world\n       /translate :es Hello (auto-detect source)")
@@ -2844,13 +2908,64 @@ async def main():
                         lines.append("Status: Not available (web_gateway module not loaded)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
                         await send(chat, f"Unknown command or insufficient permissions.")
 
                 else:
+                    chat_multi = multi_sessions.get(str(chat), {})
+                    if chat_multi and chat_multi.get("active"):
+                        await typing(chat)
+                        providers = chat_multi["providers"]
+                        rounds = chat_multi["rounds"]
+                        history = chat_multi.setdefault("history", [])
+                        history.append({"role": "user", "content": text, "provider": None})
+
+                        async def call_one(provider):
+                            ctx = [{"role": "system", "content": "You are a helpful AI assistant. Respond to the user and engage with other AIs in a multi-AI discussion."}]
+                            ctx += [{"role": m["role"], "content": m["content"]} for m in history[-6:]]
+                            try:
+                                r = await call_provider(ctx, provider)
+                                return provider, r
+                            except Exception as e:
+                                return provider, f"<Error: {e}>"
+
+                        all_responses = {}
+                        tasks = [call_one(p) for p in providers]
+                        results = await asyncio.gather(*tasks)
+                        output = [f"Round 1/{rounds}:"]
+                        for p, r in results:
+                            all_responses[p] = r
+                            history.append({"role": "assistant", "content": r, "provider": p})
+                            output.append(f"[{p}]: {r}")
+
+                        for rnd in range(1, rounds):
+                            output.append(f"\nRound {rnd+1}/{rounds}:")
+                            async def debate_one(provider):
+                                other = [f"[{k}]: {v}" for k, v in all_responses.items() if k != provider]
+                                prompt = f"The user said: {text}\n\nOther AI responses:\n" + "\n".join(other)
+                                prompt += "\n\nReact to what the other AI said. You can agree, disagree, add insight, or challenge. Keep it concise."
+                                ctx = [{"role": "system", "content": "You are in a multi-AI discussion. React to other AIs' responses."}, {"role": "user", "content": prompt}]
+                                try:
+                                    r = await call_provider(ctx, provider)
+                                    return provider, r
+                                except Exception as e:
+                                    return provider, f"<Error: {e}>"
+                            tasks_debate = [debate_one(p) for p in providers]
+                            debate_results = await asyncio.gather(*tasks_debate)
+                            all_responses = {}
+                            for p, r in debate_results:
+                                all_responses[p] = r
+                                history.append({"role": "assistant", "content": r, "provider": p})
+                                output.append(f"[{p}]: {r}")
+
+                        save_multi()
+                        await send(chat, "\n\n".join(output))
+                        bf.track_usage(uid, "multi", "+".join(providers))
+                        continue
+
                     await typing(chat)
                     try:
                         if active_mode == "autonomous":
