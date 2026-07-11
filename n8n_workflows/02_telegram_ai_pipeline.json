@@ -1,0 +1,187 @@
+{
+  "name": "02 - Telegram AI Research Pipeline",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 400],
+      "parameters": {
+        "path": "telegram-ai",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const { chat_id, text, user_id, username } = $json.body || {};\nif (!text || !text.trim()) {\n  return [{ json: { ok: false, error: 'text is required' } }];\n}\n\n// Detect intent\nconst msg = text.trim();\nlet intent = 'chat';\nlet query = msg;\n\nif (/^search\\s/i.test(msg)) { intent = 'search'; query = msg.replace(/^search\\s/i, ''); }\nelse if (/^fetch\\s/i.test(msg)) { intent = 'fetch'; query = msg.replace(/^fetch\\s/i, ''); }\nelse if (/^summarize\\s/i.test(msg)) { intent = 'summarize'; query = msg.replace(/^summarize\\s/i, ''); }\n\nreturn [{ json: {\n  chatId: chat_id,\n  userId: user_id || 'anon',\n  username: username || 'unknown',\n  text: msg,\n  intent,\n  query,\n  receivedAt: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Route Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [560, 400],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.intent }}",
+        "rules": [
+          { "value2": "search", "output": 0 },
+          { "value2": "fetch", "output": 1 },
+          { "value2": "summarize", "output": 2 }
+        ],
+        "fallbackOutput": 3
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Web Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [840, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent($json.query) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "User-Agent", "value": "Mozilla/5.0 (compatible; n8n-bot/1.0)" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Parse Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const html = $json.body || '';\nconst results = [];\nconst linkRegex = /<a[^>]+class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>([\\s\\S]*?)<\\/a>/g;\nconst snippetRegex = /<a[^>]+class=\"result__snippet\"[^>]*>([\\s\\S]*?)<\\/a>/g;\n\nlet match;\nwhile ((match = linkRegex.exec(html)) !== null) {\n  const title = match[2].replace(/<[^>]+>/g, '').trim();\n  results.push({ title, url: match[1], snippet: '' });\n}\n\nconst snippets = [];\nwhile ((match = snippetRegex.exec(html)) !== null) {\n  snippets.push(match[1].replace(/<[^>]+>/g, '').trim());\n}\n\nresults.forEach((r, i) => { r.snippet = snippets[i] || ''; });\n\nreturn [{ json: { results: results.slice(0, 5), query: $json.query } }];"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Fetch URL Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [840, 400],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.query.startsWith('http') ? $json.query : 'https://' + $json.query }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "User-Agent", "value": "Mozilla/5.0 (compatible; n8n-bot/1.0)" }]
+        },
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "n7",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const html = $json.body || '';\n// Strip HTML tags\nconst text = html\n  .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .substring(0, 8000);\nreturn [{ json: { url: $json.query, text, chars: text.length } }];"
+      }
+    },
+    {
+      "id": "n8",
+      "name": "AI Processor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [1400, 400],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are an AI research assistant. Process the user's request and provided data to produce a clear, well-structured response.\n\n- For search results: summarize findings, cite sources, highlight key takeaways\n- For fetched content: extract the most important information\n- For general chat: respond helpfully\n\nKeep responses concise but thorough. Use markdown for structure.",
+        "maxIterations": 5
+      }
+    },
+    {
+      "id": "n9",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1400, 150],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.5,
+        "maxTokens": 1500
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n10",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const output = $json.output || 'No response generated.';\nreturn [{ json: {\n  ok: true,\n  chat_id: $json.chatId,\n  text: output.substring(0, 4000),\n  intent: $json.intent,\n  timestamp: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n11",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1960, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": $json.ok, \"chat_id\": $json.chatId, \"text\": $json.text, \"intent\": $json.intent }",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "n12",
+      "name": "General Chat (direct)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [840, 600],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Message", "type": "main", "index": 0 }]] },
+    "Parse Message": { "main": [[{ "node": "Route Intent", "type": "main", "index": 0 }]] },
+    "Route Intent": {
+      "main": [
+        [{ "node": "Web Search", "type": "main", "index": 0 }],
+        [{ "node": "Fetch URL Content", "type": "main", "index": 0 }],
+        [{ "node": "Fetch URL Content", "type": "main", "index": 0 }],
+        [{ "node": "General Chat (direct)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Web Search": { "main": [[{ "node": "Parse Search Results", "type": "main", "index": 0 }]] },
+    "Parse Search Results": {
+      "main": [[{ "node": "AI Processor", "type": "main", "index": 0 }]]
+    },
+    "Fetch URL Content": { "main": [[{ "node": "Extract Text", "type": "main", "index": 0 }]] },
+    "Extract Text": { "main": [[{ "node": "AI Processor", "type": "main", "index": 0 }]] },
+    "General Chat (direct)": {
+      "main": [[{ "node": "AI Processor", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [[{ "node": "AI Processor", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI Processor": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Format Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["telegram", "ai", "research"],
+  "active": false
+}

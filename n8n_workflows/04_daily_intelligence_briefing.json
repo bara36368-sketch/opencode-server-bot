@@ -1,0 +1,255 @@
+{
+  "name": "04 - Daily Intelligence Briefing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Schedule (Daily 7 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 500],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 7 * * 1-5" }]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch News - Hacker News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [280, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://hacker-news.firebaseio.com/v0/topstories.json",
+        "options": { "timeout": 10000 }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Get Top 10 HN Stories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const ids = ($json.body || $json).slice(0, 10);\nreturn ids.map(id => ({ json: { id, source: 'hackernews' } }));"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Fetch Each HN Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [840, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://hacker-news.firebaseio.com/v0/item/' + $json.id + '.json' }}",
+        "options": { "timeout": 10000 }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Format HN Stories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const item = $json.body || $json;\nreturn [{ json: {\n  title: item.title || 'Untitled',\n  url: item.url || `https://news.ycombinator.com/item?id=${item.id}`,\n  score: item.score || 0,\n  by: item.by || 'anonymous',\n  source: 'Hacker News'\n}}];"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "AI News - Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [280, 500],
+      "parameters": {
+        "method": "GET",
+        "url": "https://newsapi.org/v2/everything?q=artificial+intelligence&sortBy=popularity&pageSize=5&language=en",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-Api-Key", "value": "__YOUR_NEWSAPI_KEY__" }]
+        },
+        "options": { "timeout": 10000 }
+      }
+    },
+    {
+      "id": "n7",
+      "name": "Format AI News",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const data = $json.body || $json;\nconst articles = data.articles || [];\nif (articles.length === 0) {\n  return [{ json: { articles: [], note: 'No AI news found today' } }];\n}\nreturn articles.map(a => ({ json: {\n  title: a.title,\n  url: a.url,\n  source: a.source?.name || 'NewsAPI',\n  description: a.description || '',\n  publishedAt: a.publishedAt?.substring(0, 10) || ''\n}}));"
+      }
+    },
+    {
+      "id": "n8",
+      "name": "Fetch GitHub Trending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [280, 700],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/search/repositories?q=created:>2024-01-01&sort=stars&order=desc&per_page=5",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Accept", "value": "application/vnd.github.v3+json" }]
+        },
+        "options": { "timeout": 10000 }
+      }
+    },
+    {
+      "id": "n9",
+      "name": "Format GitHub",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 700],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const data = $json.body || $json;\nconst repos = data.items || [];\nreturn repos.slice(0, 5).map(r => ({ json: {\n  title: r.full_name,\n  url: r.html_url,\n  source: 'GitHub',\n  description: r.description || '',\n  stars: r.stargazers_count || 0,\n  language: r.language || 'N/A'\n}}));"
+      }
+    },
+    {
+      "id": "n10",
+      "name": "Merge All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [840, 500],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      }
+    },
+    {
+      "id": "n11",
+      "name": "Collect Into Single Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500],
+      "parameters": {
+        "mode": "all",
+        "language": "javaScript",
+        "code": "const items = $input.all();\nconst hn = items.filter(i => i.json.source === 'Hacker News');\nconst ai = items.filter(i => i.json.source !== 'Hacker News' && i.json.source !== 'GitHub');\nconst gh = items.filter(i => i.json.source === 'GitHub');\n\nconst hnBlock = hn.map(i => `- ${i.json.title} (${i.json.score} pts by ${i.json.by})\n  ${i.json.url}`).join('\\n');\nconst aiBlock = ai.map(i => `- ${i.json.title}\\n  ${i.json.url}`).join('\\n');\nconst ghBlock = gh.map(i => `- ${i.json.title} ★${i.json.stars} [${i.json.language}]\\n  ${i.json.url}`).join('\\n');\n\nconst briefing = [\n  '# Daily Intelligence Briefing',\n  `Date: ${new Date().toISOString().substring(0, 10)}`,\n  '',\n  '## Hacker News Top Stories',\n  hnBlock || 'No stories found',\n  '',\n  '## AI News',\n  aiBlock || 'No AI news found',\n  '',\n  '## GitHub Trending',\n  ghBlock || 'No repos found',\n].join('\\n');\n\nreturn [{ json: { rawBriefing: briefing, storyCount: items.length } }];"
+      }
+    },
+    {
+      "id": "n12",
+      "name": "AI Summarizer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [1400, 500],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are an intelligence analyst. Create a polished daily briefing from the raw news data below.\n\n{{ $json.rawBriefing }}\n\n## Output Format\n\nProduce a well-formatted briefing with:\n1. **Executive Summary** (2-3 sentences on the most important story)\n2. **Top Stories** (3-5 bullet points with brief analysis of WHY each matters)\n3. **AI & Tech Spotlight** (key AI developments with significance)  \n4. **Open Source Highlights** (notable GitHub repos)\n5. **Watch List** (trends to monitor)\n\nKeep it concise — a busy executive should read it in under 2 minutes.",
+        "maxIterations": 5
+      }
+    },
+    {
+      "id": "n13",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1400, 200],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.4,
+        "maxTokens": 2500
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n14",
+      "name": "Format Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const output = $json.output || $json.text || $json.rawBriefing;\nreturn [{ json: {\n  subject: `Daily Briefing — ${new Date().toISOString().substring(0, 10)}`,\n  html: output.replace(/^# /gm, '<h2>').replace(/^## /gm, '<h3>').replace(/\\n/g, '<br>').replace(/^- /gm, '• '),\n  text: output\n}}];"
+      }
+    },
+    {
+      "id": "n15",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1.1,
+      "position": [1960, 500],
+      "parameters": {
+        "fromEmail": "briefing@yourdomain.com",
+        "toEmail": "you@yourdomain.com",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.text }}",
+        "htmlBody": "={{ $json.html }}",
+        "options": {}
+      },
+      "credentials": { "smtp": { "id": "__YOUR_SMTP_CRED_ID__" } }
+    },
+    {
+      "id": "n16",
+      "name": "Log Execution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "return [{ json: {\n  ok: true,\n  sentAt: new Date().toISOString(),\n  storiesProcessed: $json.storyCount || 0,\n  type: 'daily_briefing'\n}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule (Daily 7 AM)": {
+      "main": [[{ "node": "Fetch News - Hacker News", "type": "main", "index": 0 },
+                { "node": "AI News - Fetch", "type": "main", "index": 0 },
+                { "node": "Fetch GitHub Trending", "type": "main", "index": 0 }]]
+    },
+    "Fetch News - Hacker News": {
+      "main": [[{ "node": "Get Top 10 HN Stories", "type": "main", "index": 0 }]]
+    },
+    "Get Top 10 HN Stories": {
+      "main": [[{ "node": "Fetch Each HN Story", "type": "main", "index": 0 }]]
+    },
+    "Fetch Each HN Story": {
+      "main": [[{ "node": "Format HN Stories", "type": "main", "index": 0 }]]
+    },
+    "Format HN Stories": {
+      "main": [[{ "node": "Merge All Sources", "type": "main", "index": 0 }]]
+    },
+    "AI News - Fetch": {
+      "main": [[{ "node": "Format AI News", "type": "main", "index": 0 }]]
+    },
+    "Format AI News": {
+      "main": [[{ "node": "Merge All Sources", "type": "main", "index": 0 }]]
+    },
+    "Fetch GitHub Trending": {
+      "main": [[{ "node": "Format GitHub", "type": "main", "index": 0 }]]
+    },
+    "Format GitHub": {
+      "main": [[{ "node": "Merge All Sources", "type": "main", "index": 0 }]]
+    },
+    "Merge All Sources": {
+      "main": [[{ "node": "Collect Into Single Item", "type": "main", "index": 0 }]]
+    },
+    "Collect Into Single Item": {
+      "main": [[{ "node": "AI Summarizer", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [[{ "node": "AI Summarizer", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI Summarizer": {
+      "main": [[{ "node": "Format Email", "type": "main", "index": 0 }]]
+    },
+    "Format Email": {
+      "main": [[{ "node": "Send Email", "type": "main", "index": 0 }]]
+    },
+    "Send Email": {
+      "main": [[{ "node": "Log Execution", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["scheduled", "briefing", "news"],
+  "active": false
+}

@@ -1,0 +1,268 @@
+{
+  "name": "06 - Growing AI Agent (memory, vision, files, growth)",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 500],
+      "parameters": {
+        "path": "grow",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const { chat_id, text, user_id, username, session_id, image, file } = $json.body || {};\n\nreturn [{ json: {\n  chatId: chat_id || '',\n  userId: String(user_id || 'anon'),\n  username: username || 'unknown',\n  message: (text || '').trim(),\n  sessionKey: session_id || `grow_${chat_id || user_id || 'anon'}`,\n  hasImage: !!image,\n  imageData: image || null,\n  hasFile: !!file,\n  fileData: file || null,\n  receivedAt: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Load User Profile",
+      "type": "n8n-nodes-base.get",
+      "typeVersion": 1,
+      "position": [480, 500],
+      "parameters": {
+        "key": "={{ 'profile_' + $json.userId }}"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Init Default Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const existing = $json.value || $json.data?.value || null;\n\nconst defaultProfile = {\n  userId: $json.userId,\n  username: $json.username,\n  firstSeen: new Date().toISOString(),\n  lastSeen: new Date().toISOString(),\n  interactionCount: 0,\n  growthLevel: 1,\n  preferredModel: 'gpt-4o-mini',\n  preferredMode: 'balanced',\n  tone: 'friendly',\n  detailLevel: 'medium',\n  knownTopics: [],\n  knownFacts: [],\n  userInterests: [],\n  capabilitiesUnlocked: ['chat', 'search'],\n  memorySize: 0,\n  personalityNotes: ''\n};\n\nconst profile = existing ? { ...defaultProfile, ...existing, lastSeen: new Date().toISOString() } : defaultProfile;\n\n// Calculate growth level from interactions\nif (profile.interactionCount > 200) profile.growthLevel = 10;\nelse if (profile.interactionCount > 150) profile.growthLevel = 9;\nelse if (profile.interactionCount > 100) profile.growthLevel = 8;\nelse if (profile.interactionCount > 75) profile.growthLevel = 7;\nelse if (profile.interactionCount > 50) profile.growthLevel = 6;\nelse if (profile.interactionCount > 35) profile.growthLevel = 5;\nelse if (profile.interactionCount > 20) profile.growthLevel = 4;\nelse if (profile.interactionCount > 10) profile.growthLevel = 3;\nelse if (profile.interactionCount > 5) profile.growthLevel = 2;\n\n// Unlock capabilities by growth level\nconst caps = ['chat', 'search'];\nif (profile.growthLevel >= 2) caps.push('fetch');\nif (profile.growthLevel >= 3) caps.push('memory');\nif (profile.growthLevel >= 4) caps.push('vision');\nif (profile.growthLevel >= 5) caps.push('files');\nif (profile.growthLevel >= 6) caps.push('reasoning');\nif (profile.growthLevel >= 7) caps.push('code');\nif (profile.growthLevel >= 8) caps.push('deep-research');\nif (profile.growthLevel >= 9) caps.push('routines');\nif (profile.growthLevel >= 10) caps.push('auto-agent');\nprofile.capabilitiesUnlocked = caps;\n\nreturn [{ json: { profile } }];"
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Select Model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const profile = $json.profile;\nconst msg = $('Parse Input').item.json.message || '';\nconst hasImage = $('Parse Input').item.json.hasImage;\nconst hasFile = $('Parse Input').item.json.hasFile;\n\n// Which model to use?\nlet model = profile.preferredModel;\nlet temp = 0.5;\nlet maxTokens = 2000;\n\n// Vision tasks need gpt-4o\nif (hasImage) { model = 'gpt-4o'; temp = 0.3; maxTokens = 2000; }\n// Complex reasoning at higher levels\nelse if (hasFile && profile.growthLevel >= 5) { model = 'gpt-4o'; temp = 0.4; maxTokens = 3000; }\n// Deep research at high levels\nelse if (msg.length > 200 && profile.growthLevel >= 8) { model = 'gpt-4o'; temp = 0.3; maxTokens = 3000; }\n// Growth-based upgrades\nelse if (profile.growthLevel >= 6) { model = 'gpt-4o-mini'; temp = 0.5; maxTokens = 2000; }\n\nreturn [{ json: { ...$json, selectedModel: model, temperature: temp, maxTokens } }];"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Build System Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const profile = $json.profile;\nconst input = $('Parse Input').item.json;\n\nconst capsDisplay = profile.capabilitiesUnlocked.map(c => `  ✅ ${c}`).join('\\n');\nconst topicsDisplay = profile.knownTopics.slice(-5).join(', ') || 'none yet';\nconst factsDisplay = profile.knownFacts.slice(-5).map(f => `  • ${f}`).join('\\n') || '  none yet';\n\nconst prompt = `You are an evolving AI assistant that grows with the user.\n\n## USER PROFILE\n- Name: ${input.username}\n- Growth Level: ${profile.growthLevel}/10\n- Interactions: ${profile.interactionCount}\n- Preferred Tone: ${profile.tone}\n- Detail Level: ${profile.detailLevel}\n\n## CAPABILITIES UNLOCKED\n${capsDisplay}\n\n## TOPICS DISCUSSED BEFORE\n${topicsDisplay}\n\n## WHAT YOU KNOW ABOUT THEM\n${factsDisplay}\n\n## YOUR GROWTH\n- At level 1: basic chat + web search\n- At level 3: conversation memory (you remember past sessions)\n- At level 5: file processing\n- At level 7: code execution\n- At level 10: autonomous agent mode\n- Every interaction makes you smarter. Learn from each conversation.\n\n## RULES\n- Be ${profile.tone} and ${profile.detailLevel} in detail\n- Reference past conversations when relevant (\"Last time we talked about...\")\n- Suggest capabilities they haven't tried yet\n- If they send an image, describe it and answer related questions\n- If they send a file, process it and summarize\n- Keep responses under 4000 chars\n- Use markdown for structure`;\n\nreturn [{ json: { ...$json, systemPrompt: prompt } }];"
+      }
+    },
+    {
+      "id": "n7",
+      "name": "Caption Image (if any)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 250],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const input = $('Parse Input').item.json;\nif (!input.hasImage || !input.imageData) {\n  return [{ json: { caption: null } }];\n}\n// If this node is reached, we process the image\n// In production, call OpenAI Vision API or a sub-workflow\n// The imageData would be a base64 or URL\nreturn [{ json: { caption: '[Image received — AI will describe it directly]', imageProcessed: true } }];"
+      }
+    },
+    {
+      "id": "n8",
+      "name": "Growing AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [1680, 500],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "={{ $('Build System Prompt').item.json.systemPrompt }}",
+        "maxIterations": 12,
+        "options": {}
+      }
+    },
+    {
+      "id": "n9",
+      "name": "GPT-4o (vision/complex)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1440, 750],
+      "parameters": {
+        "model": "={{ $('Select Model').item.json.selectedModel }}",
+        "temperature": "={{ $('Select Model').item.json.temperature }}",
+        "maxTokens": "={{ $('Select Model').item.json.maxTokens }}"
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n10",
+      "name": "Session Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBuffer",
+      "typeVersion": 1,
+      "position": [1440, 950],
+      "parameters": {
+        "contextLength": 15,
+        "sessionKey": "={{ $('Parse Input').item.json.sessionKey }}",
+        "sessionKeyType": "key"
+      }
+    },
+    {
+      "id": "n11",
+      "name": "Web Search Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [1440, 1150],
+      "parameters": {
+        "toolName": "web-search",
+        "toolDescription": "Search the web for current information. Input: a query string. Returns up to 5 results with title, URL, and snippet.",
+        "toolInputSchema": [{ "name": "query", "required": true }],
+        "code": "const query = $fromAI('query', 'search query', 'string');\nconst r = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), {\n  headers: { 'User-Agent': 'Mozilla/5.0' }});\nconst html = await r.text();\nconst results = [];\nconst l = /<a[^>]+class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>([\\s\\S]*?)<\\/a>/g;\nconst s = /<a[^>]+class=\"result__snippet\"[^>]*>([\\s\\S]*?)<\\/a>/g;\nlet m; while ((m = l.exec(html)) !== null) results.push({ title: m[2].replace(/<[^>]+>/g,'').trim(), url: m[1] });\nconst sn = []; while ((m = s.exec(html)) !== null) sn.push(m[1].replace(/<[^>]+>/g,'').trim());\nresults.forEach((r,i) => r.snippet = sn[i] || '');\nreturn results.slice(0,5).map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "n12",
+      "name": "Fetch URL Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [1440, 1350],
+      "parameters": {
+        "toolName": "fetch-url",
+        "toolDescription": "Fetch and extract readable text from a URL. Input: a URL string.",
+        "toolInputSchema": [{ "name": "url", "required": true }],
+        "code": "const url = $fromAI('url', 'URL', 'string');\nconst r = await fetch(url.startsWith('http')?url:'https://'+url, { headers: { 'User-Agent': 'Mozilla/5.0' }});\nconst html = await r.text();\nconst text = html.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '').replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim().substring(0, 8000);\nreturn [{ json: { url, text, length: text.length } }];"
+      }
+    },
+    {
+      "id": "n13",
+      "name": "Extract Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const profile = $('Build System Prompt').item.json.profile;\nconst input = $('Parse Input').item.json;\nconst response = $json.output || $json.text || '';\n\n// Increment interaction count\nprofile.interactionCount += 1;\nprofile.lastSeen = new Date().toISOString();\n\n// Extract potential topics from user message (simple keyword extraction)\nconst words = input.message.toLowerCase().split(/\\s+/).filter(w => w.length > 4);\nconst stopWords = ['this', 'that', 'with', 'from', 'have', 'what', 'about', 'which', 'their', 'there', 'would', 'could', 'should', 'tell', 'know', 'need', 'want', 'does', 'make', 'been', 'some', 'very', 'just', 'also', 'than', 'then', 'they', 'them', 'these', 'those', 'thing', 'really', 'being', 'doing', 'going', 'said', 'over', 'such', 'more', 'much', 'many', 'will', 'your', 'talk'];\nconst newTopics = [...new Set(words.filter(w => !stopWords.includes(w)))];\n\n// Merge topics\nnewTopics.forEach(t => {\n  if (!profile.knownTopics.includes(t)) {\n    profile.knownTopics.push(t);\n  }\n});\n\n// Keep last 50 topics\nif (profile.knownTopics.length > 50) profile.knownTopics = profile.knownTopics.slice(-50);\n\n// Detect user preferences from message patterns\nif (/please|thank|would you|could you|can you/i.test(input.message)) {\n  profile.tone = 'polite';\n} else if (/quick|fast|short|brief|tl.?dr/i.test(input.message)) {\n  profile.detailLevel = 'concise';\n} else if (/explain|detail|elaborat|in depth|tell me more|understand/i.test(input.message)) {\n  profile.detailLevel = 'detailed';\n}\n\n// Track growth milestone messages\nconst milestones = [5, 10, 20, 35, 50, 75, 100, 150, 200];\nlet hitMilestone = false;\nif (milestones.includes(profile.interactionCount)) {\n  hitMilestone = true;\n}\n\nreturn [{ json: {\n  ...$json,\n  profile,\n  hitMilestone,\n  userMessage: input.message,\n  newTopicsFound: newTopics.length\n}}];"
+      }
+    },
+    {
+      "id": "n14",
+      "name": "Save User Profile",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2240, 500],
+      "parameters": {
+        "key": "={{ 'profile_' + $json.profile.userId }}",
+        "value": "={{ $json.profile }}"
+      }
+    },
+    {
+      "id": "n15",
+      "name": "Check Memory & Auto-Summarize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2520, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const history = $('Session Memory').item?.json?.history || [];\nconst historyLen = Array.isArray(history) ? history.length : 0;\nconst threshold = 12; // summarize when approaching context limit\n\nif (historyLen >= threshold) {\n  // Trigger summarization pass — inject into next response\n  return [{ json: {\n    ...$json,\n    needsSummarize: true,\n    historyLength: historyLen,\n    summaryNote: '\\n\\n_[Conversation growing long — continuing with a condensed summary in next exchange]_'\n  }}];\n}\n\nreturn [{ json: { ...$json, needsSummarize: false, historyLength: historyLen } }];"
+      }
+    },
+    {
+      "id": "n16",
+      "name": "Milestone Message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": ["2240", 700],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.hitMilestone }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n17",
+      "name": "Generate Milestone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": ["2520", 700],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const count = $json.profile.interactionCount;\nconst level = $json.profile.growthLevel;\nconst newCaps = $json.profile.capabilitiesUnlocked;\n\nconst msgs = {\n  5: '🎉 You reached **5 interactions**! You now unlock: **fetch** (reading URLs).',\n  10: '🌟 10 interactions! I\\'m getting to know you better. New feature: **conversation memory**.',\n  20: '📈 20 interactions! I can see your interests forming. Growth Level 4 — **vision** unlocked!',\n  35: '🚀 35 interactions! Growth Level 5 — I can now process **files** for you.',\n  50: '💪 50 interactions! We\\'ve talked 50 times. Growth Level 6 — **reasoning** mode available.',\n  75: '🧠 75 interactions! I\\'m learning your patterns. Growth Level 7 — **code execution** unlocked!',\n  100: '🔥 **100 interactions!** We\\'ve had 100 conversations. Growth Level 8 — **deep research** mode activated.',\n  150: '⭐ 150 interactions! Growth Level 9 — you can now create **routines** and workflows.',\n  200: '👑 **200 interactions!** Maximum Growth Level 10 — **autonomous agent mode** unlocked. I am fully evolved with you.'\n};\n\nconst msg = msgs[count] || `🎯 You reached **${count}** interactions!`;\n\nreturn [{ json: { ...$json, milestoneText: msg } }];"
+      }
+    },
+    {
+      "id": "n18",
+      "name": "Format Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2800, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "let text = $json.output || $json.text || '';\nconst milestoneText = $json.milestoneText || null;\nconst summaryNote = $json.summaryNote || null;\n\n// Append milestone if hit\nif (milestoneText) {\n  text += `\\n\\n---\\n${milestoneText}`;\n}\n\n// Append summary note if memory is full\nif (summaryNote) {\n  text += summaryNote;\n}\n\nreturn [{ json: {\n  ok: true,\n  chat_id: $('Parse Input').item.json.chatId,\n  text: text.substring(0, 4000),\n  growth_level: $json.profile.growthLevel,\n  interactions: $json.profile.interactionCount,\n  capabilities: $json.profile.capabilitiesUnlocked,\n  session_key: $('Parse Input').item.json.sessionKey,\n  timestamp: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n19",
+      "name": "Milestone No",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2520, 900],
+      "parameters": {}
+    },
+    {
+      "id": "n20",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3080, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ { ok: $json.ok, chat_id: $json.chatId, text: $json.text, growth_level: $json.growthLevel, interactions: $json.interactions, capabilities: $json.capabilities } }",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]] },
+    "Parse Input": { "main": [[{ "node": "Load User Profile", "type": "main", "index": 0 }]] },
+    "Load User Profile": { "main": [[{ "node": "Init Default Profile", "type": "main", "index": 0 }]] },
+    "Init Default Profile": { "main": [[{ "node": "Select Model", "type": "main", "index": 0 }]] },
+    "Select Model": { "main": [[{ "node": "Build System Prompt", "type": "main", "index": 0 }]] },
+    "Build System Prompt": { "main": [[{ "node": "Growing AI Agent", "type": "main", "index": 0 }], [{ "node": "Caption Image (if any)", "type": "main", "index": 0 }]] },
+    "Caption Image (if any)": { "main": [[{ "node": "Growing AI Agent", "type": "main", "index": 0 }]] },
+    "GPT-4o (vision/complex)": { "ai_languageModel": [[{ "node": "Growing AI Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "Session Memory": { "ai_memory": [[{ "node": "Growing AI Agent", "type": "ai_memory", "index": 0 }]] },
+    "Web Search Tool": { "ai_tool": [[{ "node": "Growing AI Agent", "type": "ai_tool", "index": 0 }]] },
+    "Fetch URL Tool": { "ai_tool": [[{ "node": "Growing AI Agent", "type": "ai_tool", "index": 0 }]] },
+    "Growing AI Agent": { "main": [[{ "node": "Extract Insights", "type": "main", "index": 0 }]] },
+    "Extract Insights": { "main": [[{ "node": "Save User Profile", "type": "main", "index": 0 }]] },
+    "Save User Profile": { "main": [[{ "node": "Check Memory & Auto-Summarize", "type": "main", "index": 0 }], [{ "node": "Milestone Message", "type": "main", "index": 0 }]] },
+    "Check Memory & Auto-Summarize": { "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]] },
+    "Milestone Message": {
+      "main": [
+        [{ "node": "Generate Milestone", "type": "main", "index": 0 }],
+        [{ "node": "Milestone No", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Milestone": { "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]] },
+    "Format Final Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["telegram", "ai", "growing", "evolution", "memory", "vision", "files"],
+  "active": false
+}

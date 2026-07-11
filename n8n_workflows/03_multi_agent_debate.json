@@ -1,0 +1,186 @@
+{
+  "name": "03 - Multi-Agent Debate System",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 500],
+      "parameters": {
+        "path": "debate",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Question",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const { question, context } = $json.body || {};\nif (!question || !question.trim()) {\n  return [{ json: { ok: false, error: 'question is required' } }];\n}\nreturn [{ json: {\n  question: question.trim(),\n  context: context || '',\n  timestamp: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Fork to Agents",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [560, 500],
+      "parameters": {}
+    },
+    {
+      "id": "n4",
+      "name": "Agent A: Pro",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [840, 300],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are Agent A in a formal debate. Your role is to argue FOR the proposition.\n\nProposition: {{ $('Parse Question').item.json.question }}\n\nBackground: {{ $('Parse Question').item.json.context }}\n\nRules:\n- Present the strongest possible case FOR the proposition\n- Use evidence, logic, and persuasive reasoning\n- Acknowledge the strongest counter-arguments and refute them\n- Be specific and concrete — avoid vague claims\n- Limit your argument to 500 words\n\nStructure: Opening statement → 3 main arguments → Refutation of anticipated counter-points → Closing",
+        "maxIterations": 8
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Agent B: Con",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [840, 700],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are Agent B in a formal debate. Your role is to argue AGAINST the proposition.\n\nProposition: {{ $('Parse Question').item.json.question }}\n\nBackground: {{ $('Parse Question').item.json.context }}\n\nRules:\n- Present the strongest possible case AGAINST the proposition\n- Use evidence, logic, and persuasive reasoning\n- Directly challenge the arguments the opposition might make\n- Be specific and concrete — avoid vague claims\n- Limit your argument to 500 words\n\nStructure: Opening statement → 3 main arguments → Refutation of anticipated counter-points → Closing",
+        "maxIterations": 8
+      }
+    },
+    {
+      "id": "n6",
+      "name": "OpenAI Model A",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [560, 200],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "maxTokens": 2000
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n7",
+      "name": "OpenAI Model B",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [560, 800],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "maxTokens": 2000
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n8",
+      "name": "Merge Arguments",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1120, 500],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "combineByPosition"
+      }
+    },
+    {
+      "id": "n9",
+      "name": "Prepare Judge Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const items = $input.all();\nconst pro = items.find(i => i.json.role === 'pro') || items[0];\nconst con = items.find(i => i.json.role !== 'pro') || items[1];\n\nconst proArg = pro.json.output || pro.json.text || '';\nconst conArg = con.json.output || con.json.text || '';\n\nreturn [{ json: {\n  question: $json.question,\n  proArgument: proArg,\n  proAgent: pro.json.agent || 'Agent A',\n  conArgument: conArg,\n  conAgent: con.json.agent || 'Agent B',\n  context: $json.context\n}}];"
+      }
+    },
+    {
+      "id": "n10",
+      "name": "Judge Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [1680, 500],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are an impartial debate judge. Evaluate the following debate and determine the winner.\n\n## Question\n{{ $json.question }}\n\n## Agent A (FOR)\n{{ $json.proArgument }}\n\n## Agent B (AGAINST)\n{{ $json.conArgument }}\n\n## Evaluation Criteria (100 points total)\n1. Logical strength (0-30): Are the arguments sound and well-reasoned?\n2. Evidence quality (0-25): Are claims supported with specific evidence?\n3. Refutation (0-20): How well did they address counter-arguments?\n4. Clarity (0-15): Is the argument clear and well-structured?\n5. Persuasiveness (0-10): Overall convincing power\n\n## Output Format\nReturn a JSON object with:\n{\n  \"winner\": \"Agent A\" or \"Agent B\",\n  \"scores\": { \"Agent A\": { \"total\": 0, \"logical\": 0, \"evidence\": 0, \"refutation\": 0, \"clarity\": 0, \"persuasiveness\": 0 }, \"Agent B\": { ... } },\n  \"reasoning\": \"Detailed explanation of your decision\",\n  \"strongest_point\": \"The single strongest argument from either side\",\n  \"weakness\": \"The weakest point that lost the debate for the loser\"\n}",
+        "maxIterations": 5,
+        "options": { "useOutputParser": true }
+      }
+    },
+    {
+      "id": "n11",
+      "name": "OpenAI Judge Model",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1680, 200],
+      "parameters": {
+        "model": "gpt-4",
+        "temperature": 0.2,
+        "maxTokens": 2000
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n12",
+      "name": "Format Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const verdict = $json.output || $json.text || '';\nreturn [{ json: {\n  ok: true,\n  question: $json.question,\n  verdict,\n  timestamp: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n13",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2240, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ $json }",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Question", "type": "main", "index": 0 }]] },
+    "Parse Question": { "main": [[{ "node": "Fork to Agents", "type": "main", "index": 0 }]] },
+    "Fork to Agents": {
+      "main": [
+        [{ "node": "Agent A: Pro", "type": "main", "index": 0 }],
+        [{ "node": "Agent B: Con", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI Model A": {
+      "ai_languageModel": [[{ "node": "Agent A: Pro", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "OpenAI Model B": {
+      "ai_languageModel": [[{ "node": "Agent B: Con", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Agent A: Pro": { "main": [[{ "node": "Merge Arguments", "type": "main", "index": 0 }]] },
+    "Agent B: Con": { "main": [[{ "node": "Merge Arguments", "type": "main", "index": 0 }]] },
+    "Merge Arguments": { "main": [[{ "node": "Prepare Judge Input", "type": "main", "index": 0 }]] },
+    "Prepare Judge Input": { "main": [[{ "node": "Judge Agent", "type": "main", "index": 0 }]] },
+    "OpenAI Judge Model": {
+      "ai_languageModel": [[{ "node": "Judge Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Judge Agent": { "main": [[{ "node": "Format Verdict", "type": "main", "index": 0 }]] },
+    "Format Verdict": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["ai", "debate", "multi-agent"],
+  "active": false
+}

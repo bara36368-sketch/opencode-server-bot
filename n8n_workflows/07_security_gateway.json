@@ -1,0 +1,152 @@
+{
+  "name": "SG - Security Gateway",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 500],
+      "parameters": {
+        "path": "security-gate",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Extract Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const body = $json.body || $json;\nconst { user_id, chat_id, text, username } = body;\n\nreturn [{ json: {\n  userId: String(user_id || 'unknown'),\n  chatId: String(chat_id || 'unknown'),\n  username: String(username || 'anonymous'),\n  message: String(text || '').trim(),\n  ip: $json.headers?.['x-forwarded-for'] || $json.ip || '0.0.0.0',\n  timestamp: Date.now()\n}}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Load Ban List",
+      "type": "n8n-nodes-base.get",
+      "typeVersion": 1,
+      "position": [560, 500],
+      "parameters": {
+        "key": "security_bans"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Check Ban Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const bans = $json.value || $json.data?.value || [];\nconst input = $('Extract Request').item.json;\n\nconst banEntry = bans.find(b => b.userId === input.userId || b.chatId === input.chatId);\n\nif (banEntry) {\n  const banExpired = banEntry.expiresAt && Date.now() > banEntry.expiresAt;\n  if (!banExpired) {\n    return [{ json: {\n      allowed: false,\n      reason: banEntry.reason || 'Banned',\n      userStatus: 'banned',\n      banExpires: banEntry.expiresAt ? new Date(banEntry.expiresAt).toISOString() : 'permanent'\n    }}];\n  }\n}\n\nreturn [{ json: { allowed: true, userStatus: 'ok' } }];"
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Input Sanitizer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const input = $('Extract Request').item.json;\nlet msg = input.message;\n\n// === ATTACK PATTERNS ===\nconst attackPatterns = [\n  // SQL Injection\n  { pattern: /('|--|\\bUNION\\b|\\bSELECT\\b.*\\bFROM\\b|\\bDROP\\b|\\bDELETE\\b.*\\bFROM\\b|\\bINSERT\\b.*\\bINTO\\b|\\bOR\\s+1\\s*=\\s*1)/i, type: 'sql_injection' },\n  // Shell injection\n  { pattern: /([;|&`$]\\s*\\b(bash|sh|cmd|powershell|exec|system|eval|rm\\s|wget|curl|cat\\s|sudo|chmod|chown)\\b)/i, type: 'shell_injection' },\n  // JavaScript injection (XSS)\n  { pattern: /(<script|<\\?php|<\\?|<%.*?%>|javascript:|onerror=|onclick=|onload=)/i, type: 'xss' },\n  // Token leakage\n  { pattern: /(bot_token|api_key|password|secret|private_key|token\\s*[=:]\\s*\\d+:[a-zA-Z0-9_-]+)/i, type: 'token_leak' },\n  // Path traversal\n  { pattern: /(\\.\\.\\/|\\.\\.\\\\|\\.\\.%2f|\\.\\.%5c)/i, type: 'path_traversal' },\n  // Very long messages (DoS)\n  { pattern: null, maxLength: 10000, type: 'dos_attempt' }\n];\n\nconst threats = [];\nfor (const ap of attackPatterns) {\n  if (ap.pattern && ap.pattern.test(msg)) {\n    threats.push({ type: ap.type, severity: 'high' });\n    msg = msg.replace(ap.pattern, '[REDACTED]');\n  }\n  if (ap.maxLength && msg.length > ap.maxLength) {\n    threats.push({ type: ap.type, severity: 'medium' });\n    msg = msg.substring(0, ap.maxLength);\n  }\n}\n\n// Spam detection\nconst spamScore = (\n  (/(.)\\1{10,}/.test(msg) ? 3 : 0) +  // repeated chars\n  (/[A-Z\\s]{20,}/.test(msg) ? 2 : 0) +  // ALL CAPS\n  ((msg.match(/\\b(buy|click|free|win|urgent|limited|offer|act now|call now|subscribe|deal|exclusive|prize|congratulations|you are the|selected|winner|earn money|work from home|make money|sign up|join now)\\b/gi) || []).length * 2)\n);\n\nreturn [{ json: {\n  sanitizedMessage: msg,\n  threats: threats,\n  spamScore: spamScore,\n  isThreat: threats.length > 0,\n  isSpam: spamScore >= 5\n}}];"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Load Rate Limit Data",
+      "type": "n8n-nodes-base.get",
+      "typeVersion": 1,
+      "position": [1120, 700],
+      "parameters": {
+        "key": "={{ 'ratelimit_' + $('Extract Request').item.json.userId }}"
+      }
+    },
+    {
+      "id": "n7",
+      "name": "Check Rate Limit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 700],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const input = $('Extract Request').item.json;\nconst existing = $('Load Rate Limit Data').item.json.value || $('Load Rate Limit Data').item.json.data?.value || null;\n\nconst now = Date.now();\nconst WINDOW_MS = 60000; // 1 min\nconst MAX_REQUESTS = 30;\n\nlet rl = existing || { userId: input.userId, timestamps: [] };\n\n// Clean old entries\nrl.timestamps = rl.timestamps.filter(t => now - t < WINDOW_MS);\nrl.timestamps.push(now);\n\nrl.count = rl.timestamps.length;\nrl.remaining = Math.max(0, MAX_REQUESTS - rl.count);\nrl.resetAt = now + WINDOW_MS;\n\nconst rateLimited = rl.count > MAX_REQUESTS;\n\nreturn [{ json: { ...$json, rateLimit: rl, rateLimited } }];"
+      }
+    },
+    {
+      "id": "n8",
+      "name": "Save Rate Limit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1400, 900],
+      "parameters": {
+        "key": "={{ 'ratelimit_' + $('Extract Request').item.json.userId }}",
+        "value": "={{ $('Check Rate Limit').item.json.rateLimit }}"
+      }
+    },
+    {
+      "id": "n9",
+      "name": "Decision Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const banCheck = $('Check Ban Status').item.json;\nconst sanitize = $('Input Sanitizer').item.json;\nconst rl = $('Check Rate Limit').item.json;\nconst input = $('Extract Request').item.json;\n\nlet allowed = true;\nlet reason = '';\n\nif (!banCheck.allowed) {\n  allowed = false;\n  reason = banCheck.reason;\n} else if (rl.rateLimited) {\n  allowed = false;\n  reason = `Rate limited. Try again in ${Math.ceil((rl.rateLimit.resetAt - Date.now()) / 1000)}s`;\n} else if (sanitize.isThreat) {\n  allowed = false;\n  reason = `Threat detected: ${sanitize.threats.map(t => t.type).join(', ')}`;\n  // Auto-ban for high-severity threats\n  if (sanitize.threats.some(t => t.severity === 'high')) {\n    const bans = $('Load Ban List').item.json.value || $('Load Ban List').item.json.data?.value || [];\n    bans.push({ userId: input.userId, reason, expiresAt: now + 86400000 * 7 });\n    // Save updated bans\n  }\n} else if (sanitize.isSpam) {\n  allowed = false;\n  reason = 'Spam detected';\n}\n\nreturn [{ json: {\n  allowed,\n  reason,\n  sanitizedMessage: sanitize.sanitizedMessage,\n  threats: sanitize.threats,\n  spamScore: sanitize.spamScore,\n  userId: input.userId,\n  chatId: input.chatId,\n  username: input.username,\n  rateLimitRemaining: rl.rateLimit.remaining\n}}];"
+      }
+    },
+    {
+      "id": "n10",
+      "name": "Audit Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 500],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const decision = $('Decision Engine').item.json;\nconst log = {\n  timestamp: new Date().toISOString(),\n  userId: decision.userId,\n  chatId: decision.chatId,\n  username: decision.username,\n  allowed: decision.allowed,\n  reason: decision.reason || 'ok',\n  threats: decision.threats || [],\n  spamScore: decision.spamScore || 0\n};\n\n// Load existing audit log, append, save\n// Keep last 1000 entries\nreturn [{ json: { ...decision, auditEntry: log } }];"
+      }
+    },
+    {
+      "id": "n11",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2240, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ $json }",
+        "options": { "responseCode": "={{ $json.allowed ? 200 : 403 }}" }
+      }
+    },
+    {
+      "id": "n12",
+      "name": "Save Audit Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1960, 700],
+      "parameters": {
+        "key": "audit_log",
+        "value": "={{ ($json.auditEntry || []) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Extract Request", "type": "main", "index": 0 }]] },
+    "Extract Request": { "main": [[{ "node": "Load Ban List", "type": "main", "index": 0 }], [{ "node": "Input Sanitizer", "type": "main", "index": 0 }], [{ "node": "Load Rate Limit Data", "type": "main", "index": 0 }]] },
+    "Load Ban List": { "main": [[{ "node": "Check Ban Status", "type": "main", "index": 0 }]] },
+    "Check Ban Status": { "main": [[{ "node": "Decision Engine", "type": "main", "index": 0 }]] },
+    "Input Sanitizer": { "main": [[{ "node": "Decision Engine", "type": "main", "index": 0 }]] },
+    "Load Rate Limit Data": { "main": [[{ "node": "Check Rate Limit", "type": "main", "index": 0 }], [{ "node": "Save Rate Limit", "type": "main", "index": 0 }]] },
+    "Check Rate Limit": { "main": [[{ "node": "Decision Engine", "type": "main", "index": 0 }]] },
+    "Decision Engine": { "main": [[{ "node": "Audit Log", "type": "main", "index": 0 }]] },
+    "Audit Log": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }], [{ "node": "Save Audit Log", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["security", "gateway", "rate-limit", "protection"],
+  "active": false
+}

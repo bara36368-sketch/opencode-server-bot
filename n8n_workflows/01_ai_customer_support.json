@@ -1,0 +1,188 @@
+{
+  "name": "01 - AI Customer Support Agent",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 400],
+      "parameters": {
+        "path": "customer-support",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Validate & Enrich",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const { customer_id, message, session_id } = $json.body || {};\nif (!message || !message.trim()) {\n  return [{ json: { ok: false, error: 'message is required' } }];\n}\nreturn [{\n  json: {\n    customerId: customer_id || 'anon',\n    message: message.trim(),\n    sessionId: session_id || `s_${Date.now()}`,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "AI Support Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [560, 400],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are a senior customer support agent for a SaaS platform.\n\nRULES:\n1. Be empathetic and clear\n2. Use tools to look up info — never invent answers\n3. Escalate to human if: user demands it, security issue, or 2 attempts failed\n4. Always summarize what was done at the end\n5. If escalating, start your response with '[ESCALATE]'",
+        "maxIterations": 15
+      }
+    },
+    {
+      "id": "n4",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [280, 150],
+      "parameters": {
+        "model": "gpt-4",
+        "temperature": 0.3,
+        "maxTokens": 2000
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n5",
+      "name": "Session Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBuffer",
+      "typeVersion": 1,
+      "position": [280, 650],
+      "parameters": {
+        "contextLength": 10,
+        "sessionKey": "={{ $('Validate & Enrich').item.json.sessionId }}",
+        "sessionKeyType": "key"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Search KB (Sub-workflow)",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [280, 850],
+      "parameters": {
+        "workflowId": "__YOUR_KB_WORKFLOW_ID__",
+        "toolName": "search-knowledge-base",
+        "toolDescription": "Search the company knowledge base for answers to customer questions. Input: a search query string. Returns matching articles.",
+        "toolInputSchema": [{ "name": "query", "required": true }],
+        "toolInputSchemaValues": {
+          "query": "={{ $fromAI('query', 'Search query for the knowledge base', 'string') }}"
+        }
+      }
+    },
+    {
+      "id": "n7",
+      "name": "Lookup Order (API)",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1,
+      "position": [280, 1050],
+      "parameters": {
+        "toolName": "lookup-order",
+        "toolDescription": "Look up a customer order by ID. Returns order status, items, and shipping date.",
+        "toolInputSchema": [{ "name": "orderId", "required": true }],
+        "toolInputSchemaValues": {
+          "orderId": "={{ $fromAI('orderId', 'The order ID to look up', 'string') }}"
+        },
+        "method": "GET",
+        "url": "={{ 'https://api.yourstore.com/orders/' + $fromAI('orderId', '', 'string') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "Bearer __YOUR_API_KEY__" }]
+        }
+      }
+    },
+    {
+      "id": "n8",
+      "name": "Check Escalation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const output = $json.output || '';\nconst needsEscalation = \n  output.startsWith('[ESCALATE]') ||\n  /human|supervisor|manager|transfer/i.test(output);\nreturn [{ json: { ...$json, needsEscalation, agentResponse: output.replace('[ESCALATE]', '').trim() } }];"
+      }
+    },
+    {
+      "id": "n9",
+      "name": "Route: Escalate or Respond",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.needsEscalation }}",
+        "rules": [{ "value2": "true", "output": 0 }],
+        "fallbackOutput": 1
+      }
+    },
+    {
+      "id": "n10",
+      "name": "Notify Human (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1400, 300],
+      "parameters": {
+        "channel": "#support-escalations",
+        "text": "=🚨 Escalation needed\n*Customer:* {{ $json.customerId }}\n*Issue:* {{ $json.message }}\n*AI:* {{ $json.agentResponse }}"
+      },
+      "credentials": { "slackApi": { "id": "__YOUR_SLACK_CRED_ID__" } }
+    },
+    {
+      "id": "n11",
+      "name": "Respond Escalated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"response\": $json.agentResponse, \"escalated\": true }",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "n12",
+      "name": "Respond Resolved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"response\": $json.agentResponse, \"escalated\": false }",
+        "options": { "responseCode": 200 } 
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate & Enrich", "type": "main", "index": 0 }]] },
+    "Validate & Enrich": { "main": [[{ "node": "AI Support Agent", "type": "main", "index": 0 }]] },
+    "OpenAI Model": { "ai_languageModel": [[{ "node": "AI Support Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "Session Memory": { "ai_memory": [[{ "node": "AI Support Agent", "type": "ai_memory", "index": 0 }]] },
+    "Search KB (Sub-workflow)": { "ai_tool": [[{ "node": "AI Support Agent", "type": "ai_tool", "index": 0 }]] },
+    "Lookup Order (API)": { "ai_tool": [[{ "node": "AI Support Agent", "type": "ai_tool", "index": 0 }]] },
+    "AI Support Agent": { "main": [[{ "node": "Check Escalation", "type": "main", "index": 0 }]] },
+    "Check Escalation": { "main": [[{ "node": "Route: Escalate or Respond", "type": "main", "index": 0 }]] },
+    "Route: Escalate or Respond": {
+      "main": [
+        [{ "node": "Notify Human (Slack)", "type": "main", "index": 0 }],
+        [{ "node": "Respond Resolved", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Human (Slack)": { "main": [[{ "node": "Respond Escalated", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "timezone": "UTC",
+    "saveManualExecutions": true
+  },
+  "tags": ["ai", "customer-support"],
+  "active": false
+}

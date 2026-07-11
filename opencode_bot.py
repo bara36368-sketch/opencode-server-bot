@@ -1112,6 +1112,33 @@ PROVIDERS = {
         "key": "free"
     },
 
+    "zenmux": {
+        "url": "https://zenmux.ai/api/v1/chat/completions",
+        "model": "x-ai/grok-4.5-free",
+        "key": os.environ.get("ZENMUX_KEY", "set-via-env-var")
+    },
+    "zenmux-grok-4.5-free": {
+        "url": "https://zenmux.ai/api/v1/chat/completions",
+        "model": "x-ai/grok-4.5-free",
+        "key": os.environ.get("ZENMUX_KEY", "set-via-env-var")
+    },
+
+
+    "local": {
+        "url": "http://127.0.0.1:8080/v1/chat/completions",
+        "model": "qwen2.5-3b-instruct",
+        "key": "skip-auth"
+    },
+    "local-qwen3b": {
+        "url": "http://127.0.0.1:8080/v1/chat/completions",
+        "model": "qwen2.5-3b-instruct",
+        "key": "skip-auth"
+    },
+    "local-phi3": {
+        "url": "http://127.0.0.1:8080/v1/chat/completions",
+        "model": "phi-3-mini-3.8b-instruct",
+        "key": "skip-auth"
+    },
     "bitrouter": {
         "url": "http://127.0.0.1:4356/v1/chat/completions",
         "model": "qwen/qwen3.6-flash",
@@ -2015,19 +2042,36 @@ async def main():
                     ep_count = len(SYNOXCLOUD_ENDPOINTS)
                     lines = [f"SynoxCloud API ({ep_count} endpoints, {ai_count} AI models)"]
                     lines.append(f"Usage: in autonomous mode, use synoxcloud(endpoint=ID, param=VAL, ...)")
-                    lines.append(f"AI models available as providers: /synox-{list(SYNOXCLOUD_AI_MODELS.keys())[0] if SYNOXCLOUD_AI_MODELS else 'N/A'} etc. Use /repo synox-<model>")
                     lines.append(f"")
                     search = text.lower().split("/synoxcloud", 1)[-1].strip()
-                    shown = 0
-                    for eid in sorted(SYNOXCLOUD_ENDPOINTS.keys()):
-                        if search and search not in eid.lower():
-                            continue
-                        if shown >= 50 and not search:
-                            lines.append(f"  ... and {ep_count - shown} more. Filter with /synoxcloud <keyword>")
-                            break
-                        path = SYNOXCLOUD_ENDPOINTS[eid]
-                        lines.append(f"  {eid} â€” {path}")
-                        shown += 1
+                    if not search or any(s in search for s in ["model", "ai", "gpt", "claude", "llama", "gemini", "synox-"]):
+                        lines.append(f"--- AI Models ({ai_count}) ---")
+                        shown_m = 0
+                        for mid in sorted(SYNOXCLOUD_AI_MODELS.keys()):
+                            if search and search not in mid.lower() and f"synox-{search}" not in mid.lower():
+                                continue
+                            if shown_m >= 30 and not search:
+                                lines.append(f"  ... and {ai_count - shown_m} more AI models")
+                                break
+                            minfo = SYNOXCLOUD_AI_MODELS[mid]
+                            mpath = minfo.get("path", "") if isinstance(minfo, dict) else ""
+                            mdesc = minfo.get("desc", "") if isinstance(minfo, dict) else ""
+                            extra = f" — {mdesc}" if mdesc else (f" — {mpath}" if mpath else "")
+                            lines.append(f"  /synox-{mid}{extra}")
+                            shown_m += 1
+                    if not search or any(s in search for s in ["ep", "endpoint", "tool", "filter"]):
+                        lines.append(f"")
+                        lines.append(f"--- Endpoints ({ep_count}) ---")
+                        shown = 0
+                        for eid in sorted(SYNOXCLOUD_ENDPOINTS.keys()):
+                            if search and search not in eid.lower():
+                                continue
+                            if shown >= 50 and not search:
+                                lines.append(f"  ... and {ep_count - shown} more. Filter with /synoxcloud <keyword>")
+                                break
+                            path = SYNOXCLOUD_ENDPOINTS[eid]
+                            lines.append(f"  {eid} — {path}")
+                            shown += 1
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/n8n":

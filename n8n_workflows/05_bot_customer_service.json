@@ -1,0 +1,190 @@
+{
+  "name": "05 - Bot Customer Service Agent",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 400],
+      "parameters": {
+        "path": "bot-support",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const { user_id, username, message, issue_type } = $json.body || {};\n\nif (!message || !message.trim()) {\n  return [{ json: { ok: false, error: 'message is required' } }];\n}\n\nconst ticketId = `TKT-${Date.now().toString(36).toUpperCase()}`;\nconst issueType = issue_type || guessIssue(message);\n\nfunction guessIssue(msg) {\n  const m = msg.toLowerCase();\n  if (/bug|error|crash|broken|not working|fail/i.test(m)) return 'bug';\n  if (/help|how.to|what.is|how do|guide|tutorial|documentation/i.test(m)) return 'question';\n  if (/reset|password|login|account|2fa|ban/i.test(m)) return 'account';\n  if (/feature|request|suggest|would like|wish|idea/i.test(m)) return 'feature';\n  if (/slow|lag|timeout|latency/i.test(m)) return 'performance';\n  if (/pay|billing|plan|premium|subscrib|price|upgrade/i.test(m)) return 'billing';\n  return 'other';\n}\n\nreturn [{ json: {\n  ticketId,\n  userId: user_id || 'anon',\n  username: username || 'unknown',\n  message: message.trim(),\n  issueType,\n  status: 'open',\n  receivedAt: new Date().toISOString()\n}}];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Bot Support Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.4,
+      "position": [560, 400],
+      "parameters": {
+        "promptType": "define",
+        "systemPrompt": "You are the official support agent for OpenCode Telegram Bot.\n\n## Bot Info\nOpenCode is a Telegram bot that provides AI-powered conversation, code generation, image analysis, web research, reminders, and n8n workflow automation. It runs on Python via Termux on Android.\n\n## Bot Commands\n- /help — Show categorized help\n- /digest — Summarize conversation\n- /profile save - Show/load/reset user profile\n- /routine create|run|list|show|delete — Prompt chaining workflows\n- /code — Execute code in chat\n- /search — Web search\n- /fetch — Fetch URL content\n- /reason — Deep reasoning\n- /arch — Architecture analysis\n- /img — Image analysis\n- /remind — Set reminders\n- /voice — Voice processing\n\nIf you don't know the answer, use the FAQ lookup tool. If the user wants a feature or reports a bug, log it with the tracking tool.\n\n**Escalate to human** if: user is angry/threatening, security issue, or 2 attempts failed. Start response with '[ESCALATE]'.\n\nBe friendly and concise. You're talking to a Telegram user.",
+        "maxIterations": 12
+      }
+    },
+    {
+      "id": "n4",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [280, 150],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.4,
+        "maxTokens": 1500
+      },
+      "credentials": { "openAiApi": { "id": "__YOUR_OPENAI_CRED_ID__" } }
+    },
+    {
+      "id": "n5",
+      "name": "FAQ Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [280, 650],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://raw.githubusercontent.com/bara36368-sketch/opencode-server-bot/main/FAQ.md' }}",
+        "options": { "timeout": 10000 }
+      },
+      "credentials": {}
+    },
+    {
+      "id": "n6",
+      "name": "Format FAQ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 650],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const text = typeof $json === 'string' ? $json : ($json.body || '');\nreturn [{ json: { faqData: text.substring(0, 15000) } }];"
+      }
+    },
+    {
+      "id": "n7",
+      "name": "FAQ Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [840, 650],
+      "parameters": {
+        "toolName": "search-faq",
+        "toolDescription": "Search the bot's FAQ document for answers. Input: a search term. Returns matching FAQ entries.",
+        "toolInputSchema": [{ "name": "searchTerm", "required": true }],
+        "code": "const faq = $('Format FAQ').item.json.faqData || '';\nconst term = ($fromAI('searchTerm', 'term', 'string') || '').toLowerCase();\nconst sections = faq.split(/\\n## /);\nconst matches = sections.filter(s => s.toLowerCase().includes(term));\nreturn [{ json: { results: matches.slice(0, 3).join('\\n\\n') || 'No matching FAQ entries found.' } }];"
+      }
+    },
+    {
+      "id": "n8",
+      "name": "Ticket/Feature Tracker",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [280, 850],
+      "parameters": {
+        "toolName": "log-ticket",
+        "toolDescription": "Log a bug report or feature request to the tracking system. Input: type (bug/feature), title, description.",
+        "toolInputSchema": [
+          { "name": "type", "required": true },
+          { "name": "title", "required": true },
+          { "name": "description", "required": true }
+        ],
+        "code": "const type = $fromAI('type', 'type', 'string');\nconst title = $fromAI('title', 'title', 'string');\nconst desc = $fromAI('description', 'description', 'string');\n// In production, POST to a Google Sheet or Notion DB\nreturn [{ json: { logged: true, ticket: `TRACK-${Date.now().toString(36)}`, type, title } }];"
+      }
+    },
+    {
+      "id": "n9",
+      "name": "Check Escalation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 400],
+      "parameters": {
+        "language": "javaScript",
+        "code": "const output = $json.output || '';\nconst needsEscalation = output.startsWith('[ESCALATE]') || /human|supervisor|manager|transfer|angry|threat/i.test(output);\nreturn [{ json: { ...$json, needsEscalation, agentResponse: output.replace('[ESCALATE]', '').trim() } }];"
+      }
+    },
+    {
+      "id": "n10",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.needsEscalation }}",
+        "rules": [{ "value2": "true", "output": 0 }],
+        "fallbackOutput": 1
+      }
+    },
+    {
+      "id": "n11",
+      "name": "Notify Owner (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1400, 250],
+      "parameters": {
+        "chatId": "8585609360",
+        "text": "=🚨 Bot Support Escalation\n*Ticket:* {{$json.ticketId}}\n*User:* {{$json.username}} ({{$json.userId}})\n*Issue:* {{$json.message}}\n*Agent:* {{$json.agentResponse}}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "credentials": { "telegramApi": { "id": "__YOUR_TELEGRAM_BOT_CRED_ID__" } }
+    },
+    {
+      "id": "n12",
+      "name": "Respond Escalated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 250],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"ticket\": $json.ticketId, \"response\": $json.agentResponse, \"escalated\": true }",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "n13",
+      "name": "Respond Resolved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"ticket\": $json.ticketId, \"response\": $json.agentResponse, \"escalated\": false }",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Request", "type": "main", "index": 0 }]] },
+    "Parse Request": { "main": [[{ "node": "Bot Support Agent", "type": "main", "index": 0 }]] },
+    "OpenAI Model": { "ai_languageModel": [[{ "node": "Bot Support Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "FAQ Lookup": { "main": [[{ "node": "Format FAQ", "type": "main", "index": 0 }]] },
+    "Format FAQ": { "ai_tool": [[{ "node": "FAQ Tool", "type": "ai_tool", "index": 0 }]] },
+    "FAQ Tool": { "ai_tool": [[{ "node": "Bot Support Agent", "type": "ai_tool", "index": 0 }]] },
+    "Ticket/Feature Tracker": { "ai_tool": [[{ "node": "Bot Support Agent", "type": "ai_tool", "index": 0 }]] },
+    "Bot Support Agent": { "main": [[{ "node": "Check Escalation", "type": "main", "index": 0 }]] },
+    "Check Escalation": { "main": [[{ "node": "Route", "type": "main", "index": 0 }]] },
+    "Route": {
+      "main": [
+        [{ "node": "Notify Owner (Telegram)", "type": "main", "index": 0 }],
+        [{ "node": "Respond Resolved", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Owner (Telegram)": { "main": [[{ "node": "Respond Escalated", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "timezone": "UTC", "saveManualExecutions": true },
+  "tags": ["bot", "support", "customer-service"],
+  "active": false
+}
