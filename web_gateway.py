@@ -347,7 +347,9 @@ def use_route(method, path):
 
 async def _handle(reader, writer):
     try:
-        data = await asyncio.wait_for(reader.read(65536), timeout=30)
+        data = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=30)
+    except asyncio.IncompleteReadError as e:
+        data = e.partial
     except:
         writer.close()
         return
@@ -375,9 +377,22 @@ async def _handle(reader, writer):
             k, v = lines[i].split(":", 1)
             headers[k.strip().lower()] = v.strip()
         i += 1
+
     cl = int(headers.get("content-length", 0))
     body_raw = data[data.find(b"\r\n\r\n") + 4:]
-    body_str = body_raw[:cl].decode("utf-8", errors="replace") if cl else ""
+    body_str = ""
+    if cl > 0:
+        have = len(body_raw)
+        if have < cl:
+            try:
+                more = await asyncio.wait_for(reader.readexactly(cl - have), timeout=30)
+                body_raw += more
+            except:
+                pass
+        try:
+            body_str = body_raw[:cl].decode("utf-8", errors="replace")
+        except:
+            body_str = ""
 
     f, params = use_route(method, path)
     if f is None:
@@ -657,10 +672,18 @@ async def handle_provider_roles(method, path, headers, body, params):
 async def handle_list_workflows(method, path, headers, body, params):
     return json_response([{"id": k, "name": v.get("name", "Unnamed"), "node_count": len(v.get("nodes", [])), "edge_count": len(v.get("edges", []))} for k, v in WORKFLOWS.items()])
 
+def _parse_body(body):
+    try:
+        return json.loads(body) if body and body.strip() else {}
+    except json.JSONDecodeError as e:
+        return {"_parse_error": str(e)}
+
 @route("POST", "/api/workflows")
 async def handle_create_workflow(method, path, headers, body, params):
     global _next_wf_id
-    data = json.loads(body) if body else {}
+    data = _parse_body(body)
+    if "_parse_error" in data:
+        return json_response({"error": "Invalid JSON: " + data["_parse_error"]}, 400)
     wf_id = str(_next_wf_id)
     _next_wf_id += 1
     WORKFLOWS[wf_id] = {"id": wf_id, "name": data.get("name", "Untitled"), "nodes": data.get("nodes", []), "edges": data.get("edges", []), "created": time.time()}
@@ -679,7 +702,9 @@ async def handle_update_workflow(method, path, headers, body, params):
     wf = WORKFLOWS.get(params["wf_id"])
     if not wf:
         return json_response({"error": "Not found"}, 404)
-    data = json.loads(body) if body else {}
+    data = _parse_body(body)
+    if "_parse_error" in data:
+        return json_response({"error": "Invalid JSON: " + data["_parse_error"]}, 400)
     wf["name"] = data.get("name", wf["name"])
     wf["nodes"] = data.get("nodes", wf["nodes"])
     wf["edges"] = data.get("edges", wf["edges"])
@@ -697,7 +722,9 @@ async def handle_delete_workflow(method, path, headers, body, params):
 
 @route("POST", "/api/workflows/execute")
 async def handle_execute_workflow(method, path, headers, body, params):
-    data = json.loads(body) if body else {}
+    data = _parse_body(body)
+    if "_parse_error" in data:
+        return json_response({"error": "Invalid JSON: " + data["_parse_error"]}, 400)
     result = await execute_workflow(data)
     return json_response(result)
 
@@ -711,7 +738,9 @@ async def handle_providers(method, path, headers, body, params):
 
 @route("POST", "/v1/chat/completions")
 async def handle_chat(method, path, headers, body, params):
-    data = json.loads(body) if body else {}
+    data = _parse_body(body)
+    if "_parse_error" in data:
+        return json_response({"error": {"message": "Invalid JSON: " + data["_parse_error"]}}, 400)
     model_id = data.get("model", "groq")
     messages = data.get("messages", [])
     stream = data.get("stream", False)
