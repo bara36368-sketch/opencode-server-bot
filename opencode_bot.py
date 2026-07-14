@@ -1356,11 +1356,7 @@ async def poll():
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
     log("Bot started")
-    print("OpenCode Bot v2 â€” Team + Architecture Edition")
-    print(f"  Token: {TOKEN[:8]}...{TOKEN[-4:]}")
-    print(f"  Agents: {len(AGENTS)}  Providers: {', '.join(PROVIDERS.keys())}")
-    print(f"  Archs: {', '.join(ARCHITECTURES.keys())}  Tools: {', '.join(TOOLS.keys())}")
-    print(f"  Gateway worker started")
+    log("OpenCode Bot v2 started")
 
     await gateway.start_worker()
     asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
