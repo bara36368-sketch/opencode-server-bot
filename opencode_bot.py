@@ -1511,6 +1511,8 @@ async def main():
                             "/agents — List agents",
                             "/repo — List / switch AI provider",
                             "/status — Current agent + provider",
+                            "/multi start <p1> [p2] [rounds=2] — Talk to 2 AIs at once",
+                            "/multi stop — End multi-AI session",
                             "/clear — Clear history",
                         ]),
                         ("MODES", [
