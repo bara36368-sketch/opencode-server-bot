@@ -1,4 +1,4 @@
-import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback
+import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback, subprocess, sys
 
 HAS_HTTPX = True
 try:
@@ -310,6 +310,62 @@ async def execute_workflow(workflow, initial_input=""):
         "total_time": round(sum(s.get("elapsed", 0) for s in steps), 2),
     }
 
+# ---- Bot Subprocess Manager ----
+
+_bot_proc = None
+_bot_start_time = 0
+_bot_logs = []
+_bot_log_lock = threading.Lock()
+
+def _bot_reader(pipe, name):
+    global _bot_logs
+    for line in iter(pipe.readline, ""):
+        if not line:
+            break
+        with _bot_log_lock:
+            _bot_logs.append(f"[{name}] {line.strip()}")
+            if len(_bot_logs) > 500:
+                _bot_logs = _bot_logs[-300:]
+
+def bot_start():
+    global _bot_proc, _bot_start_time
+    if _bot_proc and _bot_proc.poll() is None:
+        return "already running"
+    bot_script = os.path.join(BASE_DIR, "opencode_bot.py")
+    if not os.path.exists(bot_script):
+        return "opencode_bot.py not found"
+    _bot_proc = subprocess.Popen(
+        [sys.executable, bot_script],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        cwd=BASE_DIR, env={**os.environ, "WEB_GATEWAY_PORT": os.environ.get("WEB_GATEWAY_PORT", "4357")}
+    )
+    _bot_start_time = time.time()
+    threading.Thread(target=_bot_reader, args=(_bot_proc.stdout, "BOT"), daemon=True).start()
+    threading.Thread(target=_bot_reader, args=(_bot_proc.stderr, "ERR"), daemon=True).start()
+    return "started"
+
+def bot_stop():
+    global _bot_proc
+    if not _bot_proc or _bot_proc.poll() is not None:
+        return "not running"
+    _bot_proc.terminate()
+    try:
+        _bot_proc.wait(timeout=5)
+    except:
+        _bot_proc.kill()
+        _bot_proc.wait()
+    _bot_proc = None
+    return "stopped"
+
+def bot_status():
+    global _bot_proc, _bot_start_time
+    running = _bot_proc is not None and _bot_proc.poll() is None
+    return {"running": running, "pid": _bot_proc.pid if running else 0, "uptime": round(time.time() - _bot_start_time, 1) if running else 0}
+
+def bot_logs(count=50):
+    with _bot_log_lock:
+        return _bot_logs[-count:]
+
 # ---- Minimal HTTP Server (zero C extensions needed) ----
 
 def _parse_path(path):
@@ -473,9 +529,16 @@ select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:6px 12p
 button{background:#238636;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
 button:hover{background:#2ea043}
 button:disabled{background:#23863644;cursor:not-allowed}
+.toggle{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #30363d;background:#161b22;color:#8b949e;user-select:none;transition:all .2s}
+.toggle.on{background:#3fb95022;border-color:#3fb950;color:#3fb950}
+.toggle.off{background:#f8514922;border-color:#f85149;color:#f85149}
+.toggle .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.toggle.on .dot{background:#3fb950}
+.toggle.off .dot{background:#f85149}
 </style></head><body>
 <header><h1>OpenCode AI Gateway</h1><span style="font-size:12px;color:#8b949e" id="status">__STATUS__</span>
 <nav><a href="/">Chat</a><a href="/workflow">Workflow Builder</a>
+<span class="toggle off" id="bot-toggle" onclick="toggleBot()"><span class="dot"></span> Bot</span>
 <select id="model-select">__OPTIONS__</select></nav></header>
 <div id="chat"><div class="msg assistant" style="color:#8b949e">Welcome. Select a model and start chatting.</div></div>
 <div id="input-area"><textarea id="input" rows="2" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea><button id="send-btn" onclick="send()">Send</button></div>
@@ -488,6 +551,9 @@ const ld=document.createElement('div');ld.className='msg loading';ld.textContent
 try{const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,messages:h.slice(-20)})});const j=await r.json();ld.remove();
 if(j.choices&&j.choices[0]){const rep=j.choices[0].message.content;add('a',rep);h.push({role:'assistant',content:rep})}else add('error',j.error?.message||'No response')
 }catch(e){ld.remove();add('error','Error: '+e.message)}btn.disabled=false}
+async function updateBot(){try{const r=await fetch('/api/bot/status');const j=await r.json();const el=document.getElementById('bot-toggle');if(j.running){el.className='toggle on';el.innerHTML='<span class=\"dot\"></span> Bot ON'}else{el.className='toggle off';el.innerHTML='<span class=\"dot\"></span> Bot OFF'}}catch(e){}}
+async function toggleBot(){const el=document.getElementById('bot-toggle');const isOn=el.classList.contains('on');el.style.opacity='0.5';try{const r=await fetch(isOn?'/api/bot/stop':'/api/bot/start',{method:'POST'});await r.json();await updateBot()}catch(e){}el.style.opacity='1'}
+updateBot();setInterval(updateBot,5000);
 </script></body></html>"""
 
 WORKFLOW_HTML = r"""<!DOCTYPE html>
@@ -572,8 +638,15 @@ header a:hover{background:#1f6feb22}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+.toggle{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #30363d;background:#161b22;color:#8b949e;user-select:none;transition:all .2s;vertical-align:middle}
+.toggle.on{background:#3fb95022;border-color:#3fb950;color:#3fb950}
+.toggle.off{background:#f8514922;border-color:#f85149;color:#f85149}
+.toggle .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.toggle.on .dot{background:#3fb950}
+.toggle.off .dot{background:#f85149}
 </style></head><body>
 <header><h1>\u2699\uFE0F Workflow Builder</h1><a href="/">Chat</a>
+<span class="toggle off" id="bot-toggle" onclick="toggleBot()"><span class="dot"></span> Bot</span>
 <input class="wf-name" id="wf-name" placeholder="Workflow name..." value="Untitled Workflow"/>
 <div class="toolbar"><button onclick="loadDialog()">Load</button><button onclick="saveWf()">Save</button><button onclick="exportWf()">Export</button><button class="primary" onclick="runWf()">Run</button><button class="danger" onclick="clearWf()">Clear</button></div></header>
 <div id="main"><div id="palette"><h3>AI Providers</h3><div id="palette-list"></div></div>
@@ -645,6 +718,9 @@ function clearWf(){if(nodes.length&&!confirm('Clear all nodes?'))return;nodes=[]
 function toast(m){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;padding:8px 20px;border-radius:6px;font-size:12px;z-index:200;transition:opacity .3s;opacity:0';document.body.appendChild(t)}
 t.textContent=m;t.style.opacity='1';clearTimeout(t._hide);t._hide=setTimeout(()=>t.style.opacity='0',2500)}
 renderN();renderE();
+async function updateBot(){try{const r=await fetch('/api/bot/status');const j=await r.json();const el=document.getElementById('bot-toggle');if(j.running){el.className='toggle on';el.innerHTML='<span class=\"dot\"></span> Bot ON'}else{el.className='toggle off';el.innerHTML='<span class=\"dot\"></span> Bot OFF'}}catch(e){}}
+async function toggleBot(){const el=document.getElementById('bot-toggle');const isOn=el.classList.contains('on');el.style.opacity='0.5';try{const r=await fetch(isOn?'/api/bot/stop':'/api/bot/start',{method:'POST'});await r.json();await updateBot()}catch(e){}el.style.opacity='1'}
+updateBot();setInterval(updateBot,5000);
 </script></body></html>"""
 
 # ---- Route Handlers ----
@@ -735,6 +811,25 @@ async def handle_models(method, path, headers, body, params):
 @route("GET", "/api/providers")
 async def handle_providers(method, path, headers, body, params):
     return json_response(get_available_providers())
+
+@route("GET", "/api/bot/status")
+async def handle_bot_status(method, path, headers, body, params):
+    return json_response(bot_status())
+
+@route("POST", "/api/bot/start")
+async def handle_bot_start(method, path, headers, body, params):
+    result = bot_start()
+    return json_response({"result": result, "status": bot_status()})
+
+@route("POST", "/api/bot/stop")
+async def handle_bot_stop(method, path, headers, body, params):
+    result = bot_stop()
+    return json_response({"result": result, "status": bot_status()})
+
+@route("GET", "/api/bot/logs")
+async def handle_bot_logs(method, path, headers, body, params):
+    n = int(headers.get("x-log-count", 50))
+    return json_response({"logs": bot_logs(n)})
 
 @route("POST", "/v1/chat/completions")
 async def handle_chat(method, path, headers, body, params):
