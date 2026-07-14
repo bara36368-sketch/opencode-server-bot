@@ -1,14 +1,15 @@
-import asyncio, json, os, time, threading, urllib.parse, copy, uuid
-import httpx
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback
+
+HAS_HTTPX = True
+try:
+    import httpx
+except ImportError:
+    HAS_HTTPX = False
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROVIDERS_FILE = os.path.join(BASE_DIR, "providers.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(BASE_DIR, "synoxcloud_ai_models.json")
 WORKFLOWS_FILE = os.path.join(BASE_DIR, "workflows.json")
-
-app = FastAPI(title="OpenCode AI Gateway")
 
 PROVIDERS = {}
 SYNOXCLOUD_AI_MODELS = {}
@@ -20,55 +21,55 @@ PROVIDER_ROLES = {
                "system_prompt": "You are a strategist. Think several steps ahead, consider multiple perspectives, and provide strategic recommendations."},
     "groq": {"role": "Researcher", "emoji": "\U0001F52C", "color": "#10b981",
              "desc": "Fast research and information synthesis",
-             "system_prompt": "You are a research assistant. Gather, synthesize, and present information clearly with citations where possible."},
+             "system_prompt": "You are a research assistant. Gather, synthesize, and present information clearly."},
     "gemini": {"role": "Analyst", "emoji": "\U0001F4CA", "color": "#3b82f6",
                "desc": "Multimodal analysis and pattern recognition",
-               "system_prompt": "You are an analyst. Examine data critically, identify patterns, and provide insightful analysis with evidence."},
+               "system_prompt": "You are an analyst. Examine data critically and provide insightful analysis."},
     "deepseek": {"role": "Coder", "emoji": "\U0001F4BB", "color": "#06b6d4",
                  "desc": "Code generation and software architecture",
-                 "system_prompt": "You are a senior software engineer. Write clean, efficient, well-documented code following best practices."},
+                 "system_prompt": "You are a senior software engineer. Write clean, efficient, well-documented code."},
     "mistral": {"role": "Writer", "emoji": "\u270D\uFE0F", "color": "#f59e0b",
                 "desc": "Creative and technical writing",
-                "system_prompt": "You are a professional writer. Produce clear, engaging, and well-structured content tailored to the audience."},
+                "system_prompt": "You are a professional writer. Produce clear, engaging content."},
     "nvidia": {"role": "Scientist", "emoji": "\U0001F52A", "color": "#76b900",
                "desc": "Technical and scientific reasoning",
-               "system_prompt": "You are a scientist. Apply rigorous reasoning, cite evidence, and explain technical concepts precisely."},
+               "system_prompt": "You are a scientist. Apply rigorous reasoning and explain precisely."},
     "openrouter": {"role": "Generalist", "emoji": "\U0001F9E0", "color": "#a855f7",
                    "desc": "Versatile general-purpose AI",
-                   "system_prompt": "You are a helpful general assistant. Answer questions thoroughly, accurately, and adapt to any domain."},
+                   "system_prompt": "You are a helpful general assistant. Answer thoroughly and accurately."},
     "cohere": {"role": "Summarizer", "emoji": "\U0001F4DD", "color": "#ec4899",
                "desc": "Document analysis and summarization",
-               "system_prompt": "You are a summarization specialist. Condense information while preserving key points, context, and nuance."},
+               "system_prompt": "You are a summarization specialist. Condense while preserving key points."},
     "xai": {"role": "Explainer", "emoji": "\U0001F50D", "color": "#ef4444",
             "desc": "Clear explanations of complex topics",
-            "system_prompt": "You are an explainer. Break down complex topics into clear, understandable explanations with examples."},
+            "system_prompt": "You are an explainer. Break down complex topics into clear explanations."},
     "github": {"role": "Developer", "emoji": "\U0001F6E0\uFE0F", "color": "#2da44e",
                "desc": "Code review and software development",
-               "system_prompt": "You are a developer. Build and review code with best practices, testing, and maintainability in mind."},
+               "system_prompt": "You are a developer. Build and review code following best practices."},
     "together": {"role": "Creator", "emoji": "\U0001F3A8", "color": "#8b5cf6",
                  "desc": "Creative content generation",
-                 "system_prompt": "You are a creative AI. Generate imaginative, original content with flair and originality."},
+                 "system_prompt": "You are a creative AI. Generate imaginative, original content."},
     "fireworks": {"role": "Optimizer", "emoji": "\u26A1", "color": "#f97316",
                   "desc": "Performance optimization and refinement",
-                  "system_prompt": "You are an optimizer. Improve and refine content for clarity, impact, and effectiveness."},
+                  "system_prompt": "You are an optimizer. Improve and refine content for impact."},
     "cerebras": {"role": "Speedster", "emoji": "\U0001F3CE\uFE0F", "color": "#14b8a6",
                  "desc": "Ultra-fast responses for simple tasks",
-                 "system_prompt": "You are a rapid-response AI. Provide quick, accurate answers without unnecessary verbosity."},
+                 "system_prompt": "You are a rapid-response AI. Provide quick, accurate answers."},
     "sambanova": {"role": "Reasoner", "emoji": "\U0001F9EE", "color": "#6366f1",
                   "desc": "Deep logical reasoning",
-                  "system_prompt": "You are a reasoning engine. Think step-by-step, show your work, and reach logical conclusions."},
+                  "system_prompt": "You are a reasoning engine. Think step-by-step and show your work."},
     "lepton": {"role": "Advisor", "emoji": "\U0001F4A1", "color": "#eab308",
                "desc": "Strategic advice and consulting",
-               "system_prompt": "You are an advisor. Provide strategic guidance, actionable recommendations, and consider trade-offs."},
+               "system_prompt": "You are an advisor. Provide strategic guidance and recommendations."},
     "synoxcloud": {"role": "Assistant", "emoji": "\U0001F916", "color": "#6b7280",
                    "desc": "General-purpose AI assistant via SynoxCloud",
-                   "system_prompt": "You are a helpful assistant. Be concise, accurate, and friendly."},
+                   "system_prompt": "You are a helpful assistant. Be concise and accurate."},
     "hy3": {"role": "Thinker", "emoji": "\U0001F4AD", "color": "#d946ef",
             "desc": "Deep thinking with Hy3 model",
-            "system_prompt": "You are a deep thinker. Explore ideas thoroughly and provide nuanced perspectives."},
+            "system_prompt": "You are a deep thinker. Explore ideas thoroughly."},
     "hy3-preview": {"role": "Pioneer", "emoji": "\U0001F680", "color": "#f43f5e",
                     "desc": "Cutting-edge Hy3 preview model",
-                    "system_prompt": "You are a pioneer. Explore new ideas and push boundaries in your analysis."},
+                    "system_prompt": "You are a pioneer. Push boundaries in your analysis."},
 }
 
 def _is_configured(key):
@@ -150,8 +151,7 @@ def get_available_providers():
 def get_available_models():
     models = []
     for pid, p in PROVIDERS.items():
-        configured = _is_configured(p.get("key", ""))
-        models.append({"id": pid, "model": p["model"], "provider": pid, "configured": configured})
+        models.append({"id": pid, "model": p["model"], "provider": pid, "configured": _is_configured(p.get("key", ""))})
     return models
 
 # ---- Workflow Engine ----
@@ -175,91 +175,9 @@ def _toposort(nodes, edges):
     return order
 
 def _get_role(provider_id):
-    return PROVIDER_ROLES.get(provider_id, PROVIDER_ROLES.get("openrouter"))
+    return PROVIDER_ROLES.get(provider_id, PROVIDER_ROLES.get("openrouter", {}))
 
-async def execute_workflow(workflow, initial_input=""):
-    nodes = workflow.get("nodes", [])
-    edges = workflow.get("edges", [])
-    if not nodes:
-        return {"error": "Workflow has no nodes"}
-    
-    node_map = {n["id"]: n for n in nodes}
-    order = _toposort(nodes, edges)
-    
-    in_edges = {n["id"]: [] for n in nodes}
-    for e in edges:
-        if e["target"] in in_edges:
-            in_edges[e["target"]].append(e["source"])
-    
-    results = {}
-    errors = {}
-    steps = []
-    
-    for nid in order:
-        node = node_map.get(nid)
-        if not node:
-            continue
-        pid = node.get("provider", "openrouter")
-        p = PROVIDERS.get(pid)
-        if not p:
-            errors[nid] = f"Unknown provider: {pid}"
-            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": errors[nid]})
-            continue
-        if not _is_configured(p.get("key", "")):
-            errors[nid] = f"Provider {pid} not configured"
-            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": errors[nid]})
-            continue
-        
-        role = _get_role(pid)
-        sys_prompt = node.get("system_prompt") or role.get("system_prompt", "You are a helpful assistant.")
-        temperature = node.get("temperature", 0.7)
-        
-        upstream = in_edges.get(nid, [])
-        context_parts = []
-        for uid in upstream:
-            if uid in results:
-                context_parts.append(f"From {node_map.get(uid, {}).get('label', uid)}:\n{results[uid]}")
-        
-        if initial_input and not upstream:
-            context_parts.append(f"User input:\n{initial_input}")
-        
-        messages = [{"role": "system", "content": sys_prompt}]
-        if context_parts:
-            messages.append({"role": "user", "content": "\n\n".join(context_parts)})
-        
-        start = time.time()
-        try:
-            result = await call_provider_internal(messages, pid)
-            elapsed = time.time() - start
-            content = result.get("content", "")
-            error = result.get("error")
-            if error:
-                errors[nid] = error
-                steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": error, "elapsed": round(elapsed, 2)})
-            else:
-                results[nid] = content
-                steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "ok", "elapsed": round(elapsed, 2), "preview": content[:200]})
-        except Exception as e:
-            errors[nid] = str(e)
-            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": str(e)})
-    
-    final_nodes = [nid for nid in node_map if nid not in [e["source"] for e in edges]]
-    final_output = "\n\n".join(results.get(nid, "") for nid in final_nodes if nid in results)
-    
-    return {
-        "workflow_id": workflow.get("id"),
-        "workflow_name": workflow.get("name", "Untitled"),
-        "steps": steps,
-        "results": results,
-        "errors": errors,
-        "final_output": final_output,
-        "total_nodes": len(nodes),
-        "success_count": sum(1 for s in steps if s["status"] == "ok"),
-        "error_count": sum(1 for s in steps if s["status"] == "error"),
-        "total_time": round(sum(s.get("elapsed", 0) for s in steps), 2),
-    }
-
-async def call_provider_internal(messages, provider_id):
+async def call_provider(messages, provider_id):
     p = PROVIDERS.get(provider_id)
     if not p:
         return {"error": "Unknown provider: " + provider_id}
@@ -323,865 +241,488 @@ async def call_provider_internal(messages, provider_id):
         except Exception as e:
             return {"error": str(e)}
 
-async def call_provider(messages, provider_id):
-    return await call_provider_internal(messages, provider_id)
+async def execute_workflow(workflow, initial_input=""):
+    nodes = workflow.get("nodes", [])
+    edges = workflow.get("edges", [])
+    if not nodes:
+        return {"error": "Workflow has no nodes"}
+    node_map = {n["id"]: n for n in nodes}
+    order = _toposort(nodes, edges)
+    in_edges = {n["id"]: [] for n in nodes}
+    for e in edges:
+        if e["target"] in in_edges:
+            in_edges[e["target"]].append(e["source"])
+    results = {}
+    errors = {}
+    steps = []
+    for nid in order:
+        node = node_map.get(nid)
+        if not node:
+            continue
+        pid = node.get("provider", "openrouter")
+        p = PROVIDERS.get(pid)
+        if not p:
+            errors[nid] = f"Unknown provider: {pid}"
+            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": errors[nid]})
+            continue
+        if not _is_configured(p.get("key", "")):
+            errors[nid] = f"Provider {pid} not configured"
+            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": errors[nid]})
+            continue
+        role = _get_role(pid)
+        sys_prompt = node.get("system_prompt") or role.get("system_prompt", "You are a helpful assistant.")
+        upstream = in_edges.get(nid, [])
+        context_parts = []
+        for uid in upstream:
+            if uid in results:
+                context_parts.append(f"From {node_map.get(uid, {}).get('label', uid)}:\n{results[uid]}")
+        if initial_input and not upstream:
+            context_parts.append(f"User input:\n{initial_input}")
+        messages = [{"role": "system", "content": sys_prompt}]
+        if context_parts:
+            messages.append({"role": "user", "content": "\n\n".join(context_parts)})
+        start = time.time()
+        try:
+            result = await call_provider(messages, pid)
+            elapsed = time.time() - start
+            content = result.get("content", "")
+            error = result.get("error")
+            if error:
+                errors[nid] = error
+                steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": error, "elapsed": round(elapsed, 2)})
+            else:
+                results[nid] = content
+                steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "ok", "elapsed": round(elapsed, 2), "preview": content[:200]})
+        except Exception as e:
+            errors[nid] = str(e)
+            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": str(e)})
+    final_nodes = [nid for nid in node_map if nid not in [e["source"] for e in edges]]
+    final_output = "\n\n".join(results.get(nid, "") for nid in final_nodes if nid in results)
+    return {
+        "workflow_id": workflow.get("id"),
+        "workflow_name": workflow.get("name", "Untitled"),
+        "steps": steps, "results": results, "errors": errors,
+        "final_output": final_output, "total_nodes": len(nodes),
+        "success_count": sum(1 for s in steps if s["status"] == "ok"),
+        "error_count": sum(1 for s in steps if s["status"] == "error"),
+        "total_time": round(sum(s.get("elapsed", 0) for s in steps), 2),
+    }
 
-_WEB_HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+# ---- Minimal HTTP Server (zero C extensions needed) ----
+
+def _parse_path(path):
+    path = path.split("?")[0].rstrip("/")
+    return path if path else "/"
+
+def _match_route(route_path, request_path):
+    route_parts = route_path.strip("/").split("/")
+    req_parts = request_path.strip("/").split("/") if request_path.strip("/") else []
+    params = {}
+    if len(route_parts) != len(req_parts):
+        return None
+    for rp, rqp in zip(route_parts, req_parts):
+        if rp.startswith("{") and rp.endswith("}"):
+            params[rp[1:-1]] = rqp
+        elif rp != rqp:
+            return None
+    return params
+
+_ROUTES = []
+
+def route(method, path):
+    def wrapper(f):
+        _ROUTES.append((method, path, f))
+        return f
+    return wrapper
+
+def use_route(method, path):
+    for m, p, f in _ROUTES:
+        if m == method:
+            params = _match_route(p, path)
+            if params is not None:
+                return f, params
+    return None, None
+
+async def _handle(reader, writer):
+    try:
+        data = await asyncio.wait_for(reader.read(65536), timeout=30)
+    except:
+        writer.close()
+        return
+    if not data:
+        writer.close()
+        return
+    try:
+        raw = data.decode("utf-8", errors="replace")
+    except:
+        writer.close()
+        return
+    lines = raw.split("\r\n")
+    if not lines:
+        writer.close()
+        return
+    fl = lines[0].split(" ")
+    if len(fl) < 2:
+        writer.close()
+        return
+    method, path = fl[0].upper(), _parse_path(fl[1])
+    headers = {}
+    i = 1
+    while i < len(lines) and lines[i].strip():
+        if ":" in lines[i]:
+            k, v = lines[i].split(":", 1)
+            headers[k.strip().lower()] = v.strip()
+        i += 1
+    cl = int(headers.get("content-length", 0))
+    body_raw = data[data.find(b"\r\n\r\n") + 4:]
+    body_str = body_raw[:cl].decode("utf-8", errors="replace") if cl else ""
+
+    f, params = use_route(method, path)
+    if f is None:
+        await _send(writer, 404, "text/plain", b"Not Found")
+        writer.close()
+        return
+
+    try:
+        if asyncio.iscoroutinefunction(f):
+            result = await f(method, path, headers, body_str, params)
+        else:
+            result = f(method, path, headers, body_str, params)
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"Error handling {method} {path}: {e}\n{tb}")
+        await _send(writer, 500, "application/json", json.dumps({"error": str(e)}).encode())
+        writer.close()
+        return
+
+    if isinstance(result, tuple):
+        status, ct, body_bytes, extra_headers = result
+        await _send(writer, status, ct, body_bytes, extra_headers)
+    else:
+        status, ct, body_bytes, extra_headers = 200, "text/plain", b"", {}
+        await _send(writer, status, ct, body_bytes, extra_headers)
+    writer.close()
+
+async def _send(writer, status, content_type, body, extra_headers=None):
+    reason = {200: "OK", 201: "Created", 400: "Bad Request", 404: "Not Found", 500: "Internal Server Error"}.get(status, "OK")
+    resp = f"HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {len(body)}\r\n"
+    if extra_headers:
+        for k, v in extra_headers.items():
+            resp += f"{k}: {v}\r\n"
+    resp += "\r\n"
+    writer.write(resp.encode() + body)
+    await writer.drain()
+
+def json_response(data, status=200):
+    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    return (status, "application/json", body, {})
+
+def html_response(html, status=200):
+    body = html.encode("utf-8")
+    return (status, "text/html; charset=utf-8", body, {})
+
+async def sse_response(writer, generator):
+    reason = "OK"
+    resp = f"HTTP/1.1 200 {reason}\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n"
+    writer.write(resp.encode())
+    await writer.drain()
+    async for chunk in generator:
+        writer.write(chunk.encode())
+        await writer.drain()
+
+# ---- HTML Templates ----
+
+_CHAT_HTML = r"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>OpenCode AI Gateway</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
-  header{background:#161b22;padding:12px 24px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-  nav{display:flex;gap:12px;align-items:center}
-  nav a{color:#58a6ff;text-decoration:none;font-size:13px;padding:4px 10px;border-radius:4px;border:1px solid #30363d}
-  nav a:hover{background:#1f6feb22;border-color:#1f6feb}
-  h1{font-size:16px;font-weight:600}
-  .model-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:6px 12px;border-radius:6px;font-size:13px}
-  #chat{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
-  .msg{max-width:720px;padding:12px 16px;border-radius:8px;line-height:1.6;font-size:14px;white-space:pre-wrap}
-  .user{background:#1f6feb22;border:1px solid #1f6feb44;align-self:flex-end}
-  .assistant{background:#161b22;border:1px solid #30363d;align-self:flex-start}
-  .error{background:#da363322;border:1px solid #da363344;align-self:flex-start;color:#f85149}
-  .loading{background:#161b22;border:1px solid #30363d;align-self:flex-start;color:#8b949e;font-style:italic}
-  #input-area{background:#161b22;border-top:1px solid #30363d;padding:12px 24px;display:flex;gap:10px}
-  #input{flex:1;background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:10px 14px;border-radius:6px;font-size:14px;resize:none;outline:none}
-  #input:focus{border-color:#1f6feb}
-  button{background:#238636;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
-  button:hover{background:#2ea043}
-  button:disabled{background:#23863644;cursor:not-allowed}
-  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-  .ok{background:#3fb950}
-  .bad{background:#f85149}
-</style>
-</head>
-<body>
-<header>
-  <div style="display:flex;align-items:center;gap:12px">
-    <h1>OpenCode AI Gateway</h1>
-    <span style="font-size:12px;color:#8b949e">__READY_COUNT__/__MODEL_COUNT__ providers ready</span>
-  </div>
-  <nav>
-    <a href="/">Chat</a>
-    <a href="/workflow">Workflow Builder</a>
-    <div class="model-row">
-      <label style="font-size:13px;color:#8b949e">Model:</label>
-      <select id="model-select">__MODEL_OPTIONS____UNCONFIGURED_OPTIONS__</select>
-    </div>
-  </nav>
-</header>
-<div id="chat"></div>
-<div id="input-area">
-  <textarea id="input" rows="2" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
-  <button id="send-btn" onclick="send()">Send</button>
-</div>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{background:#161b22;padding:12px 24px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:16px;font-weight:600}
+nav{display:flex;gap:12px;margin-left:auto}
+nav a{color:#58a6ff;text-decoration:none;font-size:13px;padding:4px 10px;border-radius:4px;border:1px solid #30363d}
+nav a:hover{background:#1f6feb22}
+select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:6px 12px;border-radius:6px;font-size:13px}
+#chat{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.msg{max-width:720px;padding:12px 16px;border-radius:8px;line-height:1.6;font-size:14px;white-space:pre-wrap}
+.user{background:#1f6feb22;border:1px solid #1f6feb44;align-self:flex-end}
+.assistant{background:#161b22;border:1px solid #30363d;align-self:flex-start}
+.error{background:#da363322;border:1px solid #da363344;color:#f85149;align-self:flex-start}
+.loading{background:#161b22;border:1px solid #30363d;color:#8b949e;font-style:italic;align-self:flex-start}
+#input-area{background:#161b22;border-top:1px solid #30363d;padding:12px 24px;display:flex;gap:10px}
+#input{flex:1;background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:10px 14px;border-radius:6px;font-size:14px;resize:none;outline:none}
+#input:focus{border-color:#1f6feb}
+button{background:#238636;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button:hover{background:#2ea043}
+button:disabled{background:#23863644;cursor:not-allowed}
+</style></head><body>
+<header><h1>OpenCode AI Gateway</h1><span style="font-size:12px;color:#8b949e" id="status">__STATUS__</span>
+<nav><a href="/">Chat</a><a href="/workflow">Workflow Builder</a>
+<select id="model-select">__OPTIONS__</select></nav></header>
+<div id="chat"><div class="msg assistant" style="color:#8b949e">Welcome. Select a model and start chatting.</div></div>
+<div id="input-area"><textarea id="input" rows="2" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea><button id="send-btn" onclick="send()">Send</button></div>
 <script>
-const chat=document.getElementById('chat');
-const input=document.getElementById('input');
-const btn=document.getElementById('send-btn');
-const sel=document.getElementById('model-select');
-let history=[];
-function addMsg(role,content){
-  const d=document.createElement('div');
-  d.className='msg '+(role==='user'?'user':role==='error'?'error':'assistant');
-  d.textContent=content;
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
-}
-async function send(){
-  const text=input.value.trim();
-  if(!text)return;
-  const model=sel.value;
-  addMsg('user',text);
-  input.value='';
-  btn.disabled=true;
-  const ld=document.createElement('div');
-  ld.className='msg loading';
-  ld.textContent='Thinking...';
-  chat.appendChild(ld);
-  history.push({role:'user',content:text});
-  try{
-    const r=await fetch('/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:model,messages:history.slice(-20)})
-    });
-    const j=await r.json();
-    ld.remove();
-    if(j.choices&&j.choices[0]){
-      const reply=j.choices[0].message.content;
-      addMsg('assistant',reply);
-      history.push({role:'assistant',content:reply});
-    }else{
-      addMsg('error',j.error?.message||'No response');
-    }
-  }catch(e){
-    ld.remove();
-    addMsg('error','Error: '+e.message);
-  }
-  btn.disabled=false;
-}
-</script>
-</body>
-</html>"""
+const chat=document.getElementById('chat'),input=document.getElementById('input'),btn=document.getElementById('send-btn'),sel=document.getElementById('model-select');
+let h=[];
+function add(r,c){const d=document.createElement('div');d.className='msg '+(r==='u'?'user':'a');d.textContent=c;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+async function send(){const t=input.value.trim();if(!t)return;const m=sel.value;add('u',t);input.value='';btn.disabled=true;
+const ld=document.createElement('div');ld.className='msg loading';ld.textContent='Thinking...';chat.appendChild(ld);h.push({role:'user',content:t});
+try{const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,messages:h.slice(-20)})});const j=await r.json();ld.remove();
+if(j.choices&&j.choices[0]){const rep=j.choices[0].message.content;add('a',rep);h.push({role:'assistant',content:rep})}else add('error',j.error?.message||'No response')
+}catch(e){ld.remove();add('error','Error: '+e.message)}btn.disabled=false}
+</script></body></html>"""
 
-_WORKFLOW_HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>OpenCode AI Workflow Builder</title>
+WORKFLOW_HTML = r"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>OpenCode Workflow Builder</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-  
-  header{background:#161b22;padding:8px 16px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:10}
-  header h1{font-size:14px;font-weight:600}
-  header a{color:#58a6ff;text-decoration:none;font-size:12px;padding:3px 8px;border-radius:4px;border:1px solid #30363d}
-  header a:hover{background:#1f6feb22}
-  .wf-name{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 10px;border-radius:4px;font-size:13px;width:200px;outline:none}
-  .wf-name:focus{border-color:#1f6feb}
-  .toolbar{display:flex;gap:6px;align-items:center;margin-left:auto}
-  .toolbar button{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer}
-  .toolbar button:hover{background:#30363d}
-  .toolbar .primary{background:#238636;border-color:#238636;color:#fff}
-  .toolbar .primary:hover{background:#2ea043}
-  .toolbar .danger{color:#f85149;border-color:#f8514944}
-  .toolbar .danger:hover{background:#f8514922}
-  .toolbar select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 8px;border-radius:4px;font-size:12px}
-  
-  #main{display:flex;flex:1;overflow:hidden}
-  
-  /* Palette */
-  #palette{width:220px;background:#161b22;border-right:1px solid #30363d;overflow-y:auto;flex-shrink:0}
-  #palette h3{font-size:11px;font-weight:600;text-transform:uppercase;color:#8b949e;padding:10px 12px 6px;letter-spacing:0.5px}
-  .palette-item{padding:6px 12px;cursor:grab;display:flex;align-items:center;gap:8px;border-bottom:1px solid #21262d;transition:background .15s;user-select:none}
-  .palette-item:hover{background:#1f6feb11}
-  .palette-item .emoji{font-size:16px;width:24px;text-align:center}
-  .palette-item .info{flex:1;min-width:0}
-  .palette-item .name{font-size:12px;font-weight:500}
-  .palette-item .role{font-size:10px;color:#8b949e}
-  .palette-item .status{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-  .palette-item.dragging{opacity:0.4}
-  
-  /* Canvas */
-  #canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d1117;background-image:radial-gradient(circle,#1c2333 1px,transparent 1px);background-size:20px 20px}
-  #canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-  #svg-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
-  #svg-layer line,#svg-layer path{pointer-events:stroke;cursor:pointer}
-  
-  /* Nodes */
-  .wf-node{position:absolute;width:180px;background:#161b22;border:1px solid #30363d;border-radius:8px;cursor:move;z-index:2;box-shadow:0 4px 12px rgba(0,0,0,.3);user-select:none;transition:box-shadow .15s}
-  .wf-node:hover{box-shadow:0 6px 20px rgba(0,0,0,.4)}
-  .wf-node.selected{border-color:#58a6ff;box-shadow:0 0 0 1px #58a6ff44,0 6px 20px rgba(0,0,0,.4)}
-  .wf-node.executing{animation:pulse-border 1s ease-in-out infinite}
-  .wf-node.done{border-color:#3fb950}
-  .wf-node.error{border-color:#f85149}
-  @keyframes pulse-border{0%,100%{border-color:#58a6ff}50%{border-color:#58a6ff88}}
-  .wf-node .header{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:7px 7px 0 0;font-size:12px;font-weight:500}
-  .wf-node .body{padding:6px 10px;font-size:11px;color:#8b949e;border-top:1px solid #21262d}
-  .wf-node .body .provider-name{color:#e6edf3;font-size:11px}
-  .wf-node .port{width:10px;height:10px;border-radius:50%;background:#30363d;border:2px solid #58a6ff;position:absolute;left:50%;margin-left:-5px;cursor:crosshair;z-index:3;transition:all .15s}
-  .wf-node .port:hover{background:#58a6ff;transform:scale(1.3)}
-  .wf-node .port-in{top:-6px}
-  .wf-node .port-out{bottom:-6px}
-  .wf-node .delete-node{position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#f85149;color:#fff;border:none;font-size:10px;cursor:pointer;display:none;z-index:5;line-height:18px;text-align:center}
-  .wf-node.selected .delete-node{display:block}
-  .wf-node .status-icon{position:absolute;top:-8px;left:-8px;width:18px;height:18px;border-radius:50%;font-size:10px;line-height:18px;text-align:center;display:none;z-index:5}
-  .wf-node.executing .status-icon{display:block;background:#58a6ff;color:#fff;animation:pulse 1s infinite}
-  .wf-node.done .status-icon{display:block;background:#3fb950;color:#fff}
-  .wf-node.error .status-icon{display:block;background:#f85149;color:#fff}
-  
-  /* Execution overlay */
-  #exec-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:50;justify-content:center;align-items:flex-start;padding-top:60px}
-  #exec-panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;width:600px;max-height:70vh;overflow-y:auto}
-  #exec-panel h3{margin-bottom:12px;font-size:14px}
-  #exec-panel .step{padding:8px 12px;margin:4px 0;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:8px}
-  #exec-panel .step.ok{background:#3fb95011;border-left:3px solid #3fb950}
-  #exec-panel .step.error{background:#f8514911;border-left:3px solid #f85149}
-  #exec-panel .step.pending{background:#21262d;border-left:3px solid #30363d}
-  #exec-panel .step .time{color:#8b949e;font-size:11px;margin-left:auto}
-  #exec-panel .step .preview{color:#8b949e;font-size:11px;margin-top:4px;max-height:60px;overflow:hidden}
-  #exec-panel .final-output{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:12px;margin-top:12px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto}
-  #exec-panel .close-exec{float:right;background:transparent;color:#8b949e;border:none;cursor:pointer;font-size:16px}
-  #exec-panel .close-exec:hover{color:#e6edf3}
-  
-  /* Config modal */
-  #config-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;justify-content:center;align-items:center}
-  #config-modal{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;width:440px;max-height:80vh;overflow-y:auto}
-  #config-modal h3{margin-bottom:12px;font-size:14px}
-  #config-modal label{display:block;font-size:12px;color:#8b949e;margin:8px 0 4px}
-  #config-modal input,#config-modal textarea,#config-modal select{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:6px 10px;border-radius:4px;font-size:12px;outline:none}
-  #config-modal textarea{min-height:60px;resize:vertical;font-family:inherit}
-  #config-modal input:focus,#config-modal textarea:focus{border-color:#1f6feb}
-  #config-modal .btn-row{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
-  #config-modal .btn-row button{padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;border:none}
-  #config-modal .btn-row .save{background:#238636;color:#fff}
-  #config-modal .btn-row .save:hover{background:#2ea043}
-  #config-modal .btn-row .cancel{background:#21262d;color:#e6edf3;border:1px solid #30363d}
-  #config-modal .btn-row .cancel:hover{background:#30363d}
-  
-  .hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;padding:6px 14px;border-radius:6px;font-size:11px;color:#8b949e;z-index:5;pointer-events:none;white-space:nowrap}
-  
-  ::-webkit-scrollbar{width:6px;height:6px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
-  ::-webkit-scrollbar-thumb:hover{background:#484f58}
-</style>
-</head>
-<body>
-<header>
-  <h1>\u2699\uFE0F Workflow Builder</h1>
-  <a href="/">Chat</a>
-  <input class="wf-name" id="wf-name" placeholder="Workflow name..." value="Untitled Workflow"/>
-  <div class="toolbar">
-    <button onclick="loadWorkflowDialog()">Load</button>
-    <button onclick="saveWorkflow()">Save</button>
-    <button onclick="exportWorkflow()">Export</button>
-    <button class="primary" onclick="executeWorkflow()">Run</button>
-    <button class="danger" onclick="clearCanvas()">Clear</button>
-  </div>
-</header>
-<div id="main">
-  <div id="palette">
-    <h3>AI Providers</h3>
-    <div id="palette-list"></div>
-  </div>
-  <div id="canvas-wrap" oncontextmenu="return false">
-    <div id="canvas"></div>
-    <svg id="svg-layer"></svg>
-    <div class="hint">Drag providers to canvas &bull; Connect output \u25BC to input \u25B2 &bull; Click node to configure</div>
-  </div>
-</div>
-
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:#161b22;padding:8px 16px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:10}
+header h1{font-size:14px;font-weight:600}
+header a{color:#58a6ff;text-decoration:none;font-size:12px;padding:3px 8px;border-radius:4px;border:1px solid #30363d}
+header a:hover{background:#1f6feb22}
+.wf-name{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 10px;border-radius:4px;font-size:13px;width:200px;outline:none}
+.wf-name:focus{border-color:#1f6feb}
+.toolbar{display:flex;gap:6px;align-items:center;margin-left:auto}
+.toolbar button{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer}
+.toolbar button:hover{background:#30363d}
+.toolbar .primary{background:#238636;border-color:#238636;color:#fff}
+.toolbar .primary:hover{background:#2ea043}
+.toolbar .danger{color:#f85149;border-color:#f8514944}
+.toolbar .danger:hover{background:#f8514922}
+.toolbar select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 8px;border-radius:4px;font-size:12px}
+#main{display:flex;flex:1;overflow:hidden}
+#palette{width:220px;background:#161b22;border-right:1px solid #30363d;overflow-y:auto;flex-shrink:0}
+#palette h3{font-size:11px;font-weight:600;text-transform:uppercase;color:#8b949e;padding:10px 12px 6px;letter-spacing:.5px}
+.palette-item{padding:6px 12px;cursor:grab;display:flex;align-items:center;gap:8px;border-bottom:1px solid #21262d;transition:background .15s;user-select:none}
+.palette-item:hover{background:#1f6feb11}
+.palette-item .emoji{font-size:16px;width:24px;text-align:center}
+.palette-item .info{flex:1;min-width:0}
+.palette-item .name{font-size:12px;font-weight:500}
+.palette-item .role{font-size:10px;color:#8b949e}
+.palette-item .status{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d1117;background-image:radial-gradient(circle,#1c2333 1px,transparent 1px);background-size:20px 20px}
+#canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#svg-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.wf-node{position:absolute;width:180px;background:#161b22;border:1px solid #30363d;border-radius:8px;cursor:move;z-index:2;box-shadow:0 4px 12px rgba(0,0,0,.3);user-select:none;transition:box-shadow .15s}
+.wf-node:hover{box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.wf-node.selected{border-color:#58a6ff;box-shadow:0 0 0 1px #58a6ff44,0 6px 20px rgba(0,0,0,.4)}
+.wf-node.executing{animation:pulse-border 1s ease-in-out infinite}
+.wf-node.done{border-color:#3fb950}
+.wf-node.error{border-color:#f85149}
+@keyframes pulse-border{0%,100%{border-color:#58a6ff}50%{border-color:#58a6ff88}}
+.wf-node .header{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:7px 7px 0 0;font-size:12px;font-weight:500}
+.wf-node .body{padding:6px 10px;font-size:11px;color:#8b949e;border-top:1px solid #21262d}
+.wf-node .body .provider-name{color:#e6edf3;font-size:11px}
+.wf-node .port{width:10px;height:10px;border-radius:50%;background:#30363d;border:2px solid #58a6ff;position:absolute;left:50%;margin-left:-5px;cursor:crosshair;z-index:3;transition:all .15s}
+.wf-node .port:hover{background:#58a6ff;transform:scale(1.3)}
+.wf-node .port-in{top:-6px}
+.wf-node .port-out{bottom:-6px}
+.wf-node .delete-node{position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#f85149;color:#fff;border:none;font-size:10px;cursor:pointer;display:none;z-index:5;line-height:18px;text-align:center}
+.wf-node.selected .delete-node{display:block}
+.wf-node .status-icon{position:absolute;top:-8px;left:-8px;width:18px;height:18px;border-radius:50%;font-size:10px;line-height:18px;text-align:center;display:none;z-index:5}
+.wf-node.executing .status-icon{display:block;background:#58a6ff;color:#fff}
+.wf-node.done .status-icon{display:block;background:#3fb950;color:#fff}
+.wf-node.error .status-icon{display:block;background:#f85149;color:#fff}
+#exec-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:50;justify-content:center;align-items:flex-start;padding-top:60px}
+#exec-panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;width:600px;max-height:70vh;overflow-y:auto}
+#exec-panel h3{margin-bottom:12px;font-size:14px}
+#exec-panel .step{padding:8px 12px;margin:4px 0;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#exec-panel .step.ok{background:#3fb95011;border-left:3px solid #3fb950}
+#exec-panel .step.error{background:#f8514911;border-left:3px solid #f85149}
+#exec-panel .step.pending{background:#21262d;border-left:3px solid #30363d}
+#exec-panel .step .time{color:#8b949e;font-size:11px;margin-left:auto}
+#exec-panel .step .preview{color:#8b949e;font-size:11px;margin-top:4px;max-height:60px;overflow:hidden;width:100%}
+#exec-panel .final-output{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:12px;margin-top:12px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto}
+#exec-panel .close-exec{float:right;background:transparent;color:#8b949e;border:none;cursor:pointer;font-size:16px}
+#exec-panel .close-exec:hover{color:#e6edf3}
+#config-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;justify-content:center;align-items:center}
+#config-modal{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;width:440px;max-height:80vh;overflow-y:auto}
+#config-modal h3{margin-bottom:12px;font-size:14px}
+#config-modal label{display:block;font-size:12px;color:#8b949e;margin:8px 0 4px}
+#config-modal input,#config-modal textarea,#config-modal select{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:6px 10px;border-radius:4px;font-size:12px;outline:none}
+#config-modal textarea{min-height:60px;resize:vertical;font-family:inherit}
+#config-modal input:focus,#config-modal textarea:focus{border-color:#1f6feb}
+#config-modal .btn-row{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+#config-modal .btn-row button{padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;border:none}
+#config-modal .btn-row .save{background:#238636;color:#fff}
+#config-modal .btn-row .save:hover{background:#2ea043}
+#config-modal .btn-row .cancel{background:#21262d;color:#e6edf3;border:1px solid #30363d}
+#config-modal .btn-row .cancel:hover{background:#30363d}
+.hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;padding:6px 14px;border-radius:6px;font-size:11px;color:#8b949e;z-index:5;pointer-events:none;white-space:nowrap}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+</style></head><body>
+<header><h1>\u2699\uFE0F Workflow Builder</h1><a href="/">Chat</a>
+<input class="wf-name" id="wf-name" placeholder="Workflow name..." value="Untitled Workflow"/>
+<div class="toolbar"><button onclick="loadDialog()">Load</button><button onclick="saveWf()">Save</button><button onclick="exportWf()">Export</button><button class="primary" onclick="runWf()">Run</button><button class="danger" onclick="clearWf()">Clear</button></div></header>
+<div id="main"><div id="palette"><h3>AI Providers</h3><div id="palette-list"></div></div>
+<div id="canvas-wrap" oncontextmenu="return false"><div id="canvas"></div><svg id="svg-layer"></svg><div class="hint">Drag providers to canvas &bull; Connect output to input &bull; Click node to configure</div></div></div>
 <div id="config-overlay"><div id="config-modal"></div></div>
 <div id="exec-overlay"><div id="exec-panel"></div></div>
-
 <script>
-// State
-let nodes = [];
-let edges = [];
-let selectedId = null;
-let nextNodeId = 1;
-let nodeCounter = 0;
-let connecting = null;
-let dragNode = null;
-let dragOffX = 0, dragOffY = 0;
-let providers = [];
-let providerRoles = {};
-let configNodeId = null;
-let currentWorkflowId = null;
+let nodes=[],edges=[],selectedId=null,nodeCounter=0,connecting=null,dragNode=null,dragOx=0,dragOy=0,providers=[],roles={},cfgNid=null,wfId=null;
+async function loadP(){const r=await fetch('/api/provider-roles');const d=await r.json();providers=d.providers||[];roles=d.roles||{};renderP()}
+function renderP(){const el=document.getElementById('palette-list');
+el.innerHTML=providers.map(p=>{const r=roles[p.id]||{role:'Assistant',emoji:'\U0001F916'};return '<div class="palette-item" data-p="'+p.id+'" draggable="true"><span class="emoji">'+r.emoji+'</span><div class="info"><div class="name">'+r.role+'</div><div class="role">'+p.id+'</div></div><span class="status" style="background:'+(p.configured?'#3fb950':'#f85149')+'"></span></div>'}).join('');
+document.querySelectorAll('.palette-item').forEach(e=>e.addEventListener('dragstart',ev=>ev.dataTransfer.setData('text/plain',e.dataset.p)))}
+loadP();const cvs=document.getElementById('canvas'),svg=document.getElementById('svg-layer'),wrap=document.getElementById('canvas-wrap');
+wrap.addEventListener('dragover',e=>e.preventDefault());
+wrap.addEventListener('drop',e=>{e.preventDefault();const p=e.dataTransfer.getData('text/plain');if(!p)return;const r=wrap.getBoundingClientRect();addNode(p,e.clientX-r.left-90,e.clientY-r.top-30)});
+wrap.addEventListener('mousedown',e=>{if(e.target===wrap||e.target===cvs||e.target.id==='svg-layer'){selectedId=null;document.querySelectorAll('.wf-node').forEach(el=>el.classList.remove('selected'))}});
+wrap.addEventListener('mousemove',e=>{if(connecting){connecting.mx=e.clientX;connecting.my=e.clientY;renderE()}
+if(!dragNode)return;const n=nodes.find(x=>x.id===dragNode);if(!n)return;const r=wrap.getBoundingClientRect();n.x=e.clientX-r.left-dragOx;n.y=e.clientY-r.top-dragOy;renderN();renderE()});
+wrap.addEventListener('mouseup',e=>{if(connecting){const tgt=document.elementFromPoint(e.clientX,e.clientY);if(tgt&&tgt.classList.contains('port-in')){const ne=tgt.closest('.wf-node');if(ne&&ne.dataset.id!==connecting.source)addEdge(connecting.source,ne.dataset.id)}
+connecting=null;renderE()}dragNode=null});
+document.addEventListener('keydown',e=>{if(e.key==='Delete'||e.key==='Backspace'){if(document.querySelector('#config-overlay[style*="flex"]'))return;if(selectedId){delNode(selectedId);e.preventDefault()}}
+if(e.key==='Escape'){closeCfg();closeExec();connecting=null;renderE()}});
+window.addEventListener('resize',()=>renderE());
+function addNode(p,x,y){const r=roles[p]||{emoji:'\U0001F916',color:'#6b7280',system_prompt:'You are a helpful assistant.'};const id='n'+(++nodeCounter);nodes.push({id,provider:p,label:(r.role||'Assistant')+' '+nodeCounter,x,y,system_prompt:r.system_prompt,temperature:.7});renderN();renderE();return id}
+function renderN(){document.querySelectorAll('.wf-node').forEach(el=>{if(!nodes.find(n=>n.id===el.dataset.id))el.remove()});
+nodes.forEach(n=>{let el=document.querySelector('.wf-node[data-id="'+n.id+'"]');const r=roles[n.provider]||{emoji:'\U0001F916',color:'#6b7280'};
+if(!el){el=document.createElement('div');el.className='wf-node';el.dataset.id=n.id;
+el.innerHTML='<div class="header" style="background:'+r.color+'22;color:'+r.color+'"><span>'+r.emoji+'</span><span>'+n.label+'</span></div><div class="body"><div class="provider-name">'+n.provider+'</div><div style="margin-top:2px">'+(r.role||'')+'</div></div><div class="port port-in"></div><div class="port port-out"></div><button class="delete-node" onclick="delNode(\''+n.id+'\')">\u2715</button><div class="status-icon"></div>';
+el.addEventListener('mousedown',e=>{if(e.button!==0||e.target.classList.contains('port')||e.target.classList.contains('delete-node'))return;selectedId=n.id;document.querySelectorAll('.wf-node').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');dragNode=n.id;const r2=el.getBoundingClientRect();dragOx=e.clientX-r2.left;dragOy=e.clientY-r2.top;e.preventDefault()});
+el.addEventListener('dblclick',()=>openCfg(n.id));
+cvs.appendChild(el)}
+el.style.left=n.x+'px';el.style.top=n.y+'px';if(selectedId===n.id)el.classList.add('selected');else el.classList.remove('selected');
+el.querySelector('.port-out').onmousedown=e=>{e.stopPropagation();connecting={source:n.id,mx:e.clientX,my:e.clientY};e.preventDefault()};
+el.querySelector('.port-in').onmouseup=e=>{e.stopPropagation();if(connecting&&connecting.source!==n.id)addEdge(connecting.source,n.id);connecting=null;renderE()}})}
+function renderE(){while(svg.firstChild)svg.removeChild(svg.firstChild);const wr=wrap.getBoundingClientRect();
+edges.forEach(e=>{const src=document.querySelector('.wf-node[data-id="'+e.source+'"]'),tgt=document.querySelector('.wf-node[data-id="'+e.target+'"]');if(!src||!tgt)return;
+const so=src.querySelector('.port-out'),ti=tgt.querySelector('.port-in');if(!so||!ti)return;
+const sr=so.getBoundingClientRect(),tr=ti.getBoundingClientRect();const x1=sr.left+sr.width/2-wr.left,y1=sr.top+sr.height/2-wr.top,x2=tr.left+tr.width/2-wr.left,y2=tr.top+tr.height/2-wr.top,my=(y1+y2)/2;
+const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M '+x1+' '+y1+' C '+x1+' '+my+', '+x2+' '+my+', '+x2+' '+y2);p.setAttribute('stroke','#58a6ff');p.setAttribute('stroke-width','2');p.setAttribute('fill','none');p.style.pointerEvents='stroke';p.style.cursor='pointer';p.onclick=()=>{edges=edges.filter(x=>x.id!==e.id);renderE()};svg.appendChild(p)});
+if(connecting){const src=document.querySelector('.wf-node[data-id="'+connecting.source+'"]');if(src){const so=src.querySelector('.port-out');if(so){const sr=so.getBoundingClientRect(),wr2=wrap.getBoundingClientRect();const x1=sr.left+sr.width/2-wr2.left,y1=sr.top+sr.height/2-wr2.top,x2=connecting.mx-wr2.left,y2=connecting.my-wr2.top,my2=(y1+y2)/2;
+const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M '+x1+' '+y1+' C '+x1+' '+my2+', '+x2+' '+my2+', '+x2+' '+y2);p.setAttribute('stroke','#58a6ff66');p.setAttribute('stroke-width','2');p.setAttribute('stroke-dasharray','5,5');p.setAttribute('fill','none');p.id='tmp-c';svg.appendChild(p)}}}}
+function addEdge(s,t){if(s===t||edges.find(e=>e.source===s&&e.target===t))return;edges.push({id:'e'+Date.now(),source:s,target:t});renderE()}
+function delNode(id){nodes=nodes.filter(n=>n.id!==id);edges=edges.filter(e=>e.source!==id&&e.target!==id);if(selectedId===id)selectedId=null;renderN();renderE()}
+function openCfg(id){const n=nodes.find(x=>x.id===id);if(!n)return;cfgNid=id;const r=roles[n.provider]||{};
+document.getElementById('config-modal').innerHTML='<h3>Configure <span style="color:'+(r.color||'#58a6ff')+'">'+n.label+'</span></h3><label>Provider</label><input value="'+n.provider+'" disabled style="opacity:.6"/><label>Label</label><input id="c-l" value="'+n.label+'"/><label>System Prompt</label><textarea id="c-p" rows="4">'+(n.system_prompt||r.system_prompt||'')+'</textarea><label>Temperature (0-2)</label><input id="c-t" type="number" min="0" max="2" step=".1" value="'+(n.temperature||.7)+'"/><div class="btn-row"><button class="save" onclick="saveCfg()">Save</button><button class="cancel" onclick="closeCfg()">Cancel</button></div>';
+document.getElementById('config-overlay').style.display='flex'}
+function saveCfg(){const n=nodes.find(x=>x.id===cfgNid);if(!n)return;n.label=document.getElementById('c-l').value||n.label;n.system_prompt=document.getElementById('c-p').value||'';const t=parseFloat(document.getElementById('c-t').value);n.temperature=isNaN(t)?.7:Math.max(0,Math.min(2,t));closeCfg();renderN()}
+function closeCfg(){document.getElementById('config-overlay').style.display='none';cfgNid=null}
+async function saveWf(){const nm=document.getElementById('wf-name').value||'Untitled';const w={name:nm,nodes,edges};if(wfId)w.id=wfId;
+const r=await fetch('/api/workflows'+(wfId?'/'+wfId:''),{method:wfId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(w)});const d=await r.json();if(d.id){wfId=d.id;document.getElementById('wf-name').value=d.name||nm;toast('Saved: '+(d.name||nm))}else toast('Save failed')}
+async function loadDialog(){const r=await fetch('/api/workflows');const list=await r.json();if(!list.length){toast('No saved workflows');return}
+document.getElementById('config-modal').innerHTML='<h3>Load Workflow</h3><div style="max-height:300px;overflow-y:auto">'+list.map(w=>'<div class="palette-item" style="cursor:pointer" onclick="loadWf(\''+w.id+'\')"><span style="color:#58a6ff">\U0001F4C4</span><div class="info"><div class="name">'+(w.name||'Unnamed')+'</div><div class="role">'+w.node_count+' nodes</div></div></div>').join('')+'</div><div class="btn-row"><button class="cancel" onclick="closeCfg()">Cancel</button></div>';
+document.getElementById('config-overlay').style.display='flex'}
+async function loadWf(id){closeCfg();const r=await fetch('/api/workflows/'+id);const w=await r.json();if(w.error){toast('Load failed');return}
+nodes=(w.nodes||[]).map(n=>({...n}));edges=(w.edges||[]).map(e=>({...e}));wfId=w.id;document.getElementById('wf-name').value=w.name||'Untitled';nodeCounter=nodes.length;selectedId=null;renderN();renderE();toast('Loaded: '+(w.name||'Untitled'))}
+function exportWf(){const w={name:document.getElementById('wf-name').value,nodes,edges};const b=new Blob([JSON.stringify(w,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(w.name||'workflow').replace(/\s+/g,'_')+'.json';a.click();URL.revokeObjectURL(a.href);toast('Exported')}
+async function runWf(){if(!nodes.length){toast('Add at least one node');return}
+const ov=document.getElementById('exec-overlay'),pn=document.getElementById('exec-panel');pn.innerHTML='<h3>Executing <span class="close-exec" onclick="closeExec()">\u2715</span></h3><div id="exec-steps"></div>';ov.style.display='flex';
+try{const r=await fetch('/api/workflows/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('wf-name').value,nodes,edges})});const res=await r.json();
+if(res.error){document.getElementById('exec-steps').innerHTML='<div class="step error">Error: '+res.error+'</div>';return}
+let h='<div style="margin-bottom:8px;font-size:12px;color:#8b949e">'+(res.success_count||0)+'/'+res.total_nodes+' ok &bull; '+(res.total_time||'0')+'s</div>';
+(res.steps||[]).forEach(s=>{h+='<div class="step '+s.status+'"><span>'+(s.status==='ok'?'\u2713':'\u2717')+'</span><span>'+(s.node_name||s.node_id)+'</span>'+(s.elapsed?'<span class="time">'+s.elapsed+'s</span>':'')+(s.preview?'<div class="preview">'+s.preview+'...</div>':'')+(s.error?'<div class="preview" style="color:#f85149">'+s.error+'</div>':'')+'</div>'});
+if(res.final_output)h+='<h4 style="font-size:12px;margin:12px 0 4px;color:#8b949e">Final Output</h4><div class="final-output">'+res.final_output+'</div>';
+document.getElementById('exec-steps').innerHTML=h;
+(res.steps||[]).forEach(s=>{const el=document.querySelector('.wf-node[data-id="'+s.node_id+'"]');if(el){el.classList.remove('executing');el.classList.add(s.status==='ok'?'done':'error')}})
+}catch(e){document.getElementById('exec-steps').innerHTML='<div class="step error">Error: '+e.message+'</div>'}}
+function closeExec(){document.getElementById('exec-overlay').style.display='none';document.querySelectorAll('.wf-node').forEach(el=>el.classList.remove('executing','done','error'))}
+function clearWf(){if(nodes.length&&!confirm('Clear all nodes?'))return;nodes=[];edges=[];selectedId=null;wfId=null;nodeCounter=0;document.getElementById('wf-name').value='Untitled Workflow';renderN();renderE()}
+function toast(m){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;padding:8px 20px;border-radius:6px;font-size:12px;z-index:200;transition:opacity .3s;opacity:0';document.body.appendChild(t)}
+t.textContent=m;t.style.opacity='1';clearTimeout(t._hide);t._hide=setTimeout(()=>t.style.opacity='0',2500)}
+renderN();renderE();
+</script></body></html>"""
 
-// Load providers
-async function loadProviders() {
-  const r = await fetch('/api/provider-roles');
-  const data = await r.json();
-  providers = data.providers || [];
-  providerRoles = data.roles || {};
-  renderPalette();
-}
-loadProviders();
+# ---- Route Handlers ----
 
-function renderPalette() {
-  const list = document.getElementById('palette-list');
-  list.innerHTML = providers.map(p => {
-    const role = providerRoles[p.id] || {role:'Assistant', emoji:'\U0001F916'};
-    const configured = p.configured;
-    return '<div class="palette-item" data-provider="'+p.id+'" draggable="true">' +
-      '<span class="emoji">'+role.emoji+'</span>' +
-      '<div class="info"><div class="name">'+role.role+'</div><div class="role">'+p.id+'</div></div>' +
-      '<span class="status" style="background:'+(configured?'#3fb950':'#f85149')+'"></span>' +
-    '</div>';
-  }).join('');
-  
-  document.querySelectorAll('.palette-item').forEach(el => {
-    el.addEventListener('dragstart', onPaletteDragStart);
-  });
-}
-
-function onPaletteDragStart(e) {
-  e.dataTransfer.setData('text/plain', e.target.closest('.palette-item').dataset.provider);
-  e.dataTransfer.effectAllowed = 'copy';
-}
-
-// Canvas
-const canvas = document.getElementById('canvas');
-const svgLayer = document.getElementById('svg-layer');
-const canvasWrap = document.getElementById('canvas-wrap');
-
-canvasWrap.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
-canvasWrap.addEventListener('drop', onCanvasDrop);
-canvasWrap.addEventListener('mousedown', onCanvasMouseDown);
-canvasWrap.addEventListener('mousemove', onCanvasMouseMove);
-canvasWrap.addEventListener('mouseup', onCanvasMouseUp);
-canvasWrap.addEventListener('click', onCanvasClick);
-
-function onCanvasDrop(e) {
-  e.preventDefault();
-  const pid = e.dataTransfer.getData('text/plain');
-  if (!pid) return;
-  const rect = canvasWrap.getBoundingClientRect();
-  const x = e.clientX - rect.left - 90;
-  const y = e.clientY - rect.top - 30;
-  addNode(pid, Math.max(0, x), Math.max(0, y));
-}
-
-function addNode(providerId, x, y) {
-  const role = providerRoles[providerId] || {role:'Assistant', emoji:'\U0001F916', color:'#6b7280', desc:'', system_prompt:'You are a helpful assistant.'};
-  const id = 'n' + (++nodeCounter);
-  const label = role.role + ' ' + nodeCounter;
-  nodes.push({
-    id, provider: providerId, label,
-    x, y, system_prompt: role.system_prompt, temperature: 0.7
-  });
-  renderNodes();
-  renderEdges();
-  return id;
-}
-
-function renderNodes() {
-  // Remove DOM nodes not in state
-  document.querySelectorAll('.wf-node').forEach(el => {
-    if (!nodes.find(n => n.id === el.dataset.id)) el.remove();
-  });
-  
-  nodes.forEach(n => {
-    let el = document.querySelector('.wf-node[data-id="'+n.id+'"]');
-    const role = providerRoles[n.provider] || {emoji:'\U0001F916', color:'#6b7280'};
-    if (!el) {
-      el = document.createElement('div');
-      el.className = 'wf-node';
-      el.dataset.id = n.id;
-      el.innerHTML =
-        '<div class="header" style="background:'+role.color+'22;color:'+role.color+'">' +
-          '<span>'+role.emoji+'</span><span>'+n.label+'</span>' +
-        '</div>' +
-        '<div class="body">' +
-          '<div class="provider-name">'+n.provider+'</div>' +
-          '<div style="margin-top:2px">'+ (role.role) +'</div>' +
-        '</div>' +
-        '<div class="port port-in"></div>' +
-        '<div class="port port-out"></div>' +
-        '<button class="delete-node" onclick="deleteNode(\''+n.id+'\')">\u2715</button>' +
-        '<div class="status-icon"></div>';
-      el.addEventListener('mousedown', onNodeMouseDown);
-      el.addEventListener('dblclick', () => openConfig(n.id));
-      canvas.appendChild(el);
-    }
-    el.style.left = n.x + 'px';
-    el.style.top = n.y + 'px';
-    if (selectedId === n.id) el.classList.add('selected');
-    else el.classList.remove('selected');
-    
-    // Port event handlers
-    el.querySelector('.port-out').onmousedown = (e) => { e.stopPropagation(); startConnection(n.id, e); };
-    el.querySelector('.port-in').onmouseup = (e) => { e.stopPropagation(); endConnection(n.id); };
-  });
-}
-
-function renderEdges() {
-  while (svgLayer.firstChild) svgLayer.removeChild(svgLayer.firstChild);
-  
-  const wrapRect = canvasWrap.getBoundingClientRect();
-  
-  edges.forEach(e => {
-    const src = document.querySelector('.wf-node[data-id="'+e.source+'"]');
-    const tgt = document.querySelector('.wf-node[data-id="'+e.target+'"]');
-    if (!src || !tgt) return;
-    
-    const srcOut = src.querySelector('.port-out');
-    const tgtIn = tgt.querySelector('.port-in');
-    if (!srcOut || !tgtIn) return;
-    
-    const srcRect = srcOut.getBoundingClientRect();
-    const tgtRect = tgtIn.getBoundingClientRect();
-    
-    const x1 = srcRect.left + srcRect.width/2 - wrapRect.left;
-    const y1 = srcRect.top + srcRect.height/2 - wrapRect.top;
-    const x2 = tgtRect.left + tgtRect.width/2 - wrapRect.left;
-    const y2 = tgtRect.top + tgtRect.height/2 - wrapRect.top;
-    
-    const midY = (y1 + y2) / 2;
-    const d = 'M '+x1+' '+y1+' C '+x1+' '+midY+', '+x2+' '+midY+', '+x2+' '+y2;
-    
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('stroke', '#58a6ff');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('data-edge', e.id);
-    path.style.pointerEvents = 'stroke';
-    path.style.cursor = 'pointer';
-    path.title = e.id;
-    path.onclick = () => deleteEdge(e.id);
-    svgLayer.appendChild(path);
-  });
-  
-  if (connecting) {
-    const src = document.querySelector('.wf-node[data-id="'+connecting.source+'"]');
-    if (src) {
-      const port = src.querySelector('.port-out');
-      if (port) {
-        const pr = port.getBoundingClientRect();
-        const wr = canvasWrap.getBoundingClientRect();
-        const x1 = pr.left + pr.width/2 - wr.left;
-        const y1 = pr.top + pr.height/2 - wr.top;
-        const x2 = connecting.mx - wr.left;
-        const y2 = connecting.my - wr.top;
-        const midY = (y1 + y2) / 2;
-        const d = 'M '+x1+' '+y1+' C '+x1+' '+midY+', '+x2+' '+midY+', '+x2+' '+y2;
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', d);
-        path.setAttribute('stroke', '#58a6ff66');
-        path.setAttribute('stroke-width', '2');
-        path.setAttribute('stroke-dasharray', '5,5');
-        path.setAttribute('fill', 'none');
-        path.id = 'temp-conn';
-        svgLayer.appendChild(path);
-      }
-    }
-  }
-}
-
-// Node dragging
-function onNodeMouseDown(e) {
-  if (e.button !== 0) return;
-  if (e.target.classList.contains('port') || e.target.classList.contains('delete-node')) return;
-  const nodeEl = e.target.closest('.wf-node');
-  if (!nodeEl) return;
-  const id = nodeEl.dataset.id;
-  selectNode(id);
-  dragNode = id;
-  const rect = nodeEl.getBoundingClientRect();
-  dragOffX = e.clientX - rect.left;
-  dragOffY = e.clientY - rect.top;
-  e.preventDefault();
-}
-
-function onCanvasMouseMove(e) {
-  if (connecting) {
-    connecting.mx = e.clientX;
-    connecting.my = e.clientY;
-    renderEdges();
-    return;
-  }
-  if (!dragNode) return;
-  const node = nodes.find(n => n.id === dragNode);
-  if (!node) return;
-  const wrapRect = canvasWrap.getBoundingClientRect();
-  node.x = e.clientX - wrapRect.left - dragOffX;
-  node.y = e.clientY - wrapRect.top - dragOffY;
-  renderNodes();
-  renderEdges();
-}
-
-function onCanvasMouseUp(e) {
-  if (connecting) {
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    if (target && target.classList.contains('port-in')) {
-      const nodeEl = target.closest('.wf-node');
-      if (nodeEl && nodeEl.dataset.id !== connecting.source) {
-        addEdge(connecting.source, nodeEl.dataset.id);
-      }
-    }
-    connecting = null;
-    renderEdges();
-  }
-  dragNode = null;
-}
-
-function onCanvasClick(e) {
-  if (e.target === canvasWrap || e.target === canvas || e.target.id === 'svg-layer') {
-    selectedId = null;
-    document.querySelectorAll('.wf-node').forEach(el => el.classList.remove('selected'));
-  }
-}
-
-// Connections
-function startConnection(sourceId, e) {
-  connecting = { source: sourceId, mx: e.clientX, my: e.clientY };
-  e.preventDefault();
-}
-
-function endConnection(targetId) {
-  if (connecting && connecting.source !== targetId) {
-    addEdge(connecting.source, targetId);
-  }
-  connecting = null;
-  renderEdges();
-}
-
-function addEdge(source, target) {
-  if (source === target) return;
-  if (edges.find(e => e.source === source && e.target === target)) return;
-  if (edges.find(e => e.target === source)) return; // single input
-  const id = 'e' + (edges.length + 1);
-  edges.push({ id, source, target });
-  renderEdges();
-}
-
-function deleteEdge(id) {
-  edges = edges.filter(e => e.id !== id);
-  renderEdges();
-}
-
-function deleteNode(id) {
-  nodes = nodes.filter(n => n.id !== id);
-  edges = edges.filter(e => e.source !== id && e.target !== id);
-  if (selectedId === id) selectedId = null;
-  renderNodes();
-  renderEdges();
-}
-
-function selectNode(id) {
-  selectedId = id;
-  document.querySelectorAll('.wf-node').forEach(el => el.classList.remove('selected'));
-  const el = document.querySelector('.wf-node[data-id="'+id+'"]');
-  if (el) el.classList.add('selected');
-}
-
-// Config
-function openConfig(id) {
-  const node = nodes.find(n => n.id === id);
-  if (!node) return;
-  configNodeId = id;
-  const role = providerRoles[node.provider] || {};
-  const providerInfo = providers.find(p => p.id === node.provider) || {};
-  
-  const modal = document.getElementById('config-modal');
-  modal.innerHTML =
-    '<h3>Configure <span style="color:'+(role.color||'#58a6ff')+'">'+node.label+'</span></h3>' +
-    '<label>Provider</label><input value="'+node.provider+'" disabled style="opacity:0.6"/>' +
-    '<label>Label</label><input id="cfg-label" value="'+node.label+'"/>' +
-    '<label>System Prompt</label><textarea id="cfg-prompt" rows="4">'+(node.system_prompt || role.system_prompt || '')+'</textarea>' +
-    '<label>Temperature (0-2)</label><input id="cfg-temp" type="number" min="0" max="2" step="0.1" value="'+(node.temperature||0.7)+'"/>' +
-    '<div class="btn-row">' +
-      '<button class="save" onclick="saveConfig()">Save</button>' +
-      '<button class="cancel" onclick="closeConfig()">Cancel</button>' +
-    '</div>';
-  document.getElementById('config-overlay').style.display = 'flex';
-}
-
-function saveConfig() {
-  const node = nodes.find(n => n.id === configNodeId);
-  if (!node) return;
-  node.label = document.getElementById('cfg-label').value || node.label;
-  node.system_prompt = document.getElementById('cfg-prompt').value || '';
-  const t = parseFloat(document.getElementById('cfg-temp').value);
-  node.temperature = isNaN(t) ? 0.7 : Math.max(0, Math.min(2, t));
-  closeConfig();
-  renderNodes();
-}
-
-function closeConfig() {
-  document.getElementById('config-overlay').style.display = 'none';
-  configNodeId = null;
-}
-
-// Workflow CRUD
-async function saveWorkflow() {
-  const name = document.getElementById('wf-name').value || 'Untitled Workflow';
-  const wf = { name, nodes, edges };
-  if (currentWorkflowId) wf.id = currentWorkflowId;
-  
-  const r = await fetch('/api/workflows' + (currentWorkflowId ? '/' + currentWorkflowId : ''), {
-    method: currentWorkflowId ? 'PUT' : 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(wf)
-  });
-  const data = await r.json();
-  if (data.id) {
-    currentWorkflowId = data.id;
-    document.getElementById('wf-name').value = data.name || name;
-    showToast('Saved: ' + (data.name || name));
-  } else {
-    showToast('Save failed: ' + (data.error || 'unknown error'));
-  }
-}
-
-async function loadWorkflowDialog() {
-  const r = await fetch('/api/workflows');
-  const list = await r.json();
-  if (!list.length) { showToast('No saved workflows'); return; }
-  
-  const modal = document.getElementById('config-modal');
-  modal.innerHTML =
-    '<h3>Load Workflow</h3>' +
-    '<div style="max-height:300px;overflow-y:auto">' +
-    list.map(w => '<div class="palette-item" style="cursor:pointer" onclick="loadWorkflow(\''+w.id+'\')">' +
-      '<span style="color:#58a6ff">\U0001F4C4</span>' +
-      '<div class="info"><div class="name">'+(w.name||'Unnamed')+'</div><div class="role">'+w.node_count+' nodes</div></div>' +
-    '</div>').join('') +
-    '</div>' +
-    '<div class="btn-row"><button class="cancel" onclick="closeConfig()">Cancel</button></div>';
-  document.getElementById('config-overlay').style.display = 'flex';
-}
-
-async function loadWorkflow(id) {
-  closeConfig();
-  const r = await fetch('/api/workflows/' + id);
-  const wf = await r.json();
-  if (wf.error) { showToast('Load failed: ' + wf.error); return; }
-  
-  nodes = (wf.nodes || []).map(n => ({...n}));
-  edges = (wf.edges || []).map(e => ({...e}));
-  currentWorkflowId = wf.id;
-  document.getElementById('wf-name').value = wf.name || 'Untitled';
-  nodeCounter = nodes.length;
-  selectedId = null;
-  renderNodes();
-  renderEdges();
-  showToast('Loaded: ' + (wf.name || 'Untitled'));
-}
-
-function exportWorkflow() {
-  const wf = { name: document.getElementById('wf-name').value, nodes, edges };
-  const text = JSON.stringify(wf, null, 2);
-  const blob = new Blob([text], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (wf.name || 'workflow').replace(/\\s+/g,'_') + '.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('Exported');
-}
-
-async function executeWorkflow() {
-  if (!nodes.length) { showToast('Add at least one node'); return; }
-  
-  // Show exec overlay
-  const overlay = document.getElementById('exec-overlay');
-  const panel = document.getElementById('exec-panel');
-  panel.innerHTML = '<h3>Executing Workflow <span class="close-exec" onclick="closeExec()">\u2715</span></h3><div id="exec-steps"></div>';
-  overlay.style.display = 'flex';
-  
-  // Run
-  const name = document.getElementById('wf-name').value;
-  const wf = { name, nodes, edges };
-  
-  try {
-    const r = await fetch('/api/workflows/execute', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(wf)
-    });
-    const result = await r.json();
-    
-    if (result.error) {
-      document.getElementById('exec-steps').innerHTML = '<div class="step error">Error: '+result.error+'</div>';
-      return;
-    }
-    
-    let html = '<div style="margin-bottom:8px;font-size:12px;color:#8b949e">' +
-      'Nodes: '+(result.success_count||0)+'/'+result.total_nodes+' ok &bull; Time: '+(result.total_time||'0')+'s' +
-    '</div>';
-    
-    (result.steps || []).forEach(s => {
-      const icon = s.status === 'ok' ? '\u2713' : s.status === 'error' ? '\u2717' : '\u23F3';
-      html += '<div class="step '+s.status+'">' +
-        '<span>'+icon+'</span>' +
-        '<span>'+(s.node_name||s.node_id)+'</span>' +
-        (s.elapsed ? '<span class="time">'+s.elapsed+'s</span>' : '') +
-        (s.preview ? '<div class="preview">'+s.preview+'...</div>' : '') +
-        (s.error ? '<div class="preview" style="color:#f85149">'+s.error+'</div>' : '') +
-      '</div>';
-    });
-    
-    if (result.final_output) {
-      html += '<h4 style="font-size:12px;margin:12px 0 4px;color:#8b949e">Final Output</h4>' +
-        '<div class="final-output">'+result.final_output+'</div>';
-    }
-    
-    document.getElementById('exec-steps').innerHTML = html;
-    
-    // Highlight nodes
-    (result.steps || []).forEach(s => {
-      const el = document.querySelector('.wf-node[data-id="'+s.node_id+'"]');
-      if (el) {
-        el.classList.remove('executing');
-        el.classList.add(s.status === 'ok' ? 'done' : 'error');
-      }
-    });
-    
-  } catch(e) {
-    document.getElementById('exec-steps').innerHTML = '<div class="step error">Error: '+e.message+'</div>';
-  }
-}
-
-function closeExec() {
-  document.getElementById('exec-overlay').style.display = 'none';
-  document.querySelectorAll('.wf-node').forEach(el => {
-    el.classList.remove('executing', 'done', 'error');
-  });
-}
-
-function clearCanvas() {
-  if (nodes.length && !confirm('Clear all nodes?')) return;
-  nodes = [];
-  edges = [];
-  selectedId = null;
-  currentWorkflowId = null;
-  nodeCounter = 0;
-  document.getElementById('wf-name').value = 'Untitled Workflow';
-  renderNodes();
-  renderEdges();
-}
-
-// Toast
-function showToast(msg) {
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;padding:8px 20px;border-radius:6px;font-size:12px;z-index:200;transition:opacity .3s;opacity:0';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  clearTimeout(t._hide);
-  t._hide = setTimeout(() => t.style.opacity = '0', 2500);
-}
-
-// Keyboard
-document.addEventListener('keydown', e => {
-  if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (document.querySelector('#config-overlay[style*="flex"]')) return;
-    if (selectedId) {
-      deleteNode(selectedId);
-      e.preventDefault();
-    }
-  }
-  if (e.key === 'Escape') {
-    closeConfig();
-    closeExec();
-    connecting = null;
-    renderEdges();
-  }
-});
-
-// Re-render edges on scroll/resize
-window.addEventListener('resize', () => renderEdges());
-
-// Initial render
-renderNodes();
-renderEdges();
-
-</script>
-</body>
-</html>"""
-
-@app.get("/")
-async def web_ui():
+@route("GET", "/")
+async def handle_root(method, path, headers, body, params):
     models = get_available_models()
     configured = [m for m in models if m["configured"]]
     unconfigured = [m for m in models if not m["configured"]]
-    opts = "".join("".join(('<option value="', m["id"], '">', m["provider"], " \u2014 ", m["model"], "</option>")) for m in configured)
-    uopts = "".join("".join(('<option value="', m["id"], '" disabled>', m["provider"], " \u2014 ", m["model"], " (not configured)</option>")) for m in unconfigured)
-    html = _WEB_HTML_TEMPLATE.replace("__READY_COUNT__", str(len(configured)))
-    html = html.replace("__MODEL_COUNT__", str(len(models)))
-    html = html.replace("__MODEL_OPTIONS__", opts)
-    html = html.replace("__UNCONFIGURED_OPTIONS__", uopts)
-    return HTMLResponse(html)
+    opts = "".join('<option value="'+m["id"]+'">'+m["provider"]+" \u2014 "+m["model"]+"</option>" for m in configured)
+    uopts = "".join('<option value="'+m["id"]+'" disabled>'+m["provider"]+" \u2014 "+m["model"]+" (no key)</option>" for m in unconfigured)
+    html = _CHAT_HTML.replace("__STATUS__", f"{len(configured)}/{len(models)} ready")
+    html = html.replace("__OPTIONS__", opts + uopts)
+    return html_response(html)
 
-@app.get("/workflow")
-async def workflow_builder():
-    return HTMLResponse(_WORKFLOW_HTML_TEMPLATE)
+@route("GET", "/workflow")
+async def handle_workflow(method, path, headers, body, params):
+    return html_response(WORKFLOW_HTML)
 
-@app.get("/api/provider-roles")
-async def list_provider_roles():
-    available = get_available_providers()
-    return JSONResponse({"providers": available, "roles": PROVIDER_ROLES})
+@route("GET", "/api/provider-roles")
+async def handle_provider_roles(method, path, headers, body, params):
+    return json_response({"providers": get_available_providers(), "roles": PROVIDER_ROLES})
 
-@app.get("/api/workflows")
-async def list_workflows():
-    return JSONResponse([{"id": k, "name": v.get("name", "Unnamed"), "node_count": len(v.get("nodes", [])), "edge_count": len(v.get("edges", []))} for k, v in WORKFLOWS.items()])
+@route("GET", "/api/workflows")
+async def handle_list_workflows(method, path, headers, body, params):
+    return json_response([{"id": k, "name": v.get("name", "Unnamed"), "node_count": len(v.get("nodes", [])), "edge_count": len(v.get("edges", []))} for k, v in WORKFLOWS.items()])
 
-@app.post("/api/workflows")
-async def create_workflow(req: Request):
+@route("POST", "/api/workflows")
+async def handle_create_workflow(method, path, headers, body, params):
     global _next_wf_id
-    body = await req.json()
+    data = json.loads(body) if body else {}
     wf_id = str(_next_wf_id)
     _next_wf_id += 1
-    WORKFLOWS[wf_id] = {
-        "id": wf_id,
-        "name": body.get("name", "Untitled Workflow"),
-        "nodes": body.get("nodes", []),
-        "edges": body.get("edges", []),
-        "created": time.time(),
-    }
+    WORKFLOWS[wf_id] = {"id": wf_id, "name": data.get("name", "Untitled"), "nodes": data.get("nodes", []), "edges": data.get("edges", []), "created": time.time()}
     _save_workflows()
-    return JSONResponse({"id": wf_id, "name": WORKFLOWS[wf_id]["name"]})
+    return json_response({"id": wf_id, "name": WORKFLOWS[wf_id]["name"]}, 201)
 
-@app.get("/api/workflows/{wf_id}")
-async def get_workflow(wf_id: str):
-    wf = WORKFLOWS.get(wf_id)
+@route("GET", "/api/workflows/{wf_id}")
+async def handle_get_workflow(method, path, headers, body, params):
+    wf = WORKFLOWS.get(params["wf_id"])
     if not wf:
-        return JSONResponse({"error": "Workflow not found"}, status_code=404)
-    return JSONResponse(wf)
+        return json_response({"error": "Not found"}, 404)
+    return json_response(wf)
 
-@app.put("/api/workflows/{wf_id}")
-async def update_workflow(wf_id: str, req: Request):
-    wf = WORKFLOWS.get(wf_id)
+@route("PUT", "/api/workflows/{wf_id}")
+async def handle_update_workflow(method, path, headers, body, params):
+    wf = WORKFLOWS.get(params["wf_id"])
     if not wf:
-        return JSONResponse({"error": "Workflow not found"}, status_code=404)
-    body = await req.json()
-    wf["name"] = body.get("name", wf["name"])
-    wf["nodes"] = body.get("nodes", wf["nodes"])
-    wf["edges"] = body.get("edges", wf["edges"])
+        return json_response({"error": "Not found"}, 404)
+    data = json.loads(body) if body else {}
+    wf["name"] = data.get("name", wf["name"])
+    wf["nodes"] = data.get("nodes", wf["nodes"])
+    wf["edges"] = data.get("edges", wf["edges"])
     wf["updated"] = time.time()
     _save_workflows()
-    return JSONResponse({"id": wf_id, "name": wf["name"]})
+    return json_response({"id": params["wf_id"], "name": wf["name"]})
 
-@app.delete("/api/workflows/{wf_id}")
-async def delete_workflow(wf_id: str):
-    if wf_id in WORKFLOWS:
-        del WORKFLOWS[wf_id]
+@route("DELETE", "/api/workflows/{wf_id}")
+async def handle_delete_workflow(method, path, headers, body, params):
+    if params["wf_id"] in WORKFLOWS:
+        del WORKFLOWS[params["wf_id"]]
         _save_workflows()
-        return JSONResponse({"ok": True})
-    return JSONResponse({"error": "Workflow not found"}, status_code=404)
+        return json_response({"ok": True})
+    return json_response({"error": "Not found"}, 404)
 
-@app.post("/api/workflows/execute")
-async def run_workflow(req: Request):
-    body = await req.json()
-    result = await execute_workflow(body)
-    return JSONResponse(result)
+@route("POST", "/api/workflows/execute")
+async def handle_execute_workflow(method, path, headers, body, params):
+    data = json.loads(body) if body else {}
+    result = await execute_workflow(data)
+    return json_response(result)
 
-@app.get("/api/models")
-async def list_models():
-    return JSONResponse(get_available_models())
+@route("GET", "/api/models")
+async def handle_models(method, path, headers, body, params):
+    return json_response(get_available_models())
 
-@app.get("/api/providers")
-async def list_providers():
-    return JSONResponse(get_available_providers())
+@route("GET", "/api/providers")
+async def handle_providers(method, path, headers, body, params):
+    return json_response(get_available_providers())
 
-@app.post("/v1/chat/completions")
-async def chat_completions(req: Request):
-    body = await req.json()
-    model_id = body.get("model", "groq")
-    messages = body.get("messages", [])
-    stream = body.get("stream", False)
+@route("POST", "/v1/chat/completions")
+async def handle_chat(method, path, headers, body, params):
+    data = json.loads(body) if body else {}
+    model_id = data.get("model", "groq")
+    messages = data.get("messages", [])
+    stream = data.get("stream", False)
     if not messages:
-        return JSONResponse({"error": {"message": "No messages"}}, status_code=400)
+        return json_response({"error": {"message": "No messages"}}, 400)
     if model_id not in PROVIDERS:
-        return JSONResponse({"error": {"message": "Unknown model: " + model_id}}, status_code=400)
-    if stream:
-        async def gen():
-            result = await call_provider(messages, model_id)
-            content = result.get("content", result.get("error", ""))
-            chunk = json.dumps({"choices": [{"delta": {"content": content}, "index": 0}]})
-            yield "data: " + chunk + "\n\n"
-            yield "data: [DONE]\n\n"
-        return StreamingResponse(gen(), media_type="text/event-stream")
+        return json_response({"error": {"message": "Unknown model: " + model_id}}, 400)
     result = await call_provider(messages, model_id)
     content = result.get("content", "")
     error = result.get("error")
     if error:
-        return JSONResponse({"error": {"message": error}}, status_code=500)
-    return JSONResponse({
+        return json_response({"error": {"message": error}}, 500)
+    return json_response({
         "id": "chatcmpl-" + str(int(time.time())),
         "object": "chat.completion",
         "created": int(time.time()),
@@ -1190,14 +731,30 @@ async def chat_completions(req: Request):
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     })
 
+# ---- Server ----
+
+async def _serve(host, port):
+    server = await asyncio.start_server(_handle, host, port)
+    addr = server.sockets[0].getsockname()
+    print(f"Gateway running on http://{addr[0]}:{addr[1]}")
+    print(f"Chat: http://{addr[0]}:{addr[1]}/")
+    print(f"Workflow Builder: http://{addr[0]}:{addr[1]}/workflow")
+    async with server:
+        await server.serve_forever()
+
 def run(port=4357, host="0.0.0.0"):
-    import uvicorn
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    print(f"OpenCode AI Gateway starting on {host}:{port}")
+    configured = sum(1 for p in PROVIDERS.values() if _is_configured(p.get("key", "")))
+    print(f"Providers: {len(PROVIDERS)} total, {configured} configured")
+    try:
+        asyncio.run(_serve(host, port))
+    except KeyboardInterrupt:
+        print("Shutting down...")
 
 def start(port=4357, host="0.0.0.0"):
     t = threading.Thread(target=run, args=(port, host), daemon=True)
     t.start()
-    return "Gateway running on http://" + host + ":" + str(port)
+    return f"Gateway running on http://{host}:{port}"
 
 if __name__ == "__main__":
     run()
