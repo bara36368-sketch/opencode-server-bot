@@ -1122,7 +1122,7 @@ PROVIDERS = {
 
     "synoxcloud": {
         "url": "https://api.synoxcloud.xyz/api/ai-chat",
-        "model": "gpt-5",
+        "model": "claude-haiku-4.5",
         "key": "free"
     },
 
@@ -1279,9 +1279,9 @@ async def call_provider(messages, provider, override=None):
         if model_info and isinstance(model_info, dict) and model_info.get("path"):
             ep_path = model_info["path"].split("?")[0]
             raw_params = model_info.get("params", [])
-            param_names = [pp.split("=")[0] for pp in raw_params if isinstance(pp, str) and "=" in pp]
+            param_names = [pp.split("=")[0].strip() for pp in raw_params if isinstance(pp, str) and pp.strip()]
             recommended = param_names[0] if param_names else "q"
-            url = f"https://api.synoxcloud.xyz{ep_path}?{recommended}={prompt}"
+            url = f"https://api.synoxcloud.xyz{ep_path}?{recommended}={urllib.parse.quote(prompt)}"
         else:
             recommended = "q"
             url = f"{p['url']}/{model_id}?q={prompt}"

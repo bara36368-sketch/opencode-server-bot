@@ -93,7 +93,7 @@ def _load_providers():
         "together": {"url": "https://api.together.xyz/v1/chat/completions", "model": "mistralai/Mixtral-8x22B-Instruct-v0.1", "key": os.environ.get("TOGETHER_KEY", "not configured")},
         "fireworks": {"url": "https://api.fireworks.ai/inference/v1/chat/completions", "model": "accounts/fireworks/models/llama-v3p3-70b-instruct", "key": os.environ.get("FIREWORKS_KEY", "not configured")},
         "lepton": {"url": "https://mixtral-8x22b.lepton.run/api/v1/chat/completions", "model": "mixtral-8x22b", "key": os.environ.get("LEPTON_KEY", "not configured")},
-        "synoxcloud": {"url": "https://api.synoxcloud.xyz/api/ai-chat", "model": "gpt-5", "key": "free"},
+        "synoxcloud": {"url": "https://api.synoxcloud.xyz/api/ai-chat", "model": "claude-haiku-4.5", "key": "free"},
         "hy3": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
         "hy3-preview": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
     }
@@ -206,7 +206,7 @@ async def call_provider(messages, provider_id):
         if model_info and isinstance(model_info, dict) and model_info.get("path"):
             ep_path = model_info["path"].split("?")[0]
             raw_params = model_info.get("params", [])
-            param_names = [pp.split("=")[0] for pp in raw_params if isinstance(pp, str) and "=" in pp]
+            param_names = [pp.split("=")[0].strip() for pp in raw_params if isinstance(pp, str) and pp.strip()]
             recommended = param_names[0] if param_names else "q"
             url = "https://api.synoxcloud.xyz" + ep_path + "?" + recommended + "=" + urllib.parse.quote(prompt)
         else:
@@ -237,7 +237,9 @@ async def call_provider(messages, provider_id):
             if r.status_code == 200:
                 content = r.json().get("choices", [{}])[0].get("message", {}).get("content", str(r.json()))
                 return {"content": content}
-            return {"error": str(r.status_code) + ": " + r.text[:300]}
+            try: err_detail = r.json().get("error", {}).get("message", r.text[:300])
+            except: err_detail = r.text[:300]
+            return {"error": str(r.status_code) + ": " + err_detail}
         except Exception as e:
             return {"error": str(e)}
 
