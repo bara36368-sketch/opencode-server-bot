@@ -96,6 +96,7 @@ DEFAULT_RATE_LIMITS = {
     "hy3": (30, 10000),
     "hy3-preview": (30, 10000),
     "bitrouter": (9999, 999999),
+    "omniroute": (9999, 999999),
 }
 
 class SlidingWindow:
@@ -1126,6 +1127,11 @@ PROVIDERS = {
         "key": "free"
     },
 
+    "omniroute": {
+        "url": os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1/chat/completions"),
+        "model": os.environ.get("OMNIROUTE_MODEL", "auto"),
+        "key": os.environ.get("OMNIROUTE_KEY", "skip-auth")
+    },
     "zenmux": {
         "url": "https://zenmux.ai/api/v1/chat/completions",
         "model": "x-ai/grok-4.5-free",
@@ -1179,14 +1185,6 @@ if os.path.exists(SYNOXCLOUD_AI_MODELS_FILE):
     except: pass
 
 gateway.init_providers()
-
-try:
-    import web_gateway
-    _gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
-    _gw_status = web_gateway.start(_gw_port)
-    log(_gw_status)
-except Exception as e:
-    log(f"Web gateway not started: {e}")
 
 EFFORT_LEVELS = {
     "low": {"max_tokens": 512, "desc": "Fast, concise responses (512 tokens)"},
@@ -1484,6 +1482,7 @@ async def main():
                         "  /stats â€” Your usage statistics",
                         "  /data â€” Query spreadsheets",
                         "  /plugin â€” Dynamic plugin system",
+                        "  /webgateway â€” Web AI Gateway status + URL",
                     ]
                     if is_owner or is_admin:
                         lines += [
@@ -2895,15 +2894,15 @@ async def main():
                     gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
                     lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
                     try:
-                        import web_gateway
-                        _ = web_gateway
-                        lines.append(f"Status: Running on port {gw_port}")
-                        lines.append(f"Web UI: http://localhost:{gw_port}")
-                        lines.append(f"API: POST http://localhost:{gw_port}/v1/chat/completions")
-                        lines.append(f"Models: GET http://localhost:{gw_port}/api/models")
-                        lines.append(f"Use 'http://localhost:{gw_port}' as your OpenAI-compatible base URL")
+                        async with aiohttp.ClientSession() as s:
+                            r = await s.get(f"http://127.0.0.1:{gw_port}/api/providers", timeout=5)
+                            if r.status == 200:
+                                lines.append(f"Status: Running on port {gw_port}")
+                                lines.append(f"Web UI: http://localhost:{gw_port}")
+                                lines.append(f"API: POST http://localhost:{gw_port}/v1/chat/completions")
+                                lines.append(f"Models: GET http://localhost:{gw_port}/api/models")
                     except:
-                        lines.append("Status: Not available (web_gateway module not loaded)")
+                        lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
                 elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):

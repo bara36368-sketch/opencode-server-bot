@@ -1,4 +1,4 @@
-import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback, subprocess, sys
+import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback, subprocess, sys, inspect
 
 HAS_HTTPX = True
 try:
@@ -64,6 +64,9 @@ PROVIDER_ROLES = {
     "synoxcloud": {"role": "Assistant", "emoji": "\U0001F916", "color": "#6b7280",
                    "desc": "General-purpose AI assistant via SynoxCloud",
                    "system_prompt": "You are a helpful assistant. Be concise and accurate."},
+    "omniroute": {"role": "Router", "emoji": "\U0001F9F0", "color": "#f59e0b",
+                  "desc": "Smart router: 250+ providers, 90+ free, auto-fallback, token compression",
+                  "system_prompt": "You are a smart routing AI. Route requests intelligently across the best available provider for each task."},
     "hy3": {"role": "Thinker", "emoji": "\U0001F4AD", "color": "#d946ef",
             "desc": "Deep thinking with Hy3 model",
             "system_prompt": "You are a deep thinker. Explore ideas thoroughly."},
@@ -72,12 +75,155 @@ PROVIDER_ROLES = {
                     "system_prompt": "You are a pioneer. Push boundaries in your analysis."},
 }
 
+# ---- MCP Server (Model Context Protocol) ----
+
+MCP_TOOLS = [
+    {"name": "call_llm", "description": "Call any configured LLM provider with messages",
+     "input_schema": {"type": "object", "properties": {
+         "provider": {"type": "string", "description": "Provider ID (e.g. groq, gemini, omniroute)"},
+         "messages": {"type": "array", "description": "Messages array with role and content"},
+         "system_prompt": {"type": "string", "description": "Optional system prompt"}},
+         "required": ["provider", "messages"]}},
+    {"name": "execute_workflow", "description": "Execute a workflow by its node/edge graph",
+     "input_schema": {"type": "object", "properties": {
+         "nodes": {"type": "array"}, "edges": {"type": "array"},
+         "input": {"type": "string", "description": "Initial input text"}},
+         "required": ["nodes", "edges"]}},
+    {"name": "list_providers", "description": "List all configured AI providers",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "list_models", "description": "List all available AI models",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "bot_status", "description": "Get Telegram bot status (running/stopped)",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "bot_toggle", "description": "Start or stop the Telegram bot",
+     "input_schema": {"type": "object", "properties": {
+         "action": {"type": "string", "enum": ["start", "stop"]}},
+         "required": ["action"]}},
+    {"name": "list_workflows", "description": "List all saved workflows",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "get_workflow", "description": "Get a specific workflow by ID",
+     "input_schema": {"type": "object", "properties": {
+         "workflow_id": {"type": "string"}},
+         "required": ["workflow_id"]}},
+]
+
+async def _mcp_call_tool(name, arguments):
+    if name == "call_llm":
+        provider = arguments.get("provider", "groq")
+        messages = arguments.get("messages", [])
+        sys_prompt = arguments.get("system_prompt")
+        if sys_prompt:
+            messages = [{"role": "system", "content": sys_prompt}] + messages
+        result = await call_provider(messages, provider)
+        if "error" in result:
+            return {"content": [{"type": "text", "text": result["error"]}], "isError": True}
+        return {"content": [{"type": "text", "text": result.get("content", "")}]}
+    elif name == "execute_workflow":
+        result = await execute_workflow({"nodes": arguments.get("nodes", []), "edges": arguments.get("edges", [])}, arguments.get("input", ""))
+        return {"content": [{"type": "text", "text": json.dumps(result, indent=2, ensure_ascii=False)}]}
+    elif name == "list_providers":
+        return {"content": [{"type": "text", "text": json.dumps(get_available_providers(), indent=2, ensure_ascii=False)}]}
+    elif name == "list_models":
+        return {"content": [{"type": "text", "text": json.dumps(get_available_models(), indent=2, ensure_ascii=False)}]}
+    elif name == "bot_status":
+        return {"content": [{"type": "text", "text": json.dumps(bot_status(), indent=2, ensure_ascii=False)}]}
+    elif name == "bot_toggle":
+        r = bot_start() if arguments.get("action") == "start" else bot_stop()
+        return {"content": [{"type": "text", "text": json.dumps({"result": r, "status": bot_status()}, indent=2, ensure_ascii=False)}]}
+    elif name == "list_workflows":
+        wl = [{"id": k, "name": v.get("name", "Unnamed"), "node_count": len(v.get("nodes", []))} for k, v in WORKFLOWS.items()]
+        return {"content": [{"type": "text", "text": json.dumps(wl, indent=2, ensure_ascii=False)}]}
+    elif name == "get_workflow":
+        wf = WORKFLOWS.get(arguments.get("workflow_id", ""))
+        if not wf:
+            return {"content": [{"type": "text", "text": "Workflow not found"}], "isError": True}
+        return {"content": [{"type": "text", "text": json.dumps(wf, indent=2, ensure_ascii=False)}]}
+    return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
+
+async def _mcp_handle(body_str):
+    try:
+        req = json.loads(body_str) if body_str and body_str.strip() else {}
+    except:
+        return {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+    rid = req.get("id")
+    method = req.get("method", "")
+    params = req.get("params", {})
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": rid, "result": {"tools": MCP_TOOLS}}
+    elif method == "tools/call":
+        result = await _mcp_call_tool(params.get("name", ""), params.get("arguments", {}))
+        return {"jsonrpc": "2.0", "id": rid, "result": result}
+    elif method == "initialize":
+        return {"jsonrpc": "2.0", "id": rid, "result": {"protocolVersion": "2025-03-26", "capabilities": {"tools": {}, "resources": {}}}}
+    elif method == "ping":
+        return {"jsonrpc": "2.0", "id": rid, "result": {}}
+    else:
+        return {"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+# ---- CrewAI Workflow Engine (optional) ----
+
+HAS_CREWAI = False
+try:
+    from crewai import Agent as CrewAgent, Task as CrewTask, Crew as CrewCrew, Process as CrewProcess
+    HAS_CREWAI = True
+except ImportError:
+    pass
+
+async def execute_workflow_crewai(workflow, initial_input=""):
+    if not HAS_CREWAI:
+        return {"error": "CrewAI not installed. Install with: pip install crewai", "fallback": True}
+    nodes = workflow.get("nodes", [])
+    edges = workflow.get("edges", [])
+    if not nodes:
+        return {"error": "Workflow has no nodes"}
+    node_map = {n["id"]: n for n in nodes}
+    order = _toposort(nodes, edges)
+    in_edges = {n["id"]: [] for n in nodes}
+    for e in edges:
+        if e["target"] in in_edges:
+            in_edges[e["target"]].append(e["source"])
+    agents = {}
+    tasks = []
+    task_map = {}
+    for nid in order:
+        node = node_map[nid]
+        pid = node.get("provider", "openrouter")
+        role_info = _get_role(pid)
+        agent_role = node.get("label") or role_info.get("role", "Assistant")
+        agent = CrewAgent(
+            role=agent_role,
+            goal=node.get("system_prompt") or role_info.get("system_prompt", "Complete your task effectively."),
+            backstory=f"You are an AI {agent_role} powered by {pid}. Complete your assigned task thoroughly.",
+            verbose=True
+        )
+        agents[nid] = agent
+        upstream = in_edges.get(nid, [])
+        ctx = []
+        for uid in upstream:
+            if uid in task_map:
+                ctx.append(task_map[uid])
+        desc = f"Execute your role as {agent_role}. "
+        if initial_input and not upstream:
+            desc += f"Initial input: {initial_input}\n"
+        if ctx:
+            desc += f"Context from upstream tasks: {', '.join(str(c) for c in ctx)}\n"
+        task = CrewTask(description=desc, expected_output="Detailed response based on your role and context", agent=agent)
+        tasks.append(task)
+        task_map[nid] = task
+    crew = CrewCrew(agents=list(agents.values()), tasks=tasks, process=CrewProcess.sequential, verbose=True)
+    try:
+        result = crew.kickoff()
+        return {"success": True, "result": str(result), "engine": "crewai", "total_nodes": len(nodes)}
+    except Exception as e:
+        return {"error": str(e), "engine": "crewai"}
+
 def _is_configured(key):
     return bool(key) and "YOUR_" not in key and key != "not configured"
 
 def _load_providers():
     global PROVIDERS, SYNOXCLOUD_AI_MODELS
     PROVIDERS = {
+        "omniroute": {"url": os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1/chat/completions"), "model": os.environ.get("OMNIROUTE_MODEL", "auto"), "key": os.environ.get("OMNIROUTE_KEY", "not configured")},
         "zenmux": {"url": "https://zenmux.ai/api/v1/chat/completions", "model": "x-ai/grok-4.5-free", "key": os.environ.get("ZENMUX_KEY", "not configured")},
         "nvidia": {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "meta/llama-3.3-70b-instruct", "key": os.environ.get("NVIDIA_KEY", "not configured")},
         "groq": {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "llama-3.3-70b-versatile", "key": os.environ.get("GROQ_KEY", "not configured")},
@@ -218,11 +364,25 @@ async def call_provider(messages, provider_id):
             r = await c.get(url)
             if r.status_code == 200:
                 data = r.json()
-                if isinstance(data, dict):
-                    for k in ("result", "response", "message", "text", "data", "content"):
-                        if k in data:
-                            return {"content": str(data[k])}
-                    return {"content": str(data)[:2000]}
+                try:
+                    if isinstance(data, dict):
+                        # try inner data wrapper first
+                        inner = data.get("data")
+                        if isinstance(inner, dict):
+                            data = inner
+                        # find first non-empty string value from known keys
+                        for k in ("answer", "result", "response", "message", "text", "content", "reply", "output"):
+                            v = data.get(k)
+                            if isinstance(v, str) and v:
+                                return {"content": v}
+                        # check for error
+                        err = data.get("error")
+                        if isinstance(err, str) and err:
+                            return {"content": "Error: " + err[:500]}
+                        # fallback: return the full dict
+                        return {"content": str(data)[:2000]}
+                except Exception as e:
+                    return {"content": "Parse error: " + str(e)[:200]}
                 return {"content": str(data)[:2000]}
             return {"error": "SynoxCloud error: " + str(r.status_code)}
         except Exception as e:
@@ -373,8 +533,10 @@ def _parse_path(path):
     return path if path else "/"
 
 def _match_route(route_path, request_path):
-    route_parts = route_path.strip("/").split("/")
-    req_parts = request_path.strip("/").split("/") if request_path.strip("/") else []
+    stripped = route_path.strip("/")
+    route_parts = stripped.split("/") if stripped else []
+    stripped2 = request_path.strip("/")
+    req_parts = stripped2.split("/") if stripped2 else []
     params = {}
     if len(route_parts) != len(req_parts):
         return None
@@ -456,8 +618,11 @@ async def _handle(reader, writer):
         writer.close()
         return
 
+    if path in ("/mcp/sse",):
+        params["_writer"] = writer
+
     try:
-        if asyncio.iscoroutinefunction(f):
+        if inspect.iscoroutinefunction(f):
             result = await f(method, path, headers, body_str, params)
         else:
             result = f(method, path, headers, body_str, params)
@@ -468,6 +633,8 @@ async def _handle(reader, writer):
         writer.close()
         return
 
+    if isinstance(result, tuple) and len(result) == 2 and result[0] == "__sse__":
+        return
     if isinstance(result, tuple):
         status, ct, body_bytes, extra_headers = result
         await _send(writer, status, ct, body_bytes, extra_headers)
@@ -801,7 +968,13 @@ async def handle_execute_workflow(method, path, headers, body, params):
     data = _parse_body(body)
     if "_parse_error" in data:
         return json_response({"error": "Invalid JSON: " + data["_parse_error"]}, 400)
-    result = await execute_workflow(data)
+    engine = data.get("engine", "builtin")
+    if engine == "crewai":
+        result = await execute_workflow_crewai(data)
+        if result.get("fallback"):
+            result = await execute_workflow(data)
+    else:
+        result = await execute_workflow(data)
     return json_response(result)
 
 @route("GET", "/api/models")
@@ -857,6 +1030,42 @@ async def handle_chat(method, path, headers, body, params):
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     })
 
+# ---- MCP Routes ----
+
+@route("POST", "/mcp")
+async def handle_mcp(method, path, headers, body, params):
+    result = await _mcp_handle(body)
+    return json_response(result)
+
+@route("GET", "/mcp/sse")
+async def handle_mcp_sse(method, path, headers, body, params):
+    w = params.get("_writer")
+    if w is None:
+        return json_response({"error": "no writer"})
+    try:
+        reason = "OK"
+        resp = f"HTTP/1.1 200 {reason}\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
+        w.write(resp.encode())
+        await w.drain()
+        await asyncio.sleep(0.5)
+        endpoint_event = f"event: endpoint\ndata: /mcp\n\n"
+        w.write(endpoint_event.encode())
+        await w.drain()
+        while True:
+            await asyncio.sleep(15)
+            w.write(f": keepalive\n\n".encode())
+            await w.drain()
+    except:
+        pass
+    finally:
+        try: w.close()
+        except: pass
+    return ("__sse__", None)
+
+@route("GET", "/api/mcp-tools")
+async def handle_mcp_tools(method, path, headers, body, params):
+    return json_response({"tools": MCP_TOOLS})
+
 # ---- Server ----
 
 async def _serve(host, port):
@@ -865,6 +1074,12 @@ async def _serve(host, port):
     print(f"Gateway running on http://{addr[0]}:{addr[1]}")
     print(f"Chat: http://{addr[0]}:{addr[1]}/")
     print(f"Workflow Builder: http://{addr[0]}:{addr[1]}/workflow")
+    print(f"MCP Endpoint: POST http://{addr[0]}:{addr[1]}/mcp (JSON-RPC 2.0)")
+    print(f"MCP SSE: http://{addr[0]}:{addr[1]}/mcp/sse")
+    if PROVIDERS.get("omniroute", {}).get("key") != "not configured" or PROVIDERS.get("omniroute", {}).get("key", "") == "skip-auth":
+        print(f"OmniRoute: http://{addr[0]}:{addr[1]}/v1 → local OmniRoute gateway")
+    if HAS_CREWAI:
+        print(f"CrewAI engine: available (use engine=crewai in workflow)")
     async with server:
         await server.serve_forever()
 

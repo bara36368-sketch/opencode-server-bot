@@ -1,0 +1,498 @@
+410 AI AGENT PLATFORMS (Complete List)
+========================================
+
+CODING AGENTS (IDE-Native & Autonomous)
+1.  Cursor - AI-native IDE with multi-file agentic coding
+2.  GitHub Copilot - AI code completion and agent mode
+3.  Windsurf (Codeium) - Agentic IDE with cascade mode
+4.  JetBrains AI - Context-aware AI across JetBrains IDEs
+5.  Amazon Q Developer - AWS-native coding and security agent
+6.  Tabnine - Privacy-first code completion, on-premise option
+7.  Sourcegraph Cody - Enterprise codebase-aware AI assistant
+8.  Google Antigravity - Google agent-first dev platform
+9.  Kiro - Spec-driven development and task automation
+10. Blackbox AI - AI coding assistant for faster development
+11. Void - Open-source AI code editor with full control
+12. Qodo - AI code review and PR validation
+13. CodeRabbit - AI-powered PR review with inline suggestions
+
+TERMINAL & CLI CODING AGENTS
+14. Claude Code - Anthropic CLI agent for complex reasoning
+15. OpenAI Codex CLI - OpenAI terminal agent with Agents SDK
+16. Gemini CLI - Google open-source terminal agent
+17. Aider - Open-source pair programmer, any LLM
+18. Cline - VS Code extension with terminal/browser access
+19. RooCode - Cline fork with structured modes
+20. Kilo Code - Structured coding modes with tighter context
+21. OpenCode - BYOK terminal agent for developers
+22. Caliber - CLI for syncing AI agent configs across projects
+23. Jan AI - Run open-source AI locally for private chats
+
+AUTONOMOUS SOFTWARE ENGINEERS
+24. Devin - Fully autonomous AI software engineer
+25. SWE-Agent - Princeton OSS, resolves GitHub issues
+26. OpenHands - OSS autonomous software engineer
+27. Grok Build (xAI) - Multi-agent code generation
+28. Google Jules - Async AI coding assistant from Google
+
+APP BUILDERS (Prompt-to-App)
+29. Bolt.new - Prompt to full-stack web app in browser
+30. Lovable - Describe, build, deploy from chat
+31. v0 (Vercel) - Prompt to React/Tailwind components
+32. Replit Agent - Full-stack from prompt with auto-deploy
+33. PlayCode Agent - English to websites in browser
+34. Dyad - OSS local-first no-code app builder
+35. Base44 - AI-generated web app prototypes
+36. Emergent - Prompt-to-production web and mobile apps
+37. Framer AI - Design and publish sites with AI
+
+AGENT FRAMEWORKS (General Purpose)
+38. LangChain - Most adopted modular LLM application framework
+39. LangGraph - Graph-based stateful agent orchestration
+40. LlamaIndex - Data-focused framework, best for RAG agents
+41. Haystack (deepset) - Pipeline-based search and retrieval
+42. Semantic Kernel - Microsoft enterprise AI SDK
+43. Pydantic AI - Type-safe Python agent framework
+44. DSPy - Stanford, programmatic optimization not prompting
+45. Mastra - TypeScript-first agent framework, Apache 2.0
+46. Anthropic SDK - Official Claude SDK for tool use
+47. Google ADK - Google Agent Development Kit, native Gemini
+48. Vercel AI SDK - TypeScript toolkit for AI apps
+
+MULTI-AGENT ORCHESTRATION FRAMEWORKS
+49. AutoGen - Microsoft multi-agent conversation framework
+50. CrewAI - Role-based multi-agent crew orchestration
+51. MetaGPT - PM, architect, engineer role simulation
+52. Miyabi - Issue-driven development with 14 business agents
+53. OpenAI Agents SDK - Official multi-step agents with handoffs
+54. Strands Agents - AWS-backed model-driven tool use
+55. CAMEL - Role-based simulation and collaborative reasoning
+56. AutoGPT - Pioneer autonomous agent platform with visual builder
+57. Bernstein - Deterministic orchestrator, parallel coding agents
+58. AgentScope - Alibaba multi-agent framework
+59. MagiC - Kubernetes for AI agents, DAG workflows
+60. DeerFlow - ByteDance, trending on GitHub
+61. AXME - Durable coordination with crash recovery
+
+LIGHTWEIGHT / MINIMALIST FRAMEWORKS
+62. SmolAgents (HuggingFace) - Minimal code-first agent library
+63. Agno - Lightweight model-agnostic framework
+64. Upsonic - MCP support with minimal setup
+65. Portia AI - Reliable agents in production
+66. MicroAgent - Self-editing prompts and code
+
+OPENAI / ANTHROPIC / GOOGLE PLATFORMS
+67. ChatGPT Agent - Autonomous task execution via OpenAI
+68. OpenAI Operator - Autonomous web browsing agent
+69. OpenAI Codex (Cloud) - Cloud-based software engineering agent
+70. Claude Computer Use - Anthropic desktop/browser control
+71. Claude in Chrome - Anthropic browsing agent
+72. Google Project Mariner - Gemini browser agent
+73. Google Vertex AI Agent Builder - Managed agent platform
+74. Amazon Bedrock Agents - AWS managed multi-model agent service
+75. IBM watsonx Orchestrate - Enterprise governed AI workflows
+
+BROWSER & DESKTOP AGENTS
+76. Browser Use - OSS browser agent library
+77. Skyvern - Vision-driven browser automation
+78. Agent S2 (Simular) - OSS GUI automation framework
+79. MultiOn - Reliable web automation API
+80. Browserbase - Cloud browser infrastructure for agents
+81. Airtop - Enterprise browser automation
+82. Amazon Nova Act - AWS browser automation
+83. Plasmate - Headless browser, HTML to JSON
+84. Playwright MCP - MCP server for Playwright + agents
+85. onUI - OSS browser extension for UI pair programming
+86. Fellou - Transparent agentic browser with memory
+87. Dia Browser - AI-native browser from Browser Company
+88. Genspark - On-device models, no internet needed
+
+VOICE AGENTS (Platforms & APIs)
+89. ElevenLabs - Industry-leading conversational AI voice
+90. Vapi - Developer-first low-latency voice agents
+91. Bland AI - Outbound call automation, CRM integration
+92. Voiceflow - No-code voice and chat builder
+93. Synthflow - No-code voice agents for SMBs
+94. PolyAI - Enterprise natural multi-turn voice
+95. Retell AI - Human-like multi-language voice agents
+96. HeyGen - Talking avatars with lip-sync translation
+97. Synthesia - AI video avatars, 120+ languages
+98. Deepgram - STT and TTS APIs, sub-300ms latency
+99. AssemblyAI - STT with diarization and sentiment
+100. LiveKit Agents - OSS real-time voice/video AI agents
+101. Pipecat - OSS voice multimodal conversational AI
+102. Vocode - OSS voice-based LLM agents
+103. Rasa - OSS conversational AI with NLU training
+104. NextLevel.AI - Voice-first conversational AI platform
+105. Delight.ai - AI agent platform with Trust OS
+106. Quickchat AI - Enterprise conversational AI platform
+
+CONVERSATIONAL AI PLATFORMS
+107. Google Dialogflow - Enterprise conversational AI
+108. Amazon Lex - Voice and text chatbot builder
+109. Microsoft Bot Framework - Bot development with MS APIs
+110. Microsoft Copilot Studio - Low-code AI agent builder
+111. IBM watsonx Assistant - Enterprise conversational AI
+112. Kore.ai - Enterprise conversational AI platform
+113. Cognigy.AI - Enterprise conversational AI platform
+114. DRUID AI Platform - Enterprise conversational AI
+115. Capacity Platform - AI automation platform
+116. PolyAI Enterprise - Enterprise voice assistant
+117. Freshworks Freddy AI - Customer service AI
+118. Tidio - AI chatbot for small businesses
+119. Decagon - High-volume enterprise chatbots
+120. Ada - Large enterprise customer experience AI
+121. Intercom Fin AI - AI-first customer service
+122. Zendesk AI - AI agents for support teams
+123. Scry AI - Enterprise conversational AI
+124. Alltius - Enterprise conversational AI
+125. Workelevate - Conversational AI for enterprises
+126. SAP Conversational AI - SAP chatbot platform
+127. Oracle Digital Assistant - Modular enterprise chatbot
+128. SurveySparrow - Survey and conversational AI
+129. SleekFlow AI - Social media conversational AI
+130. Yellow.ai - Conversational automation, 135+ languages
+131. Konverso AI - Enterprise conversational AI
+
+WORKFLOW AUTOMATION & NO-CODE BUILDERS
+132. n8n - OSS workflow automation with AI agent nodes
+133. Zapier - AI-enhanced workflows across 8000+ apps
+134. Make (Integromat) - Visual workflow automation platform
+135. Activepieces - OSS Zapier alternative with AI
+136. Temporal - Durable execution for agent workflows
+137. Mission Control - Manage AI agent swarms
+138. Relay.app - AI workflow automation with approvals
+139. AirOps - AI workflow automation for marketing
+140. Gumloop - No-code AI agent builder, visual workflows
+
+NO-CODE AI AGENT PLATFORMS
+141. Dify - OSS LLMOps visual agent builder, 130k+ stars
+142. Flowise - OSS drag-and-drop LLM agent builder
+143. Langflow - Visual multi-agent and RAG builder
+144. Lindy - No-code agents, 3000+ integrations
+145. Relevance AI - Visual agent builder with custom code
+146. Rivet - Visual AI workflow builder, drag-and-drop
+147. FastAgency - Deploy multi-agent workflows as APIs
+148. Stack AI - Enterprise no-code agent platform
+149. MindStudio - No-code AI app and agent builder
+150. Botpress - Open-source chatbot with visual flow builder
+151. Pickaxe - Customer-facing monetizable agents
+152. Tate-A-Tate - Zero-code AI agent builder
+153. Wordware - Web-hosted IDE for AI agents
+154. Taskade - AI agents, workspaces, and app generation
+155. VectorShift - No-code AI assistant builder
+156. CorvinOS - Self-hosted OS for AI agents
+157. Glean Agent Builder - Enterprise no-code agent builder
+158. Uniphore - Business AI platform with agents
+159. Inbenta - AI-powered omnichannel engagement
+160. D-ID Agents - AI digital avatars with agents
+161. Chatbase - AI support agent builder
+162. Automaise - No-code automation platform
+
+ENTERPRISE AI AGENT PLATFORMS
+163. Salesforce Agentforce - CRM-native AI agents
+164. Microsoft Copilot 365 - AI across Microsoft 365 suite
+165. ServiceNow Now Assist - AI-powered workflow automation
+166. UiPath AI Agents - RPA combined with LLM agents
+167. SAP Joule - AI assistant for ERP workflows
+168. Oracle AI Agents - Enterprise AI automation
+169. Palantir AIP - Enterprise AI platform with agents
+170. Glean Agents - Enterprise search and AI agents
+171. Moveworks - Employee support automation AI
+172. Sana (Workday) - Enterprise AI operating system
+173. Aisera (Automation Anywhere) - Agentic AI platform
+174. Hebbia - Enterprise knowledge work AI agents
+175. Greenlite AI - AML/KYC compliance AI agents
+176. Wizr AI - Enterprise AI agent platform
+177. Bright AI - Enterprise AI workflow platform
+178. Harvey - AI for legal research and workflows
+
+AI AGENT INFRASTRUCTURE & TOOLING
+179. E2B - Sandboxed code execution for agents
+180. Browserbase - Cloud browser for agent use
+181. Patronus AI - Agent evaluation and safety
+182. Composio - Tool integration layer for agents
+183. StackOne - Universal tool integration for agents
+184. Arcade AI - Tool integration for agents
+185. Mem0 - Persistent memory for AI agents
+186. Pinecone - Vector database for agent memory
+187. Chroma - Open-source vector database
+188. Qdrant - Vector search engine for agents
+189. Weaviate - Vector database with AI capabilities
+190. Tavily - Web search API for AI agents
+191. OpenRouter - API gateway for many AI models
+192. Groq - Ultra-fast LLM inference
+193. Together AI - Open-source model inference
+194. SambaNova - Enterprise AI inference platform
+
+OBSERVABILITY & EVALUATION
+195. LangSmith - LLM tracing, evaluation, testing
+196. Langfuse - OSS LLM observability platform
+197. Braintrust - AI evaluation and observability
+198. AgentOps - AI agent observability platform
+199. Arize AI - LLM observability and evaluation
+200. Helicone - LLM proxy with analytics
+201. Portkey - AI gateway and observability
+202. Promptfoo - LLM evaluation and red teaming
+203. Future AGI - Test and protect AI agents
+
+AI SAFETY & GUARDRAILS
+204. Guardrails AI - LLM output validation
+205. Lakera - AI security and prompt injection defense
+206. Prompt Security - Enterprise generative AI security
+207. Robust Intelligence (Cisco) - AI security platform
+208. CalypsoAI - AI security and governance
+209. Arthur Shield - LLM monitoring and guardrails
+210. Rebuff - Self-hardening prompt injection filter
+211. Reka Guard - AI safety and content moderation
+
+MULTI-AGENT PLATFORMS (Additional)
+212. CrewClaw - Multi-agent orchestration platform
+213. AutoGen Studio - Visual multi-agent builder
+214. AgentOps - Multi-agent monitoring
+215. MagiC - Kubernetes for multi-agent systems
+216. DeerFlow - Multi-agent research framework
+217. CAMEL-AI - Communicative agents platform
+
+RESEARCH & DATA AGENTS
+218. Perplexity AI - AI-powered answer engine
+219. Perplexity Computer - Multi-model orchestration agent
+220. Elicit - AI research assistant
+221. Consensus - AI academic research search
+222. Semantic Scholar - AI-powered research tool
+223. You.com - AI-powered research and answers
+224. Julius - AI data analysis assistant
+225. ThoughtSpot - AI-powered analytics
+226. Powerdrill - AI data analysis platform
+
+CUSTOMER SUPPORT & CRM AGENTS
+227. Intercom Fin - AI customer support agent
+228. Zendesk AI - AI-powered support automation
+229. Freshdesk Freddy - AI customer support
+230. Drift - AI-powered sales conversations
+231. Forethought - AI for customer support
+232. Ultimate AI - Enterprise customer service AI
+233. LivePerson - Conversational AI for brands
+
+SALES & MARKETING AGENTS
+234. Conversica - AI sales assistant
+235. Regie.ai - AI-powered sales engagement
+236. Reply.io - AI sales outreach platform
+237. Jasper - AI marketing content platform
+238. Copy.ai - AI writing and marketing
+239. HubSpot AI - AI across CRM and marketing
+240. Clari - AI revenue platform
+241. Gong - AI revenue intelligence
+
+CONTENT & CREATIVE AI AGENTS
+242. Midjourney - AI image generation
+243. DALL-E (OpenAI) - AI image generation
+244. FLUX - Open-weight photorealistic image gen
+245. Stable Diffusion - OSS image generation
+246. Adobe Firefly - Commercially licensed image gen
+247. Google Imagen - State-of-art photorealism
+248. Ideogram - Best text-in-image generation
+249. Leonardo AI - Multi-model creative platform
+250. Recraft - Design-focused AI generation
+251. Runway - AI video generation and editing
+252. Sora (OpenAI) - AI video generation
+253. Google Veo - Native audio+video generation
+254. Kling - Cinematic AI video generation
+255. Pika - Beginner-friendly AI video
+256. Luma Dream Machine - 4K HDR AI video
+257. HaiLuo AI - Budget AI video generation
+258. Suno - Text-to-song AI music generation
+259. Udio - High-fidelity AI music generation
+260. Stable Audio - AI audio generation
+261. Meta AudioCraft - OSS music and audio gen
+262. Meshy - Text/image to 3D generation
+263. Tripo AI - Fast 3D from text/images
+
+LOCAL & SELF-HOSTED AI
+264. LM Studio - Run AI models locally
+265. Ollama - Run LLMs locally
+266. Jan AI - Open-source local AI
+267. GPT4All - Local AI chatbot
+268. Open WebUI - Self-hosted LLM interface
+269. LocalAI - OpenAI-compatible local inference
+270. KoboldCpp - Local LLM inference engine
+271. LMQL - Programming language for LLMs
+272. MLC LLM - Universal LLM deployment
+
+WORKFLOW & AUTOMATION (Additional)
+273. Zapier Agents - Autonomous AI agents in workflows
+274. ClickUp AI - AI in project management
+275. Notion AI - AI-powered knowledge management
+276. Airtable - AI workflow platform with agents
+277. Monday.com AI - AI project management
+278. Asana AI - AI workflow management
+279. Coda AI - AI-powered documents and workflows
+280. Clay - AI-powered sales data enrichment
+
+DATA EXTRACTION & PROCESSING AGENTS
+281. Diffbot - AI web data extraction
+282. Apify - Web scraping and automation
+283. Bright Data AI - AI-powered web data
+284. Rossum - AI document processing
+285. Datadog AI - AI for IT operations
+286. Moveworks - AI for employee support
+
+HEALTHCARE & THERAPY AGENTS
+287. Ada Health - AI symptom assessment
+288. Babylon Health - AI healthcare assistant
+289. Woebot - AI mental health chatbot
+290. Wysa - AI mental health support
+291. CaringAI - AI voice agent for healthcare
+
+FINANCE & PLANNING AGENTS
+292. Wealthfront - AI investing assistant
+293. Cleo - AI personal finance chatbot
+294. Trim - AI financial assistant
+295. AlphaSense - AI market intelligence
+296. Kensho - AI financial analytics
+
+CYBERSECURITY AI AGENTS
+297. Darktrace - AI cybersecurity platform
+298. CrowdStrike Falcon AI - AI threat detection
+299. SentinelOne - AI endpoint protection
+300. Recorded Future - AI threat intelligence
+301. Abnormal Security - AI email security
+
+HOME & AUTOMATION AGENTS
+302. Home Assistant - Smart home AI automation
+303. SmartThings (Samsung) - IoT automation
+304. IFTTT - AI-powered automation
+305. Alexa (Amazon) - Voice AI assistant
+306. Google Assistant - Voice AI assistant
+307. Apple Siri - Voice AI assistant
+
+EDUCATION & LEARNING AI
+308. Khanmigo (Khan Academy) - AI tutor
+309. Duolingo Max - AI language learning
+310. Quizlet AI - AI study assistant
+311. Photomath - AI math solver
+312. Socratic by Google - AI homework helper
+
+ENTERPRISE AUTOMATION & RPA
+313. Automation Anywhere - RPA with AI agents
+314. UiPath - RPA with AI agent capabilities
+315. Blue Prism - Intelligent automation
+316. Power Automate (Microsoft) - AI workflow automation
+317. ElectroNeek - AI-powered desktop and SaaS automation
+
+AI GATEWAYS & INFERENCE ROUTING
+318. OpenRouter - Multi-model API routing
+319. LiteLLM - Unified LLM API
+320. Helicone - LLM proxy and analytics
+321. Portkey - AI gateway for enterprise
+322. Semantic Router - Ultra-fast LLM routing
+323. Martian - AI model routing
+
+MEMORY & CONTEXT MANAGEMENT
+324. Mem0 - Universal memory layer for agents
+325. Zep - Memory and context for AI assistants
+326. Cognee - Graph memory for AI agents
+327. Letta (MemGPT) - Long-term memory for LLMs
+328. Chromadb - Open-source embedding database
+
+AGENT PROTOCOLS & STANDARDS
+329. MCP (Model Context Protocol) - Anthropic agent-to-tool standard
+330. A2A (Agent-to-Agent) - Google multi-agent communication
+331. AG-UI - Agent-to-GUI protocol
+332. GNAP - Git-native agent protocol
+
+AI GOVERNANCE & COMPLIANCE
+333. IBM OpenPages - AI governance platform
+334. Credo AI - AI governance platform
+335. Holistic AI - AI governance and risk
+336. Saidot - AI governance platform
+337. Trustwise - AI governance and optimization
+
+DEVELOPER TOOLS & APIs FOR AGENTS
+338. Postman - API testing with AI capabilities
+339. Stripe - AI-powered payments infrastructure
+340. Twilio - AI-powered communications API
+341. Sendbird - AI messaging and communication
+342. Retool - Internal tools with AI agents
+
+AI AGENT MARKETPLACES & DIRECTORIES
+343. AI Agents Directory - 2700+ agents marketplace
+344. AI Agents List - 600+ agent directory
+345. AgentIndexed - 116+ curated agent directory
+346. Agentic.ai - 304 tools with scoring framework
+347. AI Agents Wiki - 358 ranked agents
+348. AI Agent Store - Agent marketplace
+349. Find Your Agent - Agent discovery platform
+350. AI Agents Live - Curated agent directory
+
+NICHE & EMERGING PLATFORMS
+351. Manus AI - Autonomous digital employee
+352. OpenClaw - OSS self-hosted AI agent runtime
+353. KiloClaw - Managed OpenClaw runtime
+354. Vellum - Open-source macOS personal assistant
+355. SuperAGI - OSS autonomous agent platform
+356. Agent Zero - Free self-contained AI helper
+357. Self-Operating Computer - AI controls your computer
+358. Future AGI - Build, test, protect AI agents
+359. Reassign - AI daily planner for makers
+360. Anijam - AI animation from idea to film
+361. Pykaso AI - Ultra-realistic AI images/videos
+362. Decompiler - Goal decomposition to execution plans
+363. BuddhaUR - AI Buddhism learning assistant
+364. Reframed.News - AI newsroom with political framing
+365. Agentic News - AI monitoring and briefings
+366. InkOS - Autonomous novel-writing CLI agent
+
+ENTERPRISE & INDUSTRY-SPECIFIC (Additional)
+367. Wizr AI - Enterprise AI for IT and CX
+368. LITSLINK - AI agent development company
+369. LeewayHertz - Multi-agent systems integrator
+370. Suralink - Agentic AI for audit engagements
+371. Budibase - Open-source AI workflow toolkit
+372. ToolJet - Open-source internal tool builder
+373. Softr - Client portals on existing data
+374. Glide - No-code mobile app builder
+375. Bubble - No-code web app builder
+376. FlutterFlow - Cross-platform mobile app builder
+377. Appy Pie - Simple business app builder
+
+AGENT FRAMEWORKS & SDKs (Additional)
+378. Microsoft Agent Framework - Enterprise agent SDK
+379. LangChain Agents - Agent module in LangChain
+380. Claude Skills - Anthropic skill composition system
+381. OpenAI Swarm - Lightweight multi-agent experiments
+382. Petals - Distributed LLM inference
+383. Axolotl - Fine-tuning framework for agents
+384. Unsloth - Fast LLM fine-tuning
+385. Text Generation Inference (TGI) - HuggingFace inference
+386. vLLM - High-throughput LLM serving
+
+NO-CODE / WORKFLOW (Additional)
+387. FastAPI + LangServe - Deploy agents as APIs
+388. Streamlit - Rapid AI agent prototyping
+389. Gradio - Build ML demos and agents
+390. Chainlit - Build conversational AI agents
+391. StreamChat - Chat UI framework for AI
+
+SPECIALIZED AGENTS & PLATFORMS (Additional)
+392. Airtable Omni - AI agent and app builder
+393. Zite - Production-ready AI business apps
+394. Nexos AI - All-in-one AI workflow platform
+395. GoGoGot - Self-hosted AI agent management
+396. cowork.ink - AI agent orchestration workspace
+397. RentAHuman - Physical-world access for AI agents
+398. Proofs.io - AI agents for sales PoCs
+399. Synergetics AI - AI bots and Digital Twins
+400. Augment Code - AI coding assistant
+401. Qodo (formerly CodiumAI) - AI test generation
+
+ADDITIONAL (from awesome lists & directories)
+402. Superagent - OSS AI assistant framework
+403. AgentGPT - OSS autonomous agent in browser
+404. Godmode - Web UI for AutoGPT and BabyAGI
+405. BabyAGI - AI-powered task management agent
+406. JARVIS (Microsoft) - LLM as controller for agents
+407. AgentVerse - Multi-agent collaboration framework
+408. ChatDev - Software development virtual company
+409. Interactive Language Learning Agent - Language learning
+410. Voyager - Minecraft gameplay agent by NVIDIA
