@@ -6,6 +6,13 @@ try:
 except ImportError:
     HAS_HTTPX = False
 
+HAS_G4F = False
+try:
+    from g4f.client import AsyncClient as G4FAsyncClient
+    HAS_G4F = True
+except ImportError:
+    pass
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROVIDERS_FILE = os.path.join(BASE_DIR, "providers.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(BASE_DIR, "synoxcloud_ai_models.json")
@@ -73,7 +80,28 @@ PROVIDER_ROLES = {
     "hy3-preview": {"role": "Pioneer", "emoji": "\U0001F680", "color": "#f43f5e",
                     "desc": "Cutting-edge Hy3 preview model",
                     "system_prompt": "You are a pioneer. Push boundaries in your analysis."},
-}
+    "g4f": {"role": "Free Router", "emoji": "\U0001F3AF", "color": "#22c55e",
+            "desc": "70+ free providers via gpt4free auto-routing",
+            "system_prompt": "You are a helpful AI assistant routed through the best available free provider."},
+    "zyloo": {"role": "Kimi", "emoji": "\U0001F33F", "color": "#8B5CF6",
+              "desc": "Zyloo unified gateway — kimi-k2 model",
+              "system_prompt": "You are Kimi K2, powered by Zyloo. You are precise, logical, and thorough."},
+    "siliconflow": {"role": "Flow", "emoji": "\U0001F4A7", "color": "#06b6d4",
+                    "desc": "200+ free/open models via SiliconFlow (Qwen3, DeepSeek, GLM)",
+                    "system_prompt": "You are a fast, efficient AI routed through SiliconFlow. Be concise and accurate."},
+    "pollinations": {"role": "Mosaic", "emoji": "\U0001F3A8", "color": "#ec4899",
+                     "desc": "Anonymous free AI via Pollinations (GPT-OSS-20B)",
+                     "system_prompt": "You are a creative AI assistant. Generate original, engaging responses."},
+    "llm7": {"role": "FreeMind", "emoji": "\U0001F9E0", "color": "#a855f7",
+             "desc": "Free GPT-OSS access via LLM7.io (no key needed)",
+             "system_prompt": "You are an open-source AI. Be helpful, honest, and thorough."},
+     "ovh": {"role": "CloudMind", "emoji": "\u2601\uFE0F", "color": "#3b82f6",
+             "desc": "OVH AI Endpoints — Qwen3.5 397B, GPT-OSS (anonymous, no key)",
+             "system_prompt": "You are a cloud-native AI assistant. Provide accurate, well-reasoned responses."},
+     "freetheai": {"role": "Free Spirit", "emoji": "\U0001F9F4", "color": "#eab308",
+                   "desc": "60+ free models via FreeTheAi (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
+                   "system_prompt": "You are a versatile, uncensored AI assistant routed through FreeTheAi. Be thorough and creative."},
+ }
 
 # ---- MCP Server (Model Context Protocol) ----
 
@@ -105,6 +133,26 @@ MCP_TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "workflow_id": {"type": "string"}},
          "required": ["workflow_id"]}},
+    {"name": "web_search", "description": "Search the web via DuckDuckGo",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "wikipedia", "description": "Search and extract content from Wikipedia",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search term"},
+         "lang": {"type": "string", "description": "Language (default en)"}},
+         "required": ["query"]}},
+    {"name": "summarize", "description": "Summarize a long text using LangChain",
+     "input_schema": {"type": "object", "properties": {
+         "text": {"type": "string", "description": "Text to summarize"},
+         "max_length": {"type": "integer", "description": "Approximate max summary length"}},
+         "required": ["text"]}},
+    {"name": "extract_info", "description": "Extract structured information from text",
+     "input_schema": {"type": "object", "properties": {
+         "text": {"type": "string", "description": "Text to extract from"},
+         "schema_description": {"type": "string", "description": "What to extract (e.g. names, dates, prices)"}},
+         "required": ["text", "schema_description"]}},
 ]
 
 async def _mcp_call_tool(name, arguments):
@@ -138,6 +186,53 @@ async def _mcp_call_tool(name, arguments):
         if not wf:
             return {"content": [{"type": "text", "text": "Workflow not found"}], "isError": True}
         return {"content": [{"type": "text", "text": json.dumps(wf, indent=2, ensure_ascii=False)}]}
+    elif name == "web_search":
+        if not HAS_LANGCHAIN:
+            return {"content": [{"type": "text", "text": "LangChain not installed"}], "isError": True}
+        try:
+            search = DuckDuckGoSearchRun()
+            result = search.run(arguments.get("query", ""))
+            return {"content": [{"type": "text", "text": result[:5000]}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Search error: {str(e)}"}], "isError": True}
+    elif name == "wikipedia":
+        try:
+            import wikipedia
+            wikipedia.set_lang(arguments.get("lang", "en"))
+            try:
+                page = wikipedia.page(arguments.get("query", ""))
+                text = f"# {page.title}\n\n{page.summary}\n\nURL: {page.url}"
+            except wikipedia.DisambiguationError as e:
+                text = f"Ambiguous term. Options: {', '.join(e.options[:10])}"
+            except wikipedia.PageError:
+                text = "Page not found."
+            return {"content": [{"type": "text", "text": text[:5000]}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Wikipedia error: {str(e)}"}], "isError": True}
+    elif name == "summarize":
+        if not HAS_LANGCHAIN:
+            return {"content": [{"type": "text", "text": "LangChain not installed"}], "isError": True}
+        try:
+            text = arguments.get("text", "")
+            max_len = arguments.get("max_length", 200)
+            prompt = f"Summarize the following text in {max_len} words or less:\n\n{text[:10000]}"
+            llm = _langchain_llm()
+            result = await llm.ainvoke(prompt)
+            return {"content": [{"type": "text", "text": result[:5000]}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Summarize error: {str(e)}"}], "isError": True}
+    elif name == "extract_info":
+        if not HAS_LANGCHAIN:
+            return {"content": [{"type": "text", "text": "LangChain not installed"}], "isError": True}
+        try:
+            text = arguments.get("text", "")
+            schema = arguments.get("schema_description", "")
+            prompt = f"Extract the following information from the text: {schema}\n\nText:\n{text[:10000]}\n\nExtracted information:"
+            llm = _langchain_llm()
+            result = await llm.ainvoke(prompt)
+            return {"content": [{"type": "text", "text": result[:5000]}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Extract error: {str(e)}"}], "isError": True}
     return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
 
 async def _mcp_handle(body_str):
@@ -159,6 +254,43 @@ async def _mcp_handle(body_str):
         return {"jsonrpc": "2.0", "id": rid, "result": {}}
     else:
         return {"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+# ---- LangChain Integration (optional) ----
+
+HAS_LANGCHAIN = False
+try:
+    from langchain_core.prompts import PromptTemplate
+    from langchain_core.language_models.llms import LLM as LangChainLLM
+    from langchain_core.output_parsers import BaseOutputParser
+    from langchain_community.tools import DuckDuckGoSearchRun
+    from langchain_community.utilities import WikipediaAPIWrapper
+    HAS_LANGCHAIN = True
+except ImportError:
+    pass
+
+if HAS_LANGCHAIN:
+    class _GatewayLangChainLLM(LangChainLLM):
+        """LangChain LLM wrapper that routes through web_gateway providers."""
+        provider_id: str = "openrouter"
+        model_name: str = ""
+
+        @property
+        def _llm_type(self):
+            return "gateway_" + self.provider_id
+
+        def _call(self, prompt, stop=None, **kwargs):
+            raise RuntimeError("Use async only")
+
+        async def _acall(self, prompt, stop=None, **kwargs):
+            messages = [{"role": "user", "content": prompt}]
+            result = await call_provider(messages, self.provider_id)
+            content = result.get("content", result.get("error", "No response"))
+            return content
+
+def _langchain_llm(provider="openrouter"):
+    if not HAS_LANGCHAIN:
+        return None
+    return _GatewayLangChainLLM(provider_id=provider)
 
 # ---- CrewAI Workflow Engine (optional) ----
 
@@ -190,11 +322,31 @@ async def execute_workflow_crewai(workflow, initial_input=""):
         pid = node.get("provider", "openrouter")
         role_info = _get_role(pid)
         agent_role = node.get("label") or role_info.get("role", "Assistant")
+        agent_tools = []
+        if HAS_LANGCHAIN and node.get("use_tools", True):
+            try:
+                search_tool = DuckDuckGoSearchRun()
+                wiki_tool = WikipediaAPIWrapper()
+                class SearchTool:
+                    name = "Web Search"
+                    description = "Search the web for current information"
+                    def run(inner_self, query):
+                        return search_tool.run(query)
+                class WikiTool:
+                    name = "Wikipedia"
+                    description = "Search Wikipedia for encyclopedic knowledge"
+                    def run(inner_self, query):
+                        return wiki_tool.run(query)
+                agent_tools = [SearchTool(), WikiTool()]
+            except Exception:
+                pass
         agent = CrewAgent(
             role=agent_role,
             goal=node.get("system_prompt") or role_info.get("system_prompt", "Complete your task effectively."),
             backstory=f"You are an AI {agent_role} powered by {pid}. Complete your assigned task thoroughly.",
-            verbose=True
+            verbose=True,
+            tools=agent_tools if agent_tools else None,
+            allow_delegation=False
         )
         agents[nid] = agent
         upstream = in_edges.get(nid, [])
@@ -220,35 +372,47 @@ async def execute_workflow_crewai(workflow, initial_input=""):
 def _is_configured(key):
     return bool(key) and "YOUR_" not in key and key != "not configured"
 
+_ENV_KEY_MAP = {
+    "nvidia": "NVIDIA_KEY", "groq": "GROQ_KEY", "gemini": "GEMINI_KEY",
+    "openrouter": "OPENROUTER_KEY", "deepseek": "DEEPSEEK_KEY", "mistral": "MISTRAL_KEY",
+    "sambanova": "SAMBANOVA_KEY", "cerebras": "CEREBRAS_KEY", "cohere": "COHERE_KEY",
+    "xai": "XAI_KEY", "github": "GITHUB_KEY", "together": "TOGETHER_KEY",
+    "fireworks": "FIREWORKS_KEY", "lepton": "LEPTON_KEY", "zenmux": "ZENMUX_KEY",
+    "zyloo": "ZYLOO_KEY", "siliconflow": "SILICONFLOW_KEY",
+    "omniroute": "OMNIROUTE_KEY",
+    "freetheai": "FREETHEAI_KEY",
+}
+
+def _resolve_key(provider_id, fallback):
+    env_name = _ENV_KEY_MAP.get(provider_id)
+    if env_name:
+        val = os.environ.get(env_name)
+        if val:
+            return val
+    return fallback
+
 def _load_providers():
     global PROVIDERS, SYNOXCLOUD_AI_MODELS
-    PROVIDERS = {
-        "omniroute": {"url": os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1/chat/completions"), "model": os.environ.get("OMNIROUTE_MODEL", "auto"), "key": os.environ.get("OMNIROUTE_KEY", "not configured")},
-        "zenmux": {"url": "https://zenmux.ai/api/v1/chat/completions", "model": "x-ai/grok-4.5-free", "key": os.environ.get("ZENMUX_KEY", "not configured")},
-        "nvidia": {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "meta/llama-3.3-70b-instruct", "key": os.environ.get("NVIDIA_KEY", "not configured")},
-        "groq": {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "llama-3.3-70b-versatile", "key": os.environ.get("GROQ_KEY", "not configured")},
-        "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "model": "gemini-2.0-flash", "key": os.environ.get("GEMINI_KEY", "not configured")},
-        "openrouter": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "gryphe/mythomax-l2-13b", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
-        "deepseek": {"url": "https://api.deepseek.com/v1/chat/completions", "model": "deepseek-chat", "key": os.environ.get("DEEPSEEK_KEY", "not configured")},
-        "mistral": {"url": "https://api.mistral.ai/v1/chat/completions", "model": "mistral-small-latest", "key": os.environ.get("MISTRAL_KEY", "not configured")},
-        "sambanova": {"url": "https://api.sambanova.ai/v1/chat/completions", "model": "Meta-Llama-3.3-70B-Instruct", "key": os.environ.get("SAMBANOVA_KEY", "not configured")},
-        "cerebras": {"url": "https://api.cerebras.ai/v1/chat/completions", "model": "llama3.1-70b", "key": os.environ.get("CEREBRAS_KEY", "not configured")},
-        "cohere": {"url": "https://api.cohere.ai/v1/chat/completions", "model": "command-r-plus-08-2024", "key": os.environ.get("COHERE_KEY", "not configured")},
-        "xai": {"url": "https://api.x.ai/v1/chat/completions", "model": "grok-2-1212", "key": os.environ.get("XAI_KEY", "not configured")},
-        "github": {"url": "https://models.inference.ai.azure.com/chat/completions", "model": "gpt-4o", "key": os.environ.get("GITHUB_KEY", "not configured")},
-        "together": {"url": "https://api.together.xyz/v1/chat/completions", "model": "mistralai/Mixtral-8x22B-Instruct-v0.1", "key": os.environ.get("TOGETHER_KEY", "not configured")},
-        "fireworks": {"url": "https://api.fireworks.ai/inference/v1/chat/completions", "model": "accounts/fireworks/models/llama-v3p3-70b-instruct", "key": os.environ.get("FIREWORKS_KEY", "not configured")},
-        "lepton": {"url": "https://mixtral-8x22b.lepton.run/api/v1/chat/completions", "model": "mixtral-8x22b", "key": os.environ.get("LEPTON_KEY", "not configured")},
-        "synoxcloud": {"url": "https://api.synoxcloud.xyz/api/ai-chat", "model": "claude-haiku-4.5", "key": "free"},
-        "hy3": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
-        "hy3-preview": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": os.environ.get("OPENROUTER_KEY", "not configured")},
-    }
+    PROVIDERS = {}
     if os.path.exists(PROVIDERS_FILE):
         try:
             with open(PROVIDERS_FILE) as f:
-                PROVIDERS.update(json.load(f))
-        except:
+                raw = json.load(f)
+            for pid, cfg in raw.items():
+                cfg["key"] = _resolve_key(pid, cfg.get("key", "not configured"))
+                PROVIDERS[pid] = cfg
+        except Exception:
             pass
+    if "synoxcloud" not in PROVIDERS:
+        PROVIDERS.setdefault("synoxcloud", {"url": "https://api.synoxcloud.xyz/api/ai-chat", "model": "claude-haiku-4.5", "key": "free"})
+    PROVIDERS.setdefault("g4f", {"url": "g4f", "model": "auto", "key": "skip-auth"})
+    PROVIDERS.setdefault("hy3", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": _resolve_key("hy3", "not configured")})
+    PROVIDERS.setdefault("hy3-preview", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": _resolve_key("hy3-preview", "not configured")})
+    if "omniroute" in PROVIDERS:
+        if os.environ.get("OMNIROUTE_URL"):
+            PROVIDERS["omniroute"]["url"] = os.environ.get("OMNIROUTE_URL")
+        if os.environ.get("OMNIROUTE_MODEL"):
+            PROVIDERS["omniroute"]["model"] = os.environ.get("OMNIROUTE_MODEL")
     if os.path.exists(SYNOXCLOUD_AI_MODELS_FILE):
         try:
             with open(SYNOXCLOUD_AI_MODELS_FILE, encoding="utf-8") as f:
@@ -323,91 +487,171 @@ def _toposort(nodes, edges):
 def _get_role(provider_id):
     return PROVIDER_ROLES.get(provider_id, PROVIDER_ROLES.get("openrouter", {}))
 
+async def execute_workflow_langchain(workflow, initial_input=""):
+    if not HAS_LANGCHAIN:
+        return {"error": "LangChain not installed. Install with: pip install langchain", "fallback": True}
+    nodes = workflow.get("nodes", [])
+    edges = workflow.get("edges", [])
+    if not nodes:
+        return {"error": "Workflow has no nodes"}
+    node_map = {n["id"]: n for n in nodes}
+    order = _toposort(nodes, edges)
+    in_edges = {n["id"]: [] for n in nodes}
+    for e in edges:
+        if e["target"] in in_edges:
+            in_edges[e["target"]].append(e["source"])
+    results = {}
+    errors = {}
+    steps = []
+    for nid in order:
+        node = node_map.get(nid)
+        if not node:
+            continue
+        pid = node.get("provider", "openrouter")
+        role_info = _get_role(pid)
+        sys_prompt = node.get("system_prompt") or role_info.get("system_prompt", "You are a helpful assistant.")
+        upstream = in_edges.get(nid, [])
+        context_parts = []
+        for uid in upstream:
+            if uid in results:
+                context_parts.append(f"From {node_map.get(uid, {}).get('label', uid)}:\n{results[uid]}")
+        if initial_input and not upstream:
+            context_parts.append(f"User input:\n{initial_input}")
+        prompt_text = sys_prompt
+        if context_parts:
+            prompt_text += "\n\n" + "\n\n".join(context_parts)
+        try:
+            llm = _langchain_llm(pid)
+            start = time.time()
+            content = await llm.ainvoke(prompt_text)
+            elapsed = time.time() - start
+            results[nid] = content
+            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "ok", "elapsed": round(elapsed, 2), "preview": content[:200]})
+        except Exception as e:
+            errors[nid] = str(e)
+            steps.append({"node_id": nid, "node_name": node.get("label", nid), "status": "error", "error": str(e)})
+    final_nodes = [nid for nid in node_map if nid not in [e["source"] for e in edges]]
+    final_output = "\n\n".join(results.get(nid, "") for nid in final_nodes if nid in results)
+    return {
+        "workflow_id": workflow.get("id"), "workflow_name": workflow.get("name", "Untitled"),
+        "steps": steps, "results": results, "errors": errors,
+        "final_output": final_output, "total_nodes": len(nodes),
+        "success_count": sum(1 for s in steps if s["status"] == "ok"),
+        "error_count": sum(1 for s in steps if s["status"] == "error"),
+        "total_time": round(sum(s.get("elapsed", 0) for s in steps), 2), "engine": "langchain"
+    }
+
+async def _call_gemini(p, messages):
+    c = await get_http()
+    parts = []
+    for m in messages:
+        role = "model" if m["role"] == "assistant" else "user"
+        parts.append({"role": role, "parts": [{"text": m["content"]}]})
+    r = await c.post(p["url"], json={"contents": parts}, headers={"x-goog-api-key": p["key"]}, timeout=60)
+    if r.status_code != 200:
+        return {"error": "Gemini error: " + str(r.status_code)}
+    data = r.json()
+    candidates = data.get("candidates", [])
+    if candidates:
+        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", str(data))
+        return {"content": text}
+    return {"error": str(data)}
+
+async def _call_synoxcloud(p, messages):
+    last = [m for m in messages if m["role"] == "user"]
+    if not last:
+        return {"error": "No user message"}
+    prompt = last[-1]["content"]
+    model_id = p.get("model", "gpt-5")
+    model_info = SYNOXCLOUD_AI_MODELS.get(model_id, {})
+    if model_info and isinstance(model_info, dict) and model_info.get("path"):
+        ep_path = model_info["path"].split("?")[0]
+        raw_params = model_info.get("params", [])
+        param_names = [pp.split("=")[0].strip() for pp in raw_params if isinstance(pp, str) and pp.strip()]
+        recommended = param_names[0] if param_names else "q"
+        url = "https://api.synoxcloud.xyz" + ep_path + "?" + recommended + "=" + urllib.parse.quote(prompt)
+    else:
+        url = p["url"] + "/" + model_id + "?q=" + urllib.parse.quote(prompt)
+    key = p.get("key", "")
+    if _is_configured(key) and key != "free":
+        url += "&apikey=" + key
+    try:
+        c = await get_http()
+        r = await c.get(url, timeout=30)
+        if r.status_code != 200:
+            return {"error": "SynoxCloud error: " + str(r.status_code)}
+        data = r.json()
+        if isinstance(data, dict):
+            inner = data.get("data")
+            if isinstance(inner, dict):
+                data = inner
+            for k in ("answer", "result", "response", "message", "text", "content", "reply", "output"):
+                v = data.get(k)
+                if isinstance(v, str) and v:
+                    return {"content": v}
+            err = data.get("error")
+            if isinstance(err, str) and err:
+                return {"content": "Error: " + err[:500]}
+        return {"content": str(data)[:2000]}
+    except Exception as e:
+        return {"error": str(e)}
+
+async def _call_g4f(p, messages):
+    if not HAS_G4F:
+        return {"error": "gpt4free not installed. Install with: pip install g4f"}
+    model = p.get("model", "gpt-4o-mini")
+    if model == "auto":
+        model = "gpt-4o-mini"
+    try:
+        response = await G4FAsyncClient().chat.completions.create(model=model, messages=messages, stream=False)
+        content = response.choices[0].message.content if response.choices else ""
+        return {"content": content}
+    except Exception as e:
+        return {"error": f"g4f error: {str(e)}"}
+
+async def _call_openai(p, messages):
+    c = await get_http()
+    headers = {"Content-Type": "application/json"}
+    if p.get("key") and p["key"] != "skip-auth":
+        headers["Authorization"] = "Bearer " + p["key"]
+    body = {"model": p["model"], "messages": messages, "max_tokens": 4096}
+    try:
+        r = await c.post(p["url"], json=body, headers=headers, timeout=60)
+        if r.status_code == 200:
+            content = r.json().get("choices", [{}])[0].get("message", {}).get("content", str(r.json()))
+            return {"content": content}
+        try:
+            err_detail = r.json().get("error", {}).get("message", r.text[:300])
+        except Exception:
+            err_detail = r.text[:300]
+        return {"error": str(r.status_code) + ": " + err_detail}
+    except Exception as e:
+        return {"error": str(e)}
+
+_PROVIDER_DISPATCH = {
+    "gemini": _call_gemini,
+    "g4f": _call_g4f,
+}
+
 async def call_provider(messages, provider_id):
     p = PROVIDERS.get(provider_id)
     if not p:
         return {"error": "Unknown provider: " + provider_id}
-    c = await get_http()
-    if provider_id == "gemini":
-        parts = []
-        for m in messages:
-            role = "model" if m["role"] == "assistant" else "user"
-            parts.append({"role": role, "parts": [{"text": m["content"]}]})
-        r = await c.post(p["url"] + "?key=" + p["key"], json={"contents": parts})
-        if r.status_code == 200:
-            data = r.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", str(data))
-                return {"content": text}
-            return {"error": str(data)}
-        return {"error": "Gemini error: " + str(r.status_code)}
-    elif provider_id == "synoxcloud" or provider_id.startswith("synox-"):
-        last = [m for m in messages if m["role"] == "user"]
-        if not last:
-            return {"error": "No user message"}
-        prompt = last[-1]["content"]
-        model_id = p.get("model", "gpt-5")
-        model_info = SYNOXCLOUD_AI_MODELS.get(model_id, {})
-        if model_info and isinstance(model_info, dict) and model_info.get("path"):
-            ep_path = model_info["path"].split("?")[0]
-            raw_params = model_info.get("params", [])
-            param_names = [pp.split("=")[0].strip() for pp in raw_params if isinstance(pp, str) and pp.strip()]
-            recommended = param_names[0] if param_names else "q"
-            url = "https://api.synoxcloud.xyz" + ep_path + "?" + recommended + "=" + urllib.parse.quote(prompt)
-        else:
-            url = p["url"] + "/" + model_id + "?q=" + urllib.parse.quote(prompt)
-        key = p.get("key", "")
-        if _is_configured(key) and key != "free":
-            url += "&apikey=" + key
-        try:
-            r = await c.get(url)
-            if r.status_code == 200:
-                data = r.json()
-                try:
-                    if isinstance(data, dict):
-                        # try inner data wrapper first
-                        inner = data.get("data")
-                        if isinstance(inner, dict):
-                            data = inner
-                        # find first non-empty string value from known keys
-                        for k in ("answer", "result", "response", "message", "text", "content", "reply", "output"):
-                            v = data.get(k)
-                            if isinstance(v, str) and v:
-                                return {"content": v}
-                        # check for error
-                        err = data.get("error")
-                        if isinstance(err, str) and err:
-                            return {"content": "Error: " + err[:500]}
-                        # fallback: return the full dict
-                        return {"content": str(data)[:2000]}
-                except Exception as e:
-                    return {"content": "Parse error: " + str(e)[:200]}
-                return {"content": str(data)[:2000]}
-            return {"error": "SynoxCloud error: " + str(r.status_code)}
-        except Exception as e:
-            return {"error": str(e)}
-    else:
-        headers = {"Content-Type": "application/json"}
-        if p.get("key") and p["key"] != "skip-auth":
-            headers["Authorization"] = "Bearer " + p["key"]
-        body = {"model": p["model"], "messages": messages, "max_tokens": 4096}
-        try:
-            r = await c.post(p["url"], json=body, headers=headers)
-            if r.status_code == 200:
-                content = r.json().get("choices", [{}])[0].get("message", {}).get("content", str(r.json()))
-                return {"content": content}
-            try: err_detail = r.json().get("error", {}).get("message", r.text[:300])
-            except: err_detail = r.text[:300]
-            return {"error": str(r.status_code) + ": " + err_detail}
-        except Exception as e:
-            return {"error": str(e)}
+    if provider_id == "synoxcloud" or provider_id.startswith("synox-"):
+        return await _call_synoxcloud(p, messages)
+    handler = _PROVIDER_DISPATCH.get(provider_id, _call_openai)
+    return await handler(p, messages)
 
 async def execute_workflow(workflow, initial_input=""):
     nodes = workflow.get("nodes", [])
     edges = workflow.get("edges", [])
     if not nodes:
         return {"error": "Workflow has no nodes"}
+    engine = workflow.get("engine", "builtin")
+    if engine == "crewai":
+        return await execute_workflow_crewai(workflow, initial_input)
+    if engine == "langchain":
+        return await execute_workflow_langchain(workflow, initial_input)
     node_map = {n["id"]: n for n in nodes}
     order = _toposort(nodes, edges)
     in_edges = {n["id"]: [] for n in nodes}

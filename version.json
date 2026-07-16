@@ -1,0 +1,24 @@
+{
+  "version": "2.1.0",
+  "updated": "2026-07-16",
+  "whats_new": {
+    "2.1.0": [
+      "Added FreeTheAi provider — 60+ free models (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
+      "Version tracking system — you'll see this announcement on updates!",
+      "Type /version to check current version and changelog"
+    ],
+    "2.0.0": [
+      "18 AI providers integrated (Groq, Gemini, DeepSeek, Mistral, NVIDIA, etc.)",
+      "Visual workflow builder at /workflow",
+      "MCP server with 12 tools",
+      "Multi-AI chat mode",
+      "Agent system with 30+ specialized agents",
+      "Auto-restart runner with file change detection"
+    ],
+    "1.0.0": [
+      "Initial OpenCode Bot release",
+      "Basic Telegram AI chat",
+      "Provider routing and fallback"
+    ]
+  }
+}

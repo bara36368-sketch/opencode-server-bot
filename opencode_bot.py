@@ -97,6 +97,11 @@ DEFAULT_RATE_LIMITS = {
     "hy3-preview": (30, 10000),
     "bitrouter": (9999, 999999),
     "omniroute": (9999, 999999),
+    "siliconflow": (30, 60000),
+    "pollinations": (60, 100000),
+    "llm7": (30, 50000),
+    "ovh": (30, 50000),
+    "freetheai": (30, 60000),
 }
 
 class SlidingWindow:
@@ -411,7 +416,7 @@ DEFAULT_AGENTS = {
         "prompt": "You are an API testing expert. You design comprehensive API test suites covering happy path, error codes, edge cases, rate limiting, auth failures, pagination, and idempotency. You write Postman collections with dynamic variables, pre-request scripts, test assertions in pm.test, chaining requests with pm.environment, and Newman CLI runners. You also write curl commands, httpx Python tests, and k6 load test scripts with thresholds and virtual users. You output ready-to-import Postman JSON and k6 JavaScript."
     },
     "design_arena": {
-        "desc": "Web design specialist â€” HTML, CSS, JS, UI/UX, responsive layouts",
+        "desc": "Web design specialist — HTML, CSS, JS, UI/UX, responsive layouts",
         "prompt": "You are a web design expert. You create beautiful, responsive websites using HTML, CSS, and JavaScript. You specialize in modern CSS layouts (flexbox, grid), animations, responsive design, accessibility, color theory, typography, and UI/UX best practices. You output complete single-file HTML with embedded CSS and JS, or separate files as needed."
     },
     "custom": {
@@ -445,15 +450,12 @@ def save_sessions():
     _save_counter += 1
     if _save_counter % 3 != 0:
         return
-    _existing = {}
-    if os.path.exists(SESSIONS_FILE):
-        try:
-            with open(SESSIONS_FILE) as f: _existing = json.load(f)
-        except: pass
-    _existing["sessions"] = {str(k): v for k, v in sessions.items()}
-    _existing["team_sessions"] = {str(k): v for k, v in team_sessions.items()}
+    data = {
+        "sessions": {str(k): v for k, v in sessions.items()},
+        "team_sessions": {str(k): v for k, v in team_sessions.items()},
+    }
     with open(SESSIONS_FILE, "w") as f:
-        json.dump(_existing, f)
+        json.dump(data, f)
 
 def load_sessions():
     if os.path.exists(SESSIONS_FILE):
@@ -952,7 +954,7 @@ async def run_autonomous(goal, uid):
     memory_buffers[uid].append(f"[FINAL] {final[:200]}")
     save_memory()
     steps_summary = "\n".join(f"  {s.get('step',i+1)}. [{s.get('type','?')}] {s.get('task','')}" for i, s in enumerate(steps[:8]))
-    return f"ðŸ¤– Autonomous Mode â€” Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
+    return f"ðŸ¤– Autonomous Mode — Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
 
 DEFAULT_PREMADE_SKILLS = {
     "fullstack-web": {
@@ -1148,6 +1150,36 @@ PROVIDERS = {
         "url": "http://127.0.0.1:4356/v1/chat/completions",
         "model": "qwen/qwen3.6-flash",
         "key": "skip-auth"
+    },
+    "zyloo": {
+        "url": "https://api.zyloo.io/v1/chat/completions",
+        "model": "zyloo/kimi-k2",
+        "key": os.environ.get("ZYLOO_KEY", "set-via-env-var")
+    },
+    "siliconflow": {
+        "url": "https://api.siliconflow.cn/v1/chat/completions",
+        "model": "Qwen/Qwen3-8B",
+        "key": os.environ.get("SILICONFLOW_KEY", "set-via-env-var")
+    },
+    "pollinations": {
+        "url": "https://text.pollinations.ai/v1/chat/completions",
+        "model": "openai",
+        "key": "skip-auth"
+    },
+    "llm7": {
+        "url": "https://api.llm7.io/v1/chat/completions",
+        "model": "gpt-oss",
+        "key": "skip-auth"
+    },
+    "ovh": {
+        "url": "https://endpoints.ai.cloud.ovh.net/v1/chat/completions",
+        "model": "Qwen/Qwen3.5-397B-A3B",
+        "key": "skip-auth"
+    },
+    "freetheai": {
+        "url": "https://api.freetheai.xyz/v1/chat/completions",
+        "model": "glm-5.1",
+        "key": os.environ.get("FREETHEAI_KEY", "set-via-env-var")
     },
 }
 
@@ -1351,10 +1383,77 @@ async def poll():
                 raise
     return []
 
+VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.json")
+VERSION_STATE_FILE = os.path.join(os.path.dirname(__file__), "version_state.json")
+
+def load_version():
+    try:
+        with open(VERSION_FILE) as f:
+            return json.load(f)
+    except:
+        return {"version": "unknown", "whats_new": {}}
+
+def load_version_state():
+    try:
+        with open(VERSION_STATE_FILE) as f:
+            return json.load(f)
+    except:
+        return {"last_version": "", "notified_chats": {}}
+
+def save_version_state(state):
+    try:
+        with open(VERSION_STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+    except:
+        pass
+
+async def announce_update(old_v, new_v, changes, state):
+    state["last_version"] = new_v
+    known_chats = set()
+    for cid in sessions:
+        known_chats.add(cid)
+    for cid in list(state.get("notified_chats", {}).keys()):
+        known_chats.add(int(cid))
+    for cid in list(multi_sessions.keys()):
+        known_chats.add(int(cid))
+    known_chats.discard(0)
+    msg = [
+        f"\u2728 OpenCode Bot updated: v{old_v} \u2192 v{new_v}",
+        "",
+    ]
+    if changes:
+        msg.append("\U0001F4DD What's new:")
+        for i, c in enumerate(changes, 1):
+            msg.append(f"  {i}. {c}")
+    msg.append("")
+    msg.append(f"Type /version to see full changelog")
+    msg = "\n".join(msg)
+    for cid in known_chats:
+        try:
+            if str(cid) not in state.get("notified_chats", {}).get(new_v, []):
+                await send(cid, msg)
+                state.setdefault("notified_chats", {}).setdefault(new_v, []).append(str(cid))
+        except:
+            pass
+    save_version_state(state)
+    return state
+
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
     log("Bot started")
-    log("OpenCode Bot v2 started")
+
+    version_info = load_version()
+    ver = version_info.get("version", "unknown")
+    state = load_version_state()
+    old_ver = state.get("last_version", "")
+    if old_ver and old_ver != ver:
+        changes = version_info.get("whats_new", {}).get(ver, [])
+        log(f"Version changed: {old_ver} -> {ver}")
+        state = await announce_update(old_ver, ver, changes, state)
+    else:
+        state["last_version"] = ver
+        save_version_state(state)
+    log(f"OpenCode Bot v{ver} started")
 
     await gateway.start_worker()
     asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
@@ -1438,67 +1537,68 @@ async def main():
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
                     lines = [
-                        "OpenCode Bot v2",
+                        f"OpenCode Bot v{ver}",
                         f"  Agents: {len(AGENTS)}  Providers: {len(PROVIDERS)}",
                         "",
                         "Commands:",
-                        "  /agents â€” List agents",
-                        "  /agent <name> â€” Switch agent",
-                        "  /repo â€” List providers",
-                        "  /repo <name> â€” Switch provider",
-                        "  /arch â€” List architectures",
-                        "  /arch <name> â€” Switch architecture",
-                        "  /mode â€” List modes (chat/team/autonomous)",
-                        "  /mode <name> â€” Switch mode",
-                        "  /teams â€” List teams",
-                        "  /createteam <desc> â€” AI creates a team",
-                        "  /putteam <name> <a1> <a2>... â€” Create/update team",
-                        "  /useteam <name> â€” Activate a team",
-                        "  /stopteam â€” Deactivate team mode",
-                        "  /tools â€” List available tools",
-                        "  /effort â€” Show current effort level",
-                        "  /low|/normal|/medium|/high|/superhigh â€” Set effort",
-                        "  /thinking off|extended|adaptive â€” Thinking mode",
-                        "  /help â€” Help",
-                        "  /status â€” Current agent + provider",
-                        "  /myrole â€” Your role",
-                        "  /clear â€” Clear session",
-                        "  /premadeskills â€” Pre-made skill teams",
-                        "  /routes â€” Provider health",
-                        "  /vision â€” Analyze images with AI",
-                        "  /draw â€” Generate images from text",
-                        "  /schedule â€” Schedule recurring AI tasks",
-                        "  /export â€” Export chat history (json/md)",
-                        "  /doc â€” List indexed documents",
-                        "  /ask â€” Query uploaded documents",
-                        "  /context â€” Show current auto-context",
-                        "  /search â€” Web search via DuckDuckGo",
-                        "  /youtube â€” Get YouTube transcript/summary",
-                        "  /run â€” Execute code in sandbox (python/js)",
-                        "  /fetch â€” Fetch and summarize any URL",
-                        "  /remind â€” Set a reminder",
-                        "  /translate â€” Translate text",
-                        "  /qr â€” Encode/decode QR codes",
-                        "  /stats â€” Your usage statistics",
-                        "  /data â€” Query spreadsheets",
-                        "  /plugin â€” Dynamic plugin system",
-                        "  /webgateway â€” Web AI Gateway status + URL",
+                        "  /agents — List agents",
+                        "  /agent <name> — Switch agent",
+                        "  /repo — List providers",
+                        "  /repo <name> — Switch provider",
+                        "  /arch — List architectures",
+                        "  /arch <name> — Switch architecture",
+                        "  /mode — List modes (chat/team/autonomous)",
+                        "  /mode <name> — Switch mode",
+                        "  /teams — List teams",
+                        "  /createteam <desc> — AI creates a team",
+                        "  /putteam <name> <a1> <a2>... — Create/update team",
+                        "  /useteam <name> — Activate a team",
+                        "  /stopteam — Deactivate team mode",
+                        "  /tools — List available tools",
+                        "  /effort — Show current effort level",
+                        "  /low|/normal|/medium|/high|/superhigh — Set effort",
+                        "  /thinking off|extended|adaptive — Thinking mode",
+                        "  /help — Help",
+                        "  /status — Current agent + provider",
+                        "  /myrole — Your role",
+                        "  /clear — Clear session",
+                        "  /premadeskills — Pre-made skill teams",
+                        "  /routes — Provider health",
+                        "  /vision — Analyze images with AI",
+                        "  /draw — Generate images from text",
+                        "  /schedule — Schedule recurring AI tasks",
+                        "  /export — Export chat history (json/md)",
+                        "  /doc — List indexed documents",
+                        "  /ask — Query uploaded documents",
+                        "  /context — Show current auto-context",
+                        "  /search — Web search via DuckDuckGo",
+                        "  /youtube — Get YouTube transcript/summary",
+                        "  /run — Execute code in sandbox (python/js)",
+                        "  /fetch — Fetch and summarize any URL",
+                        "  /remind — Set a reminder",
+                        "  /translate — Translate text",
+                        "  /qr — Encode/decode QR codes",
+                        "  /stats — Your usage statistics",
+                        "  /data — Query spreadsheets",
+                        "  /plugin — Dynamic plugin system",
+                        "  /version — Show version and changelog",
+                        "  /webgateway — Web AI Gateway status + URL",
                     ]
                     if is_owner or is_admin:
                         lines += [
                             "",
                             "Admin:",
-                            "  /addprovider â€” Add a provider",
-                            "  /createagent â€” AI creates an agent",
-                            "  /repair â€” Reset provider health",
+                            "  /addprovider — Add a provider",
+                            "  /createagent — AI creates an agent",
+                            "  /repair — Reset provider health",
                         ]
                     if is_owner:
                         lines += [
                             "",
                             "Owner:",
-                        "  /addadmin <id> â€” Add admin",
-                        "  /removeadmin <id> â€” Remove admin",
-                        "  /adminlist â€” List admins",
+                        "  /addadmin <id> — Add admin",
+                        "  /removeadmin <id> — Remove admin",
+                        "  /adminlist — List admins",
                         ]
                     await send(chat, "\n".join(lines))
 
@@ -1567,6 +1667,7 @@ async def main():
                         ("SYSTEM", [
                             "/routes — Provider health",
                             "/gateway — Gateway stats + queue",
+                            "/version — Show version and changelog",
                             "/webgateway — Web gateway status",
                             "/toolfk — 200+ free utilities",
                             "/synoxcloud — 434 tools + 52 AI models",
@@ -1602,7 +1703,7 @@ async def main():
                     lines = [f"Available agents ({len(AGENTS)}):"]
                     for name, a in sorted(AGENTS.items()):
                         m = " << active" if name == active_agent else ""
-                        lines.append(f"  {name}{m} â€” {a['desc']}")
+                        lines.append(f"  {name}{m} — {a['desc']}")
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/myrole":
@@ -1667,7 +1768,7 @@ async def main():
                     a = AGENTS[name]
                     active_agent = name
                     sessions.pop(uid, None)
-                    await send(chat, f"Agent: {name} â€” {a['desc']}\n\nPrompt: {a['prompt']}")
+                    await send(chat, f"Agent: {name} — {a['desc']}\n\nPrompt: {a['prompt']}")
                     ap = AGENT_PROVIDERS.get(name)
                     if not ap or not _is_configured(ap.get("key", "")):
                         await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>\nExample: /agentprovider {name} https://api.example.com/v1/chat/completions sk-abc123 gpt-4o")
@@ -1680,7 +1781,7 @@ async def main():
                             cfg = _is_configured(v.get("key", ""))
                             m = " << active" if k == active_provider else ""
                             tag = "" if cfg else " [not configured]"
-                            lines.append(f"  {k} â€” {v['model']}{tag}{m}")
+                            lines.append(f"  {k} — {v['model']}{tag}{m}")
                         await send(chat, "\n".join(lines))
                         continue
                     name = parts[1].lower()
@@ -1700,7 +1801,7 @@ async def main():
                     else:
                         prov_info = f"Provider: {active_provider} ({PROVIDERS[active_provider]['model']})"
                     await send(chat, (
-                        f"Agent: {active_agent} â€” {AGENTS[active_agent]['desc']}\n"
+                        f"Agent: {active_agent} — {AGENTS[active_agent]['desc']}\n"
                         f"{prov_info}\n"
                         f"{mode_info}\n{arch_info}\n{team_info}\n"
                         f"Effort: {effort} ({EFFORT_LEVELS[effort]['desc']})\n"
@@ -1717,7 +1818,7 @@ async def main():
                         lines = [f"Architectures ({len(ARCHITECTURES)}):"]
                         for name, a in sorted(ARCHITECTURES.items()):
                             m = " << active" if name == active_arch else ""
-                            lines.append(f"  {name}{m} â€” {a['desc']}")
+                            lines.append(f"  {name}{m} — {a['desc']}")
                         await send(chat, "\n".join(lines))
                         continue
                     name = parts[1].lower()
@@ -1725,14 +1826,14 @@ async def main():
                         await send(chat, f"Unknown arch. Options: {', '.join(ARCHITECTURES.keys())}")
                         continue
                     active_arch = name
-                    await send(chat, f"Architecture: {name} â€” {ARCHITECTURES[name]['desc']}")
+                    await send(chat, f"Architecture: {name} — {ARCHITECTURES[name]['desc']}")
 
                 elif cmd == "/mode":
                     if len(parts) < 2:
                         lines = [f"Modes ({len(MODES)}):"]
                         for name, m in sorted(MODES.items()):
                             cur = " << active" if name == active_mode else ""
-                            lines.append(f"  {name}{cur} â€” {m['desc']}")
+                            lines.append(f"  {name}{cur} — {m['desc']}")
                         await send(chat, "\n".join(lines))
                         continue
                     name = parts[1].lower()
@@ -1740,16 +1841,16 @@ async def main():
                         await send(chat, f"Unknown mode. Options: {', '.join(MODES.keys())}")
                         continue
                     active_mode = name
-                    await send(chat, f"Mode: {name} â€” {MODES[name]['desc']}")
+                    await send(chat, f"Mode: {name} — {MODES[name]['desc']}")
 
                 elif cmd == "/effort":
-                    await send(chat, f"Effort: {effort} â€” {EFFORT_LEVELS[effort]['desc']}\nUse /low /normal /medium /high /superhigh to change.\nThinking: {thinking_mode}")
+                    await send(chat, f"Effort: {effort} — {EFFORT_LEVELS[effort]['desc']}\nUse /low /normal /medium /high /superhigh to change.\nThinking: {thinking_mode}")
 
                 elif cmd in ("/low", "/normal", "/medium", "/high", "/superhigh"):
                     level = cmd[1:]
                     if level in EFFORT_LEVELS:
                         effort = level
-                        await send(chat, f"Effort: {level} â€” {EFFORT_LEVELS[level]['desc']}")
+                        await send(chat, f"Effort: {level} — {EFFORT_LEVELS[level]['desc']}")
 
                 elif cmd == "/thinking":
                     if len(parts) < 2:
@@ -1761,12 +1862,12 @@ async def main():
                         continue
                     thinking_mode = mode
                     descs = {"off": "No extended thinking", "extended": "Step-by-step reasoning on every response", "adaptive": "Auto-decides when to use thinking"}
-                    await send(chat, f"Thinking: {mode} â€” {descs[mode]}")
+                    await send(chat, f"Thinking: {mode} — {descs[mode]}")
 
                 elif cmd == "/tools":
                     lines = [f"Available tools ({len(TOOLS)}):"]
                     for name, t in sorted(TOOLS.items()):
-                        lines.append(f"  {name} â€” {t['desc']}")
+                        lines.append(f"  {name} — {t['desc']}")
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/teams":
@@ -1831,7 +1932,7 @@ async def main():
                         TEAMS[tname] = {"desc": data["desc"], "agents": tagents, "plan": plan, "tools": []}
                         save_teams()
                         steps = "\n".join(f"  {i+1}. {s['agent']}: {s['task']}" for i, s in enumerate(plan[:6]))
-                        await send(chat, f"Created team: {tname} â€” {data['desc']}\nAgents: {', '.join(tagents)}\nPlan:\n{steps}")
+                        await send(chat, f"Created team: {tname} — {data['desc']}\nAgents: {', '.join(tagents)}\nPlan:\n{steps}")
                     except Exception as e:
                         await send(chat, f"Failed: {e}\nRaw: {raw[:200] if raw else 'none'}")
 
@@ -1938,7 +2039,7 @@ async def main():
                         name = data["name"].lower().replace(" ", "-")
                         AGENTS[name] = {"desc": data["desc"], "prompt": data["prompt"]}
                         save_agents()
-                        await send(chat, f"Created agent: {name} â€” {data['desc']}\n\nPrompt: {data['prompt']}")
+                        await send(chat, f"Created agent: {name} — {data['desc']}\n\nPrompt: {data['prompt']}")
                         await send(chat, f"Tip: if you want to add prompt in this command /addprompt {name} <prompt>")
                     except Exception as e:
                         await send(chat, f"Failed to create agent: {e}\nRaw: {raw[:300] if raw else 'none'}")
@@ -2031,7 +2132,7 @@ async def main():
                     lines.append(f"Usage: in autonomous mode, use toolfk(endpoint=NAME, param=VAL, ...)")
                     lines.append(f"")
                     for ep in sorted(TOOLFK_ENDPOINTS):
-                        lines.append(f"  {ep} â€” {TOOLFK_DESC.get(ep, '')}")
+                        lines.append(f"  {ep} — {TOOLFK_DESC.get(ep, '')}")
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/synoxcloud":
@@ -2470,7 +2571,7 @@ async def main():
                             interval = int(parts[2])
                             prompt = " ".join(parts[3:])
                             tid = bf.scheduler.add(interval, prompt, chat)
-                            await send(chat, f"Scheduled: [{tid}] every {interval}s â€” {prompt[:100]}")
+                            await send(chat, f"Scheduled: [{tid}] every {interval}s — {prompt[:100]}")
                         except ValueError:
                             await send(chat, "Interval must be a number in seconds.")
                     elif sub == "remove" and len(parts) >= 3:
@@ -2509,7 +2610,7 @@ async def main():
                 elif cmd == "/doc":
                     docs = bf.doc_db.list()
                     if not docs:
-                        await send(chat, "No documents indexed. Send a txt/pdf file to add it.\nCommands:\n  /doc â€” list documents\n  /ask <question> â€” query documents\n  /doc clear â€” clear all documents")
+                        await send(chat, "No documents indexed. Send a txt/pdf file to add it.\nCommands:\n  /doc — list documents\n  /ask <question> — query documents\n  /doc clear — clear all documents")
                     else:
                         await send(chat, "Indexed documents:\n" + "\n".join(f"  {d}" for d in docs))
 
@@ -2789,7 +2890,7 @@ async def main():
 
                 elif cmd == "/qr":
                     if len(parts) < 3:
-                        await send(chat, "Usage: /qr encode <text> â€” Generate QR code\n       /qr decode â€” Reply to a photo with /qr decode (or send photo as caption)")
+                        await send(chat, "Usage: /qr encode <text> — Generate QR code\n       /qr decode — Reply to a photo with /qr decode (or send photo as caption)")
                         continue
                     sub = parts[1].lower()
                     if sub == "encode":
@@ -2841,7 +2942,7 @@ async def main():
 
                 elif cmd == "/data":
                     if len(parts) < 3:
-                        await send(chat, "Usage: /data query <natural language question about loaded spreadsheets>\n       /data list â€” list loaded data files")
+                        await send(chat, "Usage: /data query <natural language question about loaded spreadsheets>\n       /data list — list loaded data files")
                         continue
                     sub = parts[1].lower()
                     if sub == "list":
@@ -2890,6 +2991,18 @@ async def main():
                     else:
                         await send(chat, "Usage: /plugin load <url_or_path>  or  /plugin list")
 
+                elif cmd == "/version":
+                    ver_info = load_version()
+                    ver = ver_info.get("version", "unknown")
+                    updated = ver_info.get("updated", "unknown")
+                    wn = ver_info.get("whats_new", {})
+                    lines = [f"OpenCode Bot v{ver}", f"Updated: {updated}", "", "Changelog:"]
+                    for v in sorted(wn.keys(), reverse=True):
+                        lines.append(f"  v{v}:")
+                        for c in wn[v]:
+                            lines.append(f"    \u2022 {c}")
+                    await send(chat, "\n".join(lines))
+
                 elif cmd == "/webgateway":
                     gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
                     lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
@@ -2905,7 +3018,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
