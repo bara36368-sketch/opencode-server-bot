@@ -1281,7 +1281,18 @@ async def tg(method, data=None):
         log(f"TG API error: {method} {r.json()}")
     return r.json()
 
+_sent_cache = {}
 async def send(chat, text):
+    key = (chat, str(text)[:200])
+    now = time.time()
+    if key in _sent_cache and now - _sent_cache[key] < 3:
+        log(f"dedup: skipped duplicate send to {chat}")
+        return
+    _sent_cache[key] = now
+    if len(_sent_cache) > 500:
+        for k in list(_sent_cache.keys()):
+            if now - _sent_cache[k] > 10:
+                del _sent_cache[k]
     await tg("sendMessage", {"chat_id": chat, "text": str(text)[:4000]})
 
 async def typing(chat):
@@ -3111,6 +3122,7 @@ async def main():
                             reply = await run_autonomous(text, uid)
                             bf.track_usage(uid, active_agent, active_provider)
                             await send(chat, reply)
+                            continue
                         elif active_team and active_team in TEAMS and active_arch != "single":
                             team = TEAMS[active_team]
                             team_sessions.setdefault(uid, [])
@@ -3124,6 +3136,7 @@ async def main():
                             save_sessions()
                             bf.track_usage(uid, active_agent, active_provider)
                             await send(chat, reply)
+                            continue
                         else:
                             sessions.setdefault(uid, [])
                             agent_prompt = AGENTS[active_agent]["prompt"]
