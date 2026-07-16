@@ -5,7 +5,7 @@ PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
 }
-CHECK_INTERVAL = 300
+CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
 
 def file_hashes():
