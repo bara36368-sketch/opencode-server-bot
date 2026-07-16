@@ -262,9 +262,10 @@ class ProviderGateway:
                 self.record(provider, time.time()-t1, False)
                 errors.append(f"{provider}: {e}")
         wait = self.next_available()
-        if 0 < wait < 120:
-            log(f"gateway: waiting {wait:.0f}s for retry")
-            await asyncio.sleep(min(wait, 30))
+        retry_in = max(wait, 5) if wait > 0 else 10
+        if retry_in < 60:
+            log(f"gateway: all failed, retrying in {retry_in:.0f}s")
+            await asyncio.sleep(retry_in)
             return await self.execute(messages, preferred)
         return f"All providers failed.\n" + "\n".join(errors) + f"\nNext available in {wait:.0f}s."
     def get_route_health(self):
