@@ -1313,7 +1313,7 @@ async def handle_mcp_tools(method, path, headers, body, params):
 # ---- Server ----
 
 async def _serve(host, port):
-    server = await asyncio.start_server(_handle, host, port)
+    server = await asyncio.start_server(_handle, host, port, reuse_address=True)
     addr = server.sockets[0].getsockname()
     print(f"Gateway running on http://{addr[0]}:{addr[1]}")
     print(f"Chat: http://{addr[0]}:{addr[1]}/")
