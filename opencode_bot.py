@@ -6,17 +6,28 @@ def _check_single_instance():
         if os.path.exists(_LOCK_FILE):
             with open(_LOCK_FILE) as _f:
                 _old_pid = int(_f.read().strip())
+            _alive = False
             if os.name == "nt":
                 import ctypes
                 _h = ctypes.windll.kernel32.OpenProcess(1, 0, _old_pid)
                 if _h:
                     ctypes.windll.kernel32.CloseHandle(_h)
-                    sys.exit(0)
-                _h = None
+                    _alive = True
             else:
-                try: os.kill(_old_pid, 0)
-                except: pass
-                else: sys.exit(0)
+                try:
+                    os.kill(_old_pid, 0)
+                    _alive = True
+                except PermissionError:
+                    try:
+                        _ = open(f"/proc/{_old_pid}/status")
+                        _.close()
+                        _alive = True
+                    except:
+                        pass
+                except:
+                    pass
+            if _alive:
+                sys.exit(0)
     except: pass
     try:
         with open(_LOCK_FILE, "w") as _f:
@@ -32,9 +43,9 @@ except:
     pass
 
 _M = object()
-asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M
+asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
-    import asyncio, httpx, json, uuid, time, copy, re, random
+    import asyncio, httpx, json, uuid, time, copy, re, random, urllib.parse
 except Exception:
     try:
         with open("bot_crash.txt", "w") as _f:
