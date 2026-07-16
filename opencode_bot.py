@@ -1,4 +1,29 @@
 import sys, os, traceback as _tb, io as _io
+
+_LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".bot.lock")
+def _check_single_instance():
+    try:
+        if os.path.exists(_LOCK_FILE):
+            with open(_LOCK_FILE) as _f:
+                _old_pid = int(_f.read().strip())
+            if os.name == "nt":
+                import ctypes
+                _h = ctypes.windll.kernel32.OpenProcess(1, 0, _old_pid)
+                if _h:
+                    ctypes.windll.kernel32.CloseHandle(_h)
+                    sys.exit(0)
+                _h = None
+            else:
+                try: os.kill(_old_pid, 0)
+                except: pass
+                else: sys.exit(0)
+    except: pass
+    try:
+        with open(_LOCK_FILE, "w") as _f:
+            _f.write(str(os.getpid()))
+    except: pass
+_check_single_instance()
+
 try:
     _dbg = open("bot_startup.txt", "w")
     _dbg.write("1\n")
@@ -1491,10 +1516,12 @@ async def main():
                     transcribed = await bf.voice_to_text(voice["file_id"])
                     text = transcribed if transcribed else "/voice_error"
                     if text and text != "/voice_error":
-                        await send(chat, f"ðŸŽ¤ Transcribed: {text[:300]}")
+                        await send(chat, f"Transcribed: {text[:300]}")
                         tts_ok = await bf.text_to_speech(text, chat)
                         if tts_ok:
                             continue
+                        else:
+                            continue  # still handled, don't fall through
                 elif document:
                     file_id = document["file_id"]
                     fname = document.get("file_name", "document.bin")
@@ -3133,5 +3160,13 @@ if __name__ == "__main__":
         try:
             with open("bot_crash.txt", "w") as _cf:
                 _cf.write(f"main crash:\n{_tb.format_exc()}")
+        except:
+            pass
+    finally:
+        try:
+            if os.path.exists(_LOCK_FILE):
+                with open(_LOCK_FILE) as _f:
+                    if _f.read().strip() == str(os.getpid()):
+                        os.remove(_LOCK_FILE)
         except:
             pass
