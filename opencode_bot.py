@@ -490,17 +490,22 @@ def save_sessions():
     data = {
         "sessions": {str(k): v for k, v in sessions.items()},
         "team_sessions": {str(k): v for k, v in team_sessions.items()},
+        "_last_update": last_update,
     }
     with open(SESSIONS_FILE, "w") as f:
         json.dump(data, f)
 
 def load_sessions():
+    global last_update
     if os.path.exists(SESSIONS_FILE):
         try:
             with open(SESSIONS_FILE) as f:
                 data = json.load(f)
                 sessions.update({int(k): v for k, v in data.get("sessions", {}).items()})
                 team_sessions.update({int(k): v for k, v in data.get("team_sessions", {}).items()})
+                lu = data.get("_last_update", 0)
+                if lu and not last_update:
+                    last_update = lu
         except: pass
 
 routines = {}
@@ -1533,9 +1538,10 @@ async def main():
                     continue
                 chat, uid = msg["chat"]["id"], msg["from"]["id"]
                 now = time.time()
-                if uid in last_user_msg and now - last_user_msg[uid] < 1.0:
+                _prev = last_user_msg.get(uid, {})
+                if _prev and now - _prev.get("t", 0) < 10 and _prev.get("text") == text:
                     continue
-                last_user_msg[uid] = now
+                last_user_msg[uid] = {"t": now, "text": text}
                 text = msg.get("text", "")
                 photo = msg.get("photo")
                 voice = msg.get("voice")
