@@ -1264,7 +1264,13 @@ if os.path.exists(ADMINS_FILE):
         with open(ADMINS_FILE) as f:
             admins.update(json.load(f))
     except: pass
+_OFFSET_FILE = os.path.join(os.path.dirname(__file__), ".bot.offset")
 last_update = 0
+try:
+    with open(_OFFSET_FILE) as _f:
+        last_update = int(_f.read().strip())
+except:
+    pass
 processed = set()
 last_user_msg = {}
 sessions = {}
@@ -1410,6 +1416,11 @@ async def poll():
             r = (await c.get(f"{TG_API}/getUpdates", params=p, timeout=20)).json()
             for u in r.get("result", []):
                 last_update = u["update_id"]
+            try:
+                with open(_OFFSET_FILE, "w") as _f:
+                    _f.write(str(last_update))
+            except:
+                pass
             return r.get("result", [])
         except Exception as e:
             log(f"Poll attempt {attempt+1}/3 failed: {type(e).__name__}: {e}")
