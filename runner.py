@@ -36,6 +36,20 @@ def health_check():
     except:
         return False
 
+def free_port(port):
+    try:
+        r = subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True, timeout=5)
+        if r.returncode == 0:
+            print(f"[runner] freed port {port}")
+    except:
+        pass
+    try:
+        r = subprocess.run(["pkill", "-f", "web_gateway.py"], capture_output=True, timeout=5)
+        if r.returncode == 0:
+            print(f"[runner] killed stale web_gateway process")
+    except:
+        pass
+
 last_hashes = file_hashes()
 procs = {}
 first = True
@@ -43,6 +57,9 @@ first = True
 while True:
     for name, cmd in PROCESSES.items():
         if name not in procs or procs[name].poll() is not None:
+            if name == "web":
+                free_port(4357)
+                time.sleep(1)
             print(f"[runner] starting {name}...")
             procs[name] = subprocess.Popen(cmd, cwd=DIR)
             if name == "web":
