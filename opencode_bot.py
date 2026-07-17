@@ -80,6 +80,11 @@ except Exception:
     stack_ref = None
 
 try:
+    import ai_stack_combined as ai_stack
+except Exception:
+    ai_stack = None
+
+try:
     _dbg2 = open("bot_startup.txt", "a")
     _dbg2.write("2\n")
     _dbg2.close()
@@ -3111,6 +3116,37 @@ async def main():
                         if len(sec["body"]) > 3800:
                             await send(chat, f"More pages available. Use: /stack {arg} {page+1}")
 
+                elif cmd == "/stackstatus":
+                    if ai_stack is None:
+                        await send(chat, "AI Stack Combined module not loaded.")
+                        continue
+                    try:
+                        tracer = ai_stack.Tracer()
+                        llm = ai_stack.LLMRouter()
+                        memory = ai_stack.MemoryStore()
+                        guardrails = ai_stack.Guardrails()
+                        edge = ai_stack.EdgeManager()
+                        mcp = ai_stack.MCPServer("ai-stack")
+                        hitl = ai_stack.HITLManager()
+
+                        lines = [
+                            "AI Infrastructure Stack - Live Status",
+                            "",
+                            f"[1/Agent] Agent system: Ready",
+                            f"[2/Workflow] WorkflowEngine: Ready",
+                            f"[3/Memory] MemoryStore: {memory.status()}",
+                            f"[4/Multimodal] ComfyUI: {ai_stack.MultimodalEngine().comfyui_url}",
+                            f"[5/Serving] Providers: {llm.status()}",
+                            f"[6/MCP] Tools: {len(mcp.list_tools())} registered",
+                            f"[7/Observability] Tracer: {tracer.summary()}",
+                            f"[8/Security] Guardrails: {guardrails.scan('test').status}",
+                            f"[9/HITL] {hitl.status()}",
+                            f"[10/Edge] {edge.status()}",
+                        ]
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"Stack status error: {e}")
+
                 elif cmd == "/webgateway":
                     gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
                     lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
@@ -3126,7 +3162,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
