@@ -1,7 +1,12 @@
 {
-  "version": "2.1.0",
-  "updated": "2026-07-16",
+  "version": "2.2.0",
+  "updated": "2026-07-17",
   "whats_new": {
+    "2.2.0": [
+      "New /stack command — 2026 AI Infrastructure Reference (10 layers with code)",
+      "Topics: Agents, Memory, Multimodal, Serving, MCP, Observability, Security, HITL, Edge AI",
+      "Use /stack <number> or /stack <topic> to explore any layer"
+    ],
     "2.1.0": [
       "Added FreeTheAi provider — 60+ free models (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
       "Version tracking system — you'll see this announcement on updates!",

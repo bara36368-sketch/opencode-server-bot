@@ -75,6 +75,11 @@ except Exception:
     bf = None
 
 try:
+    import ai_stack_reference as stack_ref
+except Exception:
+    stack_ref = None
+
+try:
     _dbg2 = open("bot_startup.txt", "a")
     _dbg2.write("2\n")
     _dbg2.close()
@@ -1649,6 +1654,7 @@ async def main():
                         "  /data — Query spreadsheets",
                         "  /plugin — Dynamic plugin system",
                         "  /version — Show version and changelog",
+                        "  /stack — 2026 AI Infrastructure Reference",
                         "  /webgateway — Web AI Gateway status + URL",
                     ]
                     if is_owner or is_admin:
@@ -1735,6 +1741,7 @@ async def main():
                             "/routes — Provider health",
                             "/gateway — Gateway stats + queue",
                             "/version — Show version and changelog",
+                            "/stack — 2026 AI Infrastructure Reference (10 layers)",
                             "/webgateway — Web gateway status",
                             "/toolfk — 200+ free utilities",
                             "/synoxcloud — 434 tools + 52 AI models",
@@ -3070,6 +3077,40 @@ async def main():
                             lines.append(f"    \u2022 {c}")
                     await send(chat, "\n".join(lines))
 
+                elif cmd == "/stack":
+                    if stack_ref is None:
+                        await send(chat, "AI Stack Reference module not loaded.")
+                        continue
+                    arg = parts[1].lower() if len(parts) > 1 else "0"
+                    # Handle page navigation: /stack 3 2 (topic 3, page 2)
+                    page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+                    topic_aliases = {
+                        "0": "0", "overview": "0", "all": "0",
+                        "1": "1", "agents": "1", "agentic": "1", "langgraph": "1", "crewai": "1",
+                        "2": "2", "workflows": "2", "orchestration": "2", "temporal": "2", "prefect": "2", "n8n": "2",
+                        "3": "3", "memory": "3", "context": "3", "mem0": "3", "graphiti": "3", "letta": "3",
+                        "4": "4", "multimodal": "4", "media": "4", "image": "4", "video": "4", "flux": "4",
+                        "5": "5", "serving": "5", "infra": "5", "vllm": "5", "ollama": "5", "llamacpp": "5",
+                        "6": "6", "mcp": "6", "protocol": "6", "fastmcp": "6",
+                        "7": "7", "observability": "7", "monitoring": "7", "langfuse": "7", "deepeval": "7",
+                        "8": "8", "security": "8", "guardrails": "8", "nemo": "8", "owasp": "8",
+                        "9": "9", "hitl": "9", "approval": "9", "human": "9", "interrupt": "9",
+                        "10": "10", "edge": "10", "local": "10", "llamacpp": "10", "mlx": "10", "termux": "10",
+                    }
+                    lookup = topic_aliases.get(arg, arg)
+                    if lookup == "0" and arg != "0":
+                        # Try fuzzy match
+                        sec = stack_ref.get_section(arg)
+                    else:
+                        sec = stack_ref.get_section(lookup)
+                    if sec is None:
+                        await send(chat, stack_ref.list_topics())
+                    else:
+                        text = stack_ref.format_section(sec, page)
+                        await send(chat, text)
+                        if len(sec["body"]) > 3800:
+                            await send(chat, f"More pages available. Use: /stack {arg} {page+1}")
+
                 elif cmd == "/webgateway":
                     gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
                     lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
@@ -3085,7 +3126,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
