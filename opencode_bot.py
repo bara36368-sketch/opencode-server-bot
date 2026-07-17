@@ -1551,6 +1551,11 @@ async def main():
     asyncio.create_task(bf.run_reminder_loop(send))
     bf.init_plugins()
 
+    # Initialize AI Stack memory on startup
+    if user_memory:
+        log("AI Stack memory initialized")
+        load_memory()
+
     while True:
         try:
             for u in (await poll()):
