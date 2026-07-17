@@ -563,9 +563,20 @@ MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
 vector_memory = {}
 memory_buffers = {}
 
+# Persistent memory store (from ai_stack_combined)
+try:
+    user_memory = ai_stack.MemoryStore() if ai_stack else None
+except:
+    user_memory = None
+
 def save_memory():
+    data = {"vector": vector_memory, "buffers": {str(k): v for k, v in memory_buffers.items()}}
+    # Save MemoryStore if available
+    if user_memory:
+        data["memories"] = [{"id": m.id, "content": m.content, "user_id": m.user_id, "metadata": m.metadata} for m in user_memory.memories]
+        data["blocks"] = {k: v.value for k, v in user_memory.blocks.items()}
     with open(MEMORY_FILE, "w") as f:
-        json.dump({"vector": vector_memory, "buffers": {str(k): v for k, v in memory_buffers.items()}}, f)
+        json.dump(data, f)
 
 def load_memory():
     global vector_memory, memory_buffers
@@ -575,6 +586,12 @@ def load_memory():
                 data = json.load(f)
                 vector_memory.update(data.get("vector", {}))
                 memory_buffers.update({int(k): v for k, v in data.get("buffers", {}).items()})
+                # Load MemoryStore if available
+                if user_memory:
+                    for m in data.get("memories", []):
+                        user_memory.add(m["content"], m.get("user_id", "default"), **m.get("metadata", {}))
+                    for k, v in data.get("blocks", {}).items():
+                        user_memory.set_block(k, v)
         except: pass
 
 TOOLFK_TOKEN = os.environ.get("TOOLFK_TOKEN", "")
@@ -1691,6 +1708,8 @@ async def main():
                             "/multi start <p1> [p2] [rounds=2] — Talk to 2 AIs at once",
                             "/multi stop — End multi-AI session",
                             "/clear — Clear history",
+                            "/remember <fact> — Store a fact in memory",
+                            "/recall <query> — Search your memories",
                         ]),
                         ("MODES", [
                             "/mode — Toggle chat / team / autonomous",
@@ -1747,6 +1766,7 @@ async def main():
                             "/gateway — Gateway stats + queue",
                             "/version — Show version and changelog",
                             "/stack — 2026 AI Infrastructure Reference (10 layers)",
+                            "/stackstatus — Live status of all 10 AI stack layers",
                             "/webgateway — Web gateway status",
                             "/toolfk — 200+ free utilities",
                             "/synoxcloud — 434 tools + 52 AI models",
@@ -1891,6 +1911,43 @@ async def main():
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
                     await send(chat, "Session cleared.")
+
+                elif cmd == "/remember":
+                    if user_memory is None:
+                        await send(chat, "Memory module not loaded.")
+                        continue
+                    fact = text[len("/remember"):].strip()
+                    if not fact:
+                        await send(chat, "Usage: /remember <fact>\nExample: /remember I prefer dark mode")
+                        continue
+                    user_memory.add(fact, str(uid))
+                    save_memory()
+                    await send(chat, f"Remembered: {fact[:100]}")
+
+                elif cmd == "/recall":
+                    if user_memory is None:
+                        await send(chat, "Memory module not loaded.")
+                        continue
+                    query = text[len("/recall"):].strip()
+                    if not query:
+                        # Show recent memories
+                        user_mems = [m for m in user_memory.memories if m.user_id == str(uid)]
+                        if not user_mems:
+                            await send(chat, "No memories stored yet. Use /remember <fact> to add some.")
+                        else:
+                            lines = [f"Your memories ({len(user_mems)}):"]
+                            for m in user_mems[-10:]:
+                                lines.append(f"  - {m.content[:80]}")
+                            await send(chat, "\n".join(lines))
+                    else:
+                        results = user_memory.search(query, str(uid), top_k=5)
+                        if not results:
+                            await send(chat, f"No memories found for: {query}")
+                        else:
+                            lines = [f"Memories for '{query}':"]
+                            for m in results:
+                                lines.append(f"  [{m.score:.2f}] {m.content[:80]}")
+                            await send(chat, "\n".join(lines))
 
                 elif cmd == "/arch":
                     if len(parts) < 2:
@@ -3162,7 +3219,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
