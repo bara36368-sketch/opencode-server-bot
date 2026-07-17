@@ -4,7 +4,6 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
-    "stack": ["python", "ai_stack_combined.py"],
 }
 CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"

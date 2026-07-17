@@ -563,6 +563,12 @@ MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
 vector_memory = {}
 memory_buffers = {}
 
+PROCESSES = {
+    "bot": ["python", "opencode_bot.py"],
+    "web": ["python", "web_gateway.py"],
+    "stack": ["python", "ai_stack_combined.py"],
+}
+
 # Persistent memory store (from ai_stack_combined)
 try:
     user_memory = ai_stack.MemoryStore() if ai_stack else None
