@@ -74,22 +74,30 @@ async def run():
     loop = asyncio.get_event_loop()
     sock = await asyncio.create_subprocess_exec(
         *SIDECAR, stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE, stderr=None,
         cwd=DIR,
     )
     queue = asyncio.Queue()
     reader = asyncio.create_task(read_stdout(sock, queue))
-    stderr_logger = asyncio.create_task(log_stderr(sock))
 
-    log("Sidecar started. Scan QR code to link WhatsApp.")
-    print("\n*** WAIT for QR code in sidecar stderr, scan with WhatsApp ***\n", flush=True)
+    log("Sidecar started.")
 
     while True:
         msg = await queue.get()
         t = msg.get("type")
 
         if t == "qr":
-            log("QR code generated — scan with WhatsApp > Linked Devices")
+            qr_raw = msg.get("qr", "")
+            import qrcode
+            qr = qrcode.QRCode()
+            qr.add_data(qr_raw)
+            print("\n" + "=" * 50, flush=True)
+            print("SCAN THIS QR CODE WITH WHATSAPP:", flush=True)
+            print("(Open WhatsApp > Linked Devices > Link a Device)", flush=True)
+            print("=" * 50, flush=True)
+            qr.print_ascii()
+            print("=" * 50 + "\n", flush=True)
+            log("QR displayed above")
         elif t == "ready":
             log("WhatsApp connected!")
         elif t == "connecting":
@@ -115,15 +123,6 @@ async def run():
 
     sock.terminate()
     await sock.wait()
-
-async def log_stderr(sock):
-    while True:
-        line = await sock.stderr.readline()
-        if not line:
-            break
-        text = line.decode("utf-8", errors="replace").strip()
-        if text:
-            logging.info(f"[sidecar] {text}")
 
 async def main():
     while True:

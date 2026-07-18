@@ -1,10 +1,8 @@
 const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
-const qrcode = require("qrcode-terminal");
 const path = require("path");
 const fs = require("fs");
 
 const AUTH_DIR = path.join(__dirname, "auth_info");
-const isWin = process.platform === "win32";
 
 function send(obj) {
   process.stdout.write(JSON.stringify(obj) + "\n");
@@ -49,15 +47,7 @@ async function start() {
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      send({ type: "qr" });
-      if (!isWin) {
-        qrcode.generate(qr, { small: true }, (code) => {
-          process.stderr.write(code + "\n");
-        });
-      } else {
-        process.stderr.write("Scan QR code below:\n");
-        qrcode.generate(qr, { small: true });
-      }
+      send({ type: "qr", qr });
     }
     if (connection === "open") {
       send({ type: "ready" });
