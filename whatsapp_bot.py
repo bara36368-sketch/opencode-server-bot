@@ -105,6 +105,7 @@ async def run(pair_phone=None):
             log("Connecting...")
             if pair_phone and not paired:
                 paired = True
+                await asyncio.sleep(2)
                 cmd = json.dumps({"type": "pair", "phone": pair_phone}) + "\n"
                 sock.stdin.write(cmd.encode())
                 await sock.stdin.drain()
@@ -120,6 +121,8 @@ async def run(pair_phone=None):
             log(f"Pairing code: {code}")
         elif t == "close":
             reason = msg.get("reason", "unknown")
+            if pair_phone:
+                paired = False
             log(f"Disconnected (reason: {reason}), reconnecting...")
             if reason == 401:
                 log("Logged out, delete auth_info and restart")
