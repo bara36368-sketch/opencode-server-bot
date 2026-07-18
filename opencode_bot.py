@@ -123,6 +123,7 @@ except Exception:
     aiohttp = None
 
 def _safe_track_usage(uid, agent, provider):
+    global bf
     if bf:
         try:
             bf.track_usage(uid, agent, provider)
@@ -253,10 +254,10 @@ class ProviderGateway:
     def record(self, name, elapsed, success):
         h = self.health[name]
         self.requests[name] += 1
+        self.ratelimits[name].record()
         if success:
             h["success"] += 1
             h["avg_latency"] = (h["avg_latency"] * (h["success"] - 1) + elapsed) / h["success"]
-            self.ratelimits[name].record()
         else:
             h["failure"] += 1
             h["last_fail"] = time.time()
@@ -1489,7 +1490,7 @@ async def send(chat, text):
         for k in list(_sent_cache.keys()):
             if now - _sent_cache[k] > 10:
                 del _sent_cache[k]
-    await tg("sendMessage", {"chat_id": chat, "text": str(text)[:4000]})
+    return await tg("sendMessage", {"chat_id": chat, "text": str(text)[:4000]})
 
 async def typing(chat):
     await tg("sendChatAction", {"chat_id": chat, "action": "typing"})
@@ -1546,7 +1547,7 @@ async def call_provider(messages, provider, override=None):
             url = f"https://api.synoxcloud.xyz{ep_path}?{recommended}={urllib.parse.quote(prompt)}"
         else:
             recommended = "q"
-            url = f"{p['url']}/{model_id}?q={prompt}"
+            url = f"{p['url']}/{model_id}?q={urllib.parse.quote(prompt)}"
         key = p.get("key", "")
         if _is_configured(key) and key != "free":
             url += f"&apikey={key}"
@@ -1718,9 +1719,10 @@ async def announce_update(old_v, new_v, changes, state):
     for cid in known_chats:
         try:
             if str(cid) not in state.get("notified_chats", {}).get(new_v, []):
-                await send(cid, msg)
-                state.setdefault("notified_chats", {}).setdefault(new_v, []).append(str(cid))
-                sent_count += 1
+                r = await send(cid, msg)
+                if r and r.get("ok"):
+                    state.setdefault("notified_chats", {}).setdefault(new_v, []).append(str(cid))
+                    sent_count += 1
                 await asyncio.sleep(0.1)
         except:
             pass
@@ -1744,7 +1746,7 @@ async def auto_version_checker():
             log(f"Auto version check error: {e}")
 
 async def main():
-    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
     log("Bot started")
 
     version_info = load_version()
@@ -1757,7 +1759,12 @@ async def main():
         state = await announce_update(old_ver, ver, changes, state)
     else:
         state["last_version"] = ver
-        save_version_state(state)
+        changes = version_info.get("whats_new", {}).get(ver, [])
+        if changes:
+            state.setdefault("notified_chats", {}).pop(ver, None)
+            state = await announce_update(old_ver, ver, changes, state)
+        else:
+            save_version_state(state)
     log(f"OpenCode Bot v{ver} started")
 
     await gateway.start_worker()
@@ -1803,14 +1810,13 @@ async def main():
                 elif voice:
                     await typing(chat)
                     transcribed = await bf.voice_to_text(voice["file_id"])
-                    text = transcribed if transcribed else "/voice_error"
-                    if text and text != "/voice_error":
-                        await send(chat, f"Transcribed: {text[:300]}")
-                        tts_ok = await bf.text_to_speech(text, chat)
-                        if tts_ok:
-                            continue
-                        else:
-                            continue  # still handled, don't fall through
+                    if not transcribed or transcribed == "/voice_error":
+                        await send(chat, "Could not transcribe audio.")
+                        continue
+                    text = transcribed
+                    await send(chat, f"Transcribed: {text[:300]}")
+                    tts_ok = await bf.text_to_speech(text, chat)
+                    continue
                 elif document:
                     file_id = document["file_id"]
                     fname = document.get("file_name", "document.bin")
@@ -2495,6 +2501,14 @@ async def main():
                     save_agents()
                     await send(chat, f"Updated prompt for agent: {pname}")
 
+                elif cmd == "/announce" and (is_owner or is_admin):
+                    ver_info = load_version()
+                    ver = ver_info.get("version", "unknown")
+                    changes = ver_info.get("whats_new", {}).get(ver, [])
+                    state = load_version_state()
+                    await announce_update(state.get("last_version", ""), ver, changes, state)
+                    await send(chat, f"Announced v{ver} to all chats.")
+                    
                 elif cmd == "/routes":
                     await send(chat, f"Provider routing health ({len(PROVIDERS)}):\n{gateway.get_route_health()}")
 

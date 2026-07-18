@@ -20,8 +20,10 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
     try:
         c = await get_http()
         gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
+        import base64
+        img_data = (await c.get(photo_url)).content
         parts = [
-            {"inline_data": {"mime_type": "image/jpeg", "data": (await c.get(photo_url)).content.hex()}},
+            {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(img_data).decode("utf-8")}},
             {"text": prompt},
         ]
         r = await c.post(
@@ -35,7 +37,7 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
             if candidates:
                 return candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "No response")
             return str(data)
-        return f"Vision error: {r.status_code}"
+        return f"Vision error: {r.status_code} - {r.text[:300]}"
     except Exception as e:
         return f"Vision error: {e}"
 

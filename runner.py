@@ -1,7 +1,8 @@
-import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging
+import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, threading
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(DIR, "runner.log")
+CRASH_LOG = os.path.join(DIR, "crash.log")
 logging.basicConfig(
     filename=LOG_FILE, level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
@@ -65,6 +66,14 @@ def free_port(port):
     except Exception:
         pass
 
+def monitor_process(name, proc):
+    proc.wait()
+    exit_code = proc.returncode
+    msg = f"[runner] {name} crashed with exit code {exit_code}, restarting..."
+    log(msg)
+    with open(CRASH_LOG, "a") as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
+
 last_hashes = file_hashes()
 procs = {}
 first = True
@@ -73,11 +82,14 @@ restart_times = []
 while True:
     for name, cmd in PROCESSES.items():
         if name not in procs or procs[name].poll() is not None:
+            was_running = name in procs and procs[name].poll() is not None
             if name == "web":
                 free_port(4357)
                 time.sleep(1)
             log(f"[runner] starting {name}...")
-            procs[name] = subprocess.Popen(cmd, cwd=DIR)
+            proc = subprocess.Popen(cmd, cwd=DIR)
+            procs[name] = proc
+            threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
             if name == "web":
                 for _ in range(6):
                     time.sleep(5)
