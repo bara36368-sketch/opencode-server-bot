@@ -64,13 +64,10 @@ async function start() {
       const errMsg = lastDisconnect?.error?.message || "";
       process.stderr.write(`sidecar: close reason=${reason} msg="${errMsg}"\n`);
       send({ type: "close", reason });
-      if (reason !== DisconnectReason.loggedOut) {
-        setTimeout(start, 3000);
-      } else {
+      if (reason === DisconnectReason.loggedOut) {
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-        send({ type: "auth_expired" });
-        setTimeout(start, 1000);
       }
+      setTimeout(() => process.exit(0), 500);
     }
     if (connection === "connecting") {
       send({ type: "connecting" });
