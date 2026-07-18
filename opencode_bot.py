@@ -566,6 +566,7 @@ MODES = {
 
 MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token_usage.json")
+EXPERIMENTAL_FILE = os.path.join(os.path.dirname(__file__), "experimental.json")
 vector_memory = {}
 memory_buffers = {}
 
@@ -620,6 +621,50 @@ def load_token_usage():
 def save_token_usage():
     with open(TOKEN_FILE, "w") as f:
         json.dump(token_usage, f, indent=2)
+
+experimental_features = {}
+def load_experimental():
+    global experimental_features
+    if os.path.exists(EXPERIMENTAL_FILE):
+        try:
+            with open(EXPERIMENTAL_FILE) as f:
+                data = json.load(f)
+                experimental_features = data.get("features", {})
+        except:
+            experimental_features = {}
+
+def save_experimental():
+    with open(EXPERIMENTAL_FILE, "w") as f:
+        json.dump({"features": experimental_features}, f, indent=2)
+
+def is_experimental_enabled(name):
+    feat = experimental_features.get(name)
+    return feat.get("enabled", False) if feat else False
+
+def get_experimental_list():
+    lines = ["Experimental Features:", ""]
+    categories = {}
+    for fid, f in experimental_features.items():
+        cat = f.get("category", "other")
+        categories.setdefault(cat, []).append((fid, f))
+    cat_order = ["ai", "media", "automation", "developer", "research", "social", "other"]
+    for cat in cat_order:
+        if cat not in categories:
+            continue
+        items = categories[cat]
+        lines.append(f"  [{cat.upper()}]")
+        for fid, f in items:
+            status = "ON" if f.get("enabled") else "OFF"
+            badge = "✅" if f.get("enabled") else "⬜"
+            lines.append(f"  {badge} {fid}")
+            lines.append(f"     {f['name']} — {f['desc']}")
+            lines.append(f"     Status: {status} | Added: v{f.get('version', '?')}")
+        lines.append("")
+    lines.append("Commands:")
+    lines.append("  /experimental enable <name> — Enable feature")
+    lines.append("  /experimental disable <name> — Disable feature")
+    lines.append("  /experimental status — Quick status")
+    return "\n".join(lines)
 
 def track_tokens(model, tokens_used):
     token_usage["used"] += tokens_used
@@ -1571,24 +1616,43 @@ async def announce_update(old_v, new_v, changes, state):
     except:
         pass
     known_chats.discard(0)
-    lines = [
-        f"✨ OpenCode Bot Updated!",
-        f"",
-        f"  v{old_v} → v{new_v}",
-        f"",
-    ]
+    ver_info = load_version()
+    is_big = ver_info.get("big_update", False)
+    exp_features = ver_info.get("experimental", [])
+    lines = []
+    if is_big:
+        lines.append("🚀 ==============================")
+        lines.append("   BIG UPDATE INCOMING!")
+        lines.append("   ==============================")
+        lines.append("")
+        lines.append(f"  v{old_v} → v{new_v}")
+        lines.append("")
+    else:
+        lines.append(f"✨ OpenCode Bot Updated!")
+        lines.append(f"  v{old_v} → v{new_v}")
+        lines.append("")
     if changes:
         lines.append("🆕 What's New:")
         lines.append("")
         for i, c in enumerate(changes, 1):
             lines.append(f"  {i}. {c}")
         lines.append("")
+    if exp_features:
+        lines.append("🧪 Experimental Features (NEW!):")
+        lines.append("")
+        for i, ef in enumerate(exp_features, 1):
+            lines.append(f"  {i}. {ef}")
+        lines.append("")
+        lines.append("  Use /experimental to enable these features!")
+        lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
-    lines.append("💡 Try these new features:")
-    lines.append("  /start — See updated command list")
+    lines.append("💡 Try these:")
+    lines.append("  /start — See updated commands")
     lines.append("  /help — Browse all features")
     lines.append("  /version — Full changelog")
+    if exp_features:
+        lines.append("  /experimental — Enable new features")
     lines.append("")
     lines.append("🚀 Enjoying the bot? Share it with friends!")
     msg = "\n".join(lines)
@@ -1602,7 +1666,7 @@ async def announce_update(old_v, new_v, changes, state):
                 await asyncio.sleep(0.1)
         except:
             pass
-    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats")
+    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (big={is_big})")
     save_version_state(state)
     return state
 
@@ -1649,6 +1713,7 @@ async def main():
         log("AI Stack memory initialized")
         load_memory()
     load_token_usage()
+    load_experimental()
 
     while True:
         try:
@@ -1780,6 +1845,7 @@ async def main():
                         "  /webgateway — Web AI Gateway status + URL",
                         "  /weather <city> — Weather forecast",
                         "  /dailydigest — Daily summary",
+                        "  /experimental — Experimental features",
                     ]
                     if is_owner or is_admin or is_mod:
                         lines += [
@@ -1882,6 +1948,7 @@ async def main():
                             "/stats — Your usage stats",
                             "/myrole — Your ID + role",
                             "/profile save|load|show|reset — Persist your settings",
+                            "/experimental — Experimental features (enable/disable)",
                         ]),
                         ("MODERATION", [
                             "/addmod <id> — Add moderator (owner/admin)",
@@ -3243,6 +3310,81 @@ async def main():
                     global_stats = bf.get_global_stats()
                     await send(chat, f"Global: {global_stats['total_users']} users, {global_stats['total_requests']} requests, {global_stats['total_tokens']} tokens")
 
+                elif cmd == "/experimental":
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "list" or sub == "":
+                        await send(chat, get_experimental_list())
+                    elif sub == "status":
+                        enabled = [f"{f['name']}" for f in experimental_features.values() if f.get("enabled")]
+                        disabled = [f"{f['name']}" for f in experimental_features.values() if not f.get("enabled")]
+                        lines = [
+                            f"Experimental Status:",
+                            f"  Enabled: {len(enabled)}",
+                            f"  Disabled: {len(disabled)}",
+                            f"  Total: {len(experimental_features)}",
+                        ]
+                        if enabled:
+                            lines.append("")
+                            lines.append("Active features:")
+                            for e in enabled:
+                                lines.append(f"  ✅ {e}")
+                        await send(chat, "\n".join(lines))
+                    elif sub == "enable" and len(parts) > 2:
+                        fid = parts[2].lower()
+                        if fid not in experimental_features:
+                            await send(chat, f"Unknown feature: {fid}\nUse /experimental to see all features.")
+                            continue
+                        if experimental_features[fid].get("enabled"):
+                            await send(chat, f"{experimental_features[fid]['name']} is already enabled.")
+                            continue
+                        experimental_features[fid]["enabled"] = True
+                        save_experimental()
+                        await send(chat, f"✅ Enabled: {experimental_features[fid]['name']}\n{experimental_features[fid]['desc']}")
+                    elif sub == "disable" and len(parts) > 2:
+                        fid = parts[2].lower()
+                        if fid not in experimental_features:
+                            await send(chat, f"Unknown feature: {fid}\nUse /experimental to see all features.")
+                            continue
+                        if not experimental_features[fid].get("enabled"):
+                            await send(chat, f"{experimental_features[fid]['name']} is already disabled.")
+                            continue
+                        experimental_features[fid]["enabled"] = False
+                        save_experimental()
+                        await send(chat, f"⬜ Disabled: {experimental_features[fid]['name']}")
+                    elif sub == "add" and (is_owner or is_admin):
+                        if len(parts) < 5:
+                            await send(chat, "Usage: /experimental add <id> <name> <description>\nExample: /experimental add my-feature My Feature A cool new thing")
+                            continue
+                        fid = parts[2].lower()
+                        fname = parts[3]
+                        fdesc = " ".join(parts[4:])
+                        if fid in experimental_features:
+                            await send(chat, f"Feature '{fid}' already exists.")
+                            continue
+                        ver_info = load_version()
+                        experimental_features[fid] = {
+                            "name": fname,
+                            "desc": fdesc,
+                            "version": ver_info.get("version", "unknown"),
+                            "enabled": False,
+                            "category": "other",
+                        }
+                        save_experimental()
+                        await send(chat, f"Added experimental feature: {fid} — {fname}")
+                    elif sub == "remove" and (is_owner or is_admin):
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /experimental remove <id>")
+                            continue
+                        fid = parts[2].lower()
+                        if fid not in experimental_features:
+                            await send(chat, f"Unknown feature: {fid}")
+                            continue
+                        del experimental_features[fid]
+                        save_experimental()
+                        await send(chat, f"Removed feature: {fid}")
+                    else:
+                        await send(chat, get_experimental_list())
+
                 elif cmd == "/weather":
                     city = " ".join(parts[1:]) if len(parts) > 1 else ""
                     await typing(chat)
@@ -3559,7 +3701,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:

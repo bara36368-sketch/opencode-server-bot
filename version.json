@@ -1,6 +1,19 @@
 {
   "version": "2.4.0",
   "updated": "2026-07-18",
+  "big_update": true,
+  "experimental": [
+    "Deep Research v2 — multi-step research with source verification",
+    "Voice Cloning — clone any voice from a short audio sample",
+    "AI Persona Engine — custom AI personalities with memory and mood",
+    "Smart Scheduler — AI learns your habits and suggests routines",
+    "Multi-Agent Chat — talk to multiple AIs simultaneously",
+    "Code Playground — interactive code execution with live output",
+    "AI Image Editor — edit images with natural language",
+    "Smart Search v2 — enhanced search with AI summarization",
+    "Knowledge Graph — build a personal knowledge graph",
+    "Realtime Collaboration — share sessions with other users"
+  ],
   "whats_new": {
     "2.4.0": [
       "Web Admin Dashboard — real-time stats, provider status, bot control at /admin",

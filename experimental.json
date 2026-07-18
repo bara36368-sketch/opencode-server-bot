@@ -1,0 +1,74 @@
+{
+  "features": {
+    "deep-research-v2": {
+      "name": "Deep Research v2",
+      "desc": "Multi-step research with source verification and citations",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "voice-cloning": {
+      "name": "Voice Cloning",
+      "desc": "Clone any voice from a short audio sample for TTS replies",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "media"
+    },
+    "ai-persona": {
+      "name": "AI Persona Engine",
+      "desc": "Custom AI personalities with memory, mood, and speaking style",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "smart-scheduler": {
+      "name": "Smart Scheduler",
+      "desc": "AI-powered task scheduling that learns your habits and suggests routines",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "automation"
+    },
+    "multi-agent-chat": {
+      "name": "Multi-Agent Chat",
+      "desc": "Talk to multiple AI agents simultaneously in one conversation",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "code-playground": {
+      "name": "Code Playground",
+      "desc": "Interactive code execution with live output, file upload, and package install",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "developer"
+    },
+    "ai-image-editor": {
+      "name": "AI Image Editor",
+      "desc": "Edit images with natural language: remove objects, change backgrounds, apply styles",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "media"
+    },
+    "smart-search-v2": {
+      "name": "Smart Search v2",
+      "desc": "Enhanced web search with AI summarization, source ranking, and follow-up questions",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "research"
+    },
+    "knowledge-graph": {
+      "name": "Knowledge Graph",
+      "desc": "Build and query a personal knowledge graph from conversations and documents",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "realtime-collab": {
+      "name": "Realtime Collaboration",
+      "desc": "Share sessions with other users and collaborate on tasks in real-time",
+      "version": "2.4.0",
+      "enabled": false,
+      "category": "social"
+    }
+  }
+}
