@@ -1740,7 +1740,7 @@ async def main():
                         "  /stack — 2026 AI Infrastructure Reference",
                         "  /webgateway — Web AI Gateway status + URL",
                     ]
-                    if is_owner or is_admin:
+                    if is_owner or is_admin or is_mod:
                         lines += [
                             "",
                             "Admin:",
@@ -1851,7 +1851,7 @@ async def main():
                         for item in items:
                             lines.append(f"  {item}")
                         lines.append("")
-                    if is_owner or is_admin:
+                    if is_owner or is_admin or is_mod:
                         lines.append("╌ ADMIN ╌")
                         lines.append("  /addprovider <name> <model> <url> <key> — Add provider")
                         lines.append("  /agentprovider <agent> <url> <key> <model> — Agent-specific provider")
@@ -2207,7 +2207,7 @@ async def main():
                 elif cmd == "/adminlist" and is_owner:
                     await send(chat, f"Admins ({len(admins)}):\n" + "\n".join(f"  {a}" + (" (owner)" if a == OWNER_ID else "") for a in admins))
 
-                elif cmd == "/addmod" and (is_owner or is_admin):
+                elif cmd == "/addmod" and (is_owner or is_admin or is_mod):
                     if len(parts) < 2:
                         await send(chat, "Usage: /addmod <telegram_user_id>")
                         continue
@@ -2222,7 +2222,7 @@ async def main():
                     except:
                         await send(chat, "Invalid ID. Must be a number.")
 
-                elif cmd == "/removemod" and (is_owner or is_admin):
+                elif cmd == "/removemod" and (is_owner or is_admin or is_mod):
                     if len(parts) < 2:
                         await send(chat, "Usage: /removemod <telegram_user_id>")
                         continue
@@ -2237,13 +2237,13 @@ async def main():
                     except:
                         await send(chat, "Invalid ID. Must be a number.")
 
-                elif cmd == "/modlist" and (is_owner or is_admin):
+                elif cmd == "/modlist" and (is_owner or is_admin or is_mod):
                     if mods:
                         await send(chat, f"Mods ({len(mods)}):\n" + "\n".join(f"  {m}" for m in mods))
                     else:
                         await send(chat, "No mods added yet.")
 
-                elif cmd == "/addprovider" and (is_owner or is_admin):
+                elif cmd == "/addprovider" and (is_owner or is_admin or is_mod):
                     if len(parts) < 5:
                         await send(chat, "Usage: /addprovider <name> <model> <url> <key>\nExample: /addprovider grok grok-1 https://api.grok.com/v1/chat xyz123")
                         continue
@@ -2255,7 +2255,7 @@ async def main():
                     save_providers()
                     await send(chat, f"Added provider: {pname} ({pmodel})")
 
-                elif cmd == "/agentprovider" and (is_owner or is_admin):
+                elif cmd == "/agentprovider" and (is_owner or is_admin or is_mod):
                     if len(parts) < 5:
                         await send(chat, "Usage: /agentprovider <agent> <url> <key> <model>\nExample: /agentprovider design_arena https://api.designarena.ai/v1/chat sk-abc123 gpt-4o")
                         continue
@@ -2271,7 +2271,7 @@ async def main():
                         json.dump(AGENT_PROVIDERS, f, indent=2)
                     await send(chat, f"Agent provider set for {aname}: {pmodel}")
 
-                elif cmd == "/createagent" and (is_owner or is_admin):
+                elif cmd == "/createagent" and (is_owner or is_admin or is_mod):
                     if len(parts) < 2:
                         await send(chat, "Usage: /createagent <description>\nExample: /createagent A rust engineer specialized in blockchain and WASM")
                         continue
@@ -2311,7 +2311,7 @@ async def main():
                         lines.append(f"  Agents: {agents}")
                     await send(chat, "\n".join(lines))
 
-                elif cmd == "/addprompt" and (is_owner or is_admin):
+                elif cmd == "/addprompt" and (is_owner or is_admin or is_mod):
                     if len(parts) < 3:
                         await send(chat, "Usage: /addprompt <agentname> <prompt>")
                         continue
@@ -2330,14 +2330,14 @@ async def main():
                 elif cmd == "/gateway":
                     await send(chat, gateway.get_gateway_stats())
 
-                elif cmd == "/repair" and (is_owner or is_admin):
+                elif cmd == "/repair" and (is_owner or is_admin or is_mod):
                     for name in PROVIDERS:
                         if name in gateway.health:
                             gateway.health[name]["cooldown_until"] = 0
                             gateway.health[name]["failure"] = 0
                             await send(chat, "All provider health counters reset.")
 
-                elif cmd == "/pyrit" and (is_owner or is_admin):
+                elif cmd == "/pyrit" and (is_owner or is_admin or is_mod):
                     if pyrit_attacks is None:
                         await send(chat, "pyrit_attacks module not available (import failed)")
                         continue
