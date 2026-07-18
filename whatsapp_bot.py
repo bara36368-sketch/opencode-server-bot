@@ -90,6 +90,8 @@ async def run(pair_phone=None):
         if t == "qr":
             qr_raw = msg.get("qr", "")
             import qrcode
+            qr_img = qrcode.make(qr_raw)
+            qr_img.save(os.path.join(DIR, "whatsapp_qr.png"))
             qr = qrcode.QRCode()
             qr.add_data(qr_raw)
             print("\n" + "=" * 50, flush=True)
@@ -98,6 +100,7 @@ async def run(pair_phone=None):
             print("=" * 50, flush=True)
             qr.print_ascii()
             print("=" * 50 + "\n", flush=True)
+            print(f"QR also saved to: {os.path.join(DIR, 'whatsapp_qr.png')}", flush=True)
             log("QR displayed above")
         elif t == "ready":
             log("WhatsApp connected!")

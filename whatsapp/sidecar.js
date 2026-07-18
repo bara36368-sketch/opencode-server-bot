@@ -50,7 +50,8 @@ async function start() {
   });
 
   sock.ev.on("creds.update", saveCreds);
-
+  process.stderr.write("sidecar: socket created\n");
+  sock.ev.on("messages.upsert", () => {}); // keep ref
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       send({ type: "qr", qr });
@@ -60,6 +61,8 @@ async function start() {
     }
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || DisconnectReason.loggedOut;
+      const errMsg = lastDisconnect?.error?.message || "";
+      process.stderr.write(`sidecar: close reason=${reason} msg="${errMsg}"\n`);
       send({ type: "close", reason });
       if (reason !== DisconnectReason.loggedOut) {
         setTimeout(start, 3000);
