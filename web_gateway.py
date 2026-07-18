@@ -452,6 +452,8 @@ _load_workflows()
 
 async def get_http():
     global _http
+    if not HAS_HTTPX:
+        raise RuntimeError("httpx not installed")
     if _http is None or _http.is_closed:
         _http = httpx.AsyncClient(timeout=120, limits=httpx.Limits(max_keepalive_connections=10, max_connections=20))
     return _http

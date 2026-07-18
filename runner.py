@@ -37,17 +37,19 @@ def health_check():
         return False
 
 def free_port(port):
+    if os.name == 'nt':
+        return
     try:
         r = subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True, timeout=5)
         if r.returncode == 0:
             print(f"[runner] freed port {port}")
-    except:
+    except Exception:
         pass
     try:
         r = subprocess.run(["pkill", "-f", "web_gateway.py"], capture_output=True, timeout=5)
         if r.returncode == 0:
             print(f"[runner] killed stale web_gateway process")
-    except:
+    except Exception:
         pass
 
 last_hashes = file_hashes()

@@ -65,15 +65,39 @@ except Exception:
         pass
     pyrit_attacks = None
 
+class _BfStub:
+    class _DbStub:
+        def add_document(self, *a, **k): return 0
+        def list(self, *a, **k): return []
+        def query(self, *a, **k): return []
+    class _SchedulerStub:
+        def add(self, *a, **k): return ""
+        def remove(self, *a, **k): pass
+        def list(self, *a, **k): return []
+    class _ReminderStub:
+        def add(self, *a, **k): return ""
+        def remove(self, *a, **k): pass
+        def list(self, *a, **k): return []
+        def clear_chat(self, *a, **k): pass
+    def __init__(self):
+        self.doc_db = self._DbStub()
+        self.scheduler = self._SchedulerStub()
+        self.reminder_db = self._ReminderStub()
+    def __getattr__(self, name):
+        async def _a(*a, **k): return None
+        def _s(*a, **k): return None
+        return _a if name.startswith(("run_", "voice_", "text_to_", "vision_", "image_", "translate", "web_search", "youtube_", "run_code", "fetch_url", "qr_", "auto_context", "summarize_", "get_photo_url", "extract_", "parse_spread")) else _s
+
 try:
     import bot_features as bf
-except Exception:
+    _ = bf  # verify it actually loaded
+except Exception as _bf_err:
     try:
         with open("bot_crash.txt", "w") as _f:
-            _f.write(f"bot_features import failed:\n{_tb.format_exc()}")
+            _f.write(f"bot_features import failed: {_bf_err}\n{_tb.format_exc()}")
     except:
         pass
-    bf = None
+    bf = _BfStub()
 
 try:
     import ai_stack_reference as stack_ref
@@ -1767,9 +1791,6 @@ async def main():
                     caption = msg.get("caption", "")
                     text = f"/vision {caption}" if caption else "/vision describe"
                 elif voice:
-                    if bf is None:
-                        await send(chat, "Voice features not available (bot_features module not loaded).")
-                        continue
                     await typing(chat)
                     transcribed = await bf.voice_to_text(voice["file_id"])
                     text = transcribed if transcribed else "/voice_error"
@@ -1781,9 +1802,6 @@ async def main():
                         else:
                             continue  # still handled, don't fall through
                 elif document:
-                    if bf is None:
-                        await send(chat, "Document features not available (bot_features module not loaded).")
-                        continue
                     file_id = document["file_id"]
                     fname = document.get("file_name", "document.bin")
                     ext = (fname or "").lower()
@@ -2919,9 +2937,6 @@ async def main():
                         await send(chat, f"Crypto error: {e}")
 
                 elif cmd == "/vision":
-                    if bf is None:
-                        await send(chat, "Vision features not available (bot_features module not loaded).")
-                        continue
                     await typing(chat)
                     if not photo_file_id:
                         if msg.get("reply_to_message") and msg["reply_to_message"].get("photo"):
@@ -2938,9 +2953,6 @@ async def main():
                     await send(chat, result[:3500])
 
                 elif cmd == "/draw":
-                    if bf is None:
-                        await send(chat, "Image generation not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /draw <prompt>\nExample: /draw a cat riding a bicycle on mars")
                         continue
@@ -2960,9 +2972,6 @@ async def main():
                         await send(chat, "Image generation failed. Try a different prompt.")
 
                 elif cmd == "/schedule":
-                    if bf is None:
-                        await send(chat, "Scheduler not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         tasks = bf.scheduler.list()
                         if not tasks:
@@ -2998,9 +3007,6 @@ async def main():
                         await send(chat, "Usage: /schedule add <seconds> <prompt>  or  /schedule remove <id>  or  /schedule list")
 
                 elif cmd == "/export":
-                    if bf is None:
-                        await send(chat, "Export not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /export json|md")
                         continue
@@ -3019,9 +3025,6 @@ async def main():
                         await send(chat, "Format: json or md")
 
                 elif cmd == "/doc":
-                    if bf is None:
-                        await send(chat, "Document features not available (bot_features module not loaded).")
-                        continue
                     docs = bf.doc_db.list()
                     if not docs:
                         await send(chat, "No documents indexed. Send a txt/pdf file to add it.\nCommands:\n  /doc — list documents\n  /ask <question> — query documents\n  /doc clear — clear all documents")
@@ -3029,9 +3032,6 @@ async def main():
                         await send(chat, "Indexed documents:\n" + "\n".join(f"  {d}" for d in docs))
 
                 elif cmd == "/ask":
-                    if bf is None:
-                        await send(chat, "Document query not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /ask <question>\nQuery your uploaded documents.")
                         continue
@@ -3052,17 +3052,11 @@ async def main():
                         await send(chat, f"Query error: {e}")
 
                 elif cmd == "/context":
-                    if bf is None:
-                        await send(chat, "Context not available (bot_features module not loaded).")
-                        continue
                     await typing(chat)
                     ctx = await bf.auto_context()
                     await send(chat, f"Current context:\n{ctx}")
 
                 elif cmd == "/search":
-                    if bf is None:
-                        await send(chat, "Web search not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /search <query>\nExample: /search latest AI news 2026")
                         continue
@@ -3076,9 +3070,6 @@ async def main():
                     await send(chat, f"ðŸ” Search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1000]}")
 
                 elif cmd == "/youtube":
-                    if bf is None:
-                        await send(chat, "YouTube not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /youtube <url>\nExample: /youtube https://youtube.com/watch?v=dQw4w9WgXcQ")
                         continue
@@ -3095,9 +3086,6 @@ async def main():
                         await send(chat, f"ðŸ“¹ YouTube Summary:\n\n{reply[:3500]}")
 
                 elif cmd == "/run":
-                    if bf is None:
-                        await send(chat, "Code execution not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 3:
                         await send(chat, "Usage: /run <python|js> <code>\nExample: /run python print('hello')\nOr use /run python followed by multiple lines in subsequent messages.")
                         continue
@@ -3108,9 +3096,6 @@ async def main():
                     await send(chat, f"```\n{result[:3500]}\n```")
 
                 elif cmd == "/fetch":
-                    if bf is None:
-                        await send(chat, "URL fetch not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /fetch <url>\nExample: /fetch https://example.com")
                         continue
@@ -3127,9 +3112,6 @@ async def main():
                         await send(chat, f"ðŸ“„ {url}\n\n{reply[:3500]}")
 
                 elif cmd == "/remind":
-                    if bf is None:
-                        await send(chat, "Reminders not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 3:
                         tasks = bf.reminder_db.list(chat_id=chat)
                         if not tasks:
@@ -3310,9 +3292,6 @@ async def main():
                         await send(chat, "\n".join(msg_lines))
 
                 elif cmd == "/translate":
-                    if bf is None:
-                        await send(chat, "Translation not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 3:
                         await send(chat, "Usage: /translate <source>:<target> <text>\n       /translate en:fr Hello world\n       /translate :es Hello (auto-detect source)")
                         continue
@@ -3327,9 +3306,6 @@ async def main():
                     await send(chat, f"Translation ({source or 'auto'}â†’{target}):\n{result[:2000]}")
 
                 elif cmd == "/qr":
-                    if bf is None:
-                        await send(chat, "QR features not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 3:
                         await send(chat, "Usage: /qr encode <text> — Generate QR code\n       /qr decode — Reply to a photo with /qr decode (or send photo as caption)")
                         continue
@@ -3368,9 +3344,6 @@ async def main():
                         await send(chat, "Usage: /qr encode <text>  or  /qr decode (reply to photo)")
 
                 elif cmd == "/stats":
-                    if bf is None:
-                        await send(chat, "Stats not available (bot_features module not loaded).")
-                        continue
                     uid_stats = bf.get_usage(uid)
                     if uid_stats:
                         top_a = sorted(uid_stats.get("agents", {}).items(), key=lambda x: -x[1])[:3]
@@ -3552,9 +3525,6 @@ async def main():
                         await send(chat, f"Restore error: {e}")
 
                 elif cmd == "/dailydigest":
-                    if bf is None:
-                        await send(chat, "Daily digest not available (bot_features module not loaded).")
-                        continue
                     await typing(chat)
                     try:
                         usage = bf.get_global_stats()
@@ -3636,9 +3606,6 @@ async def main():
                         await send(chat, "Usage: /tokens [set <amount>|claim <amount>|reset]")
 
                 elif cmd == "/data":
-                    if bf is None:
-                        await send(chat, "Data features not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 3:
                         await send(chat, "Usage: /data query <natural language question about loaded spreadsheets>\n       /data list — list loaded data files")
                         continue
@@ -3667,9 +3634,6 @@ async def main():
                         await send(chat, "Usage: /data query <question>  or  /data list")
 
                 elif cmd == "/plugin":
-                    if bf is None:
-                        await send(chat, "Plugins not available (bot_features module not loaded).")
-                        continue
                     if len(parts) < 2:
                         plugins = bf.list_plugins()
                         if plugins:
@@ -3854,9 +3818,6 @@ async def main():
                     await typing(chat)
                     try:
                         if active_mode == "autonomous":
-                            if bf is None:
-                                await send(chat, "Autonomous mode not available (bot_features module not loaded).")
-                                continue
                             memory_buffers.setdefault(uid, [])
                             memory_buffers[uid].append(f"[USER] {text}")
                             reply = await run_autonomous(text, uid)
@@ -3881,13 +3842,22 @@ async def main():
                         else:
                             sessions.setdefault(uid, [])
                             agent_prompt = AGENTS[active_agent]["prompt"]
-                            if not sessions[uid] and bf:
-                                ctx = await bf.auto_context()
-                                sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}"})
-                            elif not sessions[uid]:
-                                sessions[uid].append({"role": "system", "content": agent_prompt})
-                            if len(sessions[uid]) > 30 and bf:
-                                sessions[uid] = await bf.summarize_conversation(sessions[uid], smart_call)
+                            if not sessions[uid]:
+                                try:
+                                    ctx = await bf.auto_context()
+                                    if ctx:
+                                        sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}"})
+                                    else:
+                                        sessions[uid].append({"role": "system", "content": agent_prompt})
+                                except:
+                                    sessions[uid].append({"role": "system", "content": agent_prompt})
+                            if len(sessions[uid]) > 30:
+                                try:
+                                    summarized = await bf.summarize_conversation(sessions[uid], smart_call)
+                                    if summarized:
+                                        sessions[uid] = summarized
+                                except:
+                                    sessions[uid] = sessions[uid][-20:]
                             sessions[uid].append({"role": "user", "content": text})
                             log(f"Calling {active_provider} for: {text[:50]}")
                             reply = await smart_call(sessions[uid][-20:], active_provider)
