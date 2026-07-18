@@ -106,6 +106,7 @@ PREMADE_SKILLS_FILE = os.path.join(os.path.dirname(__file__), "premade_skills.js
 TEAMS_FILE = os.path.join(os.path.dirname(__file__), "teams.json")
 SESSIONS_FILE = os.path.join(os.path.dirname(__file__), "sessions.json")
 ADMINS_FILE = os.path.join(os.path.dirname(__file__), "admins.json")
+MODS_FILE = os.path.join(os.path.dirname(__file__), "mods.json")
 AGENT_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "agent_providers.json")
 SYNOXCLOUD_ENDPOINTS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_endpoints.json")
 SYNOXCLOUD_AI_MODELS_FILE = os.path.join(os.path.dirname(__file__), "synoxcloud_ai_models.json")
@@ -483,6 +484,10 @@ def save_providers():
 def save_admins():
     with open(ADMINS_FILE, "w") as f:
         json.dump(list(admins), f)
+
+def save_mods():
+    with open(MODS_FILE, "w") as f:
+        json.dump(list(mods), f)
 
 def save_premade():
     with open(PREMADE_SKILLS_FILE, "w") as f:
@@ -1246,6 +1251,11 @@ PROVIDERS = {
         "model": "x-ai/grok-4.5-free",
         "key": os.environ.get("ZENMUX_KEY", "set-via-env-var")
     },
+    "zenmux-kimi-k3-free": {
+        "url": "https://zenmux.ai/api/v1/chat/completions",
+        "model": "moonshotai/kimi-k3-free",
+        "key": os.environ.get("ZENMUX_KEY", "set-via-env-var")
+    },
 
 
     "bitrouter": {
@@ -1345,6 +1355,12 @@ if os.path.exists(ADMINS_FILE):
     try:
         with open(ADMINS_FILE) as f:
             admins.update(json.load(f))
+    except: pass
+mods = set()
+if os.path.exists(MODS_FILE):
+    try:
+        with open(MODS_FILE) as f:
+            mods.update(json.load(f))
     except: pass
 _OFFSET_FILE = os.path.join(os.path.dirname(__file__), ".bot.offset")
 last_update = 0
@@ -1664,6 +1680,7 @@ async def main():
 
                 is_owner = uid == OWNER_ID
                 is_admin = uid in admins
+                is_mod = uid in mods
 
                 if cmd == "/start":
                     active_agent = "orchestrator"
@@ -1821,6 +1838,12 @@ async def main():
                             "/myrole — Your ID + role",
                             "/profile save|load|show|reset — Persist your settings",
                         ]),
+                        ("MODERATION", [
+                            "/addmod <id> — Add moderator (owner/admin)",
+                            "/removemod <id> — Remove moderator",
+                            "/modlist — List moderators",
+                            "/checkrole <id> — Check user role",
+                        ]),
                     ]
                     lines = []
                     for title, items in categories:
@@ -1853,7 +1876,14 @@ async def main():
                     await send(chat, "\n".join(lines))
 
                 elif cmd == "/myrole":
-                    role = "owner" if uid == OWNER_ID else ("admin" if uid in admins else "user")
+                    if uid == OWNER_ID:
+                        role = "owner"
+                    elif uid in admins:
+                        role = "admin"
+                    elif uid in mods:
+                        role = "mod"
+                    else:
+                        role = "user"
                     await send(chat, f"Your ID: {uid}\nRole: {role}")
 
                 elif cmd == "/profile":
@@ -1898,7 +1928,14 @@ async def main():
                         continue
                     try:
                         target = int(parts[1])
-                        role = "owner" if target == OWNER_ID else ("admin" if target in admins else "user")
+                        if target == OWNER_ID:
+                            role = "owner"
+                        elif target in admins:
+                            role = "admin"
+                        elif target in mods:
+                            role = "mod"
+                        else:
+                            role = "user"
                         await send(chat, f"User {target}: {role}")
                     except:
                         await send(chat, "Invalid ID.")
@@ -2169,6 +2206,42 @@ async def main():
 
                 elif cmd == "/adminlist" and is_owner:
                     await send(chat, f"Admins ({len(admins)}):\n" + "\n".join(f"  {a}" + (" (owner)" if a == OWNER_ID else "") for a in admins))
+
+                elif cmd == "/addmod" and (is_owner or is_admin):
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /addmod <telegram_user_id>")
+                        continue
+                    try:
+                        new_id = int(parts[1])
+                        if new_id in mods:
+                            await send(chat, f"Already a mod: {new_id}")
+                        else:
+                            mods.add(new_id)
+                            save_mods()
+                            await send(chat, f"Added mod: {new_id}")
+                    except:
+                        await send(chat, "Invalid ID. Must be a number.")
+
+                elif cmd == "/removemod" and (is_owner or is_admin):
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /removemod <telegram_user_id>")
+                        continue
+                    try:
+                        rem_id = int(parts[1])
+                        if rem_id in mods:
+                            mods.discard(rem_id)
+                            save_mods()
+                            await send(chat, f"Removed mod: {rem_id}")
+                        else:
+                            await send(chat, f"Not a mod: {rem_id}")
+                    except:
+                        await send(chat, "Invalid ID. Must be a number.")
+
+                elif cmd == "/modlist" and (is_owner or is_admin):
+                    if mods:
+                        await send(chat, f"Mods ({len(mods)}):\n" + "\n".join(f"  {m}" for m in mods))
+                    else:
+                        await send(chat, "No mods added yet.")
 
                 elif cmd == "/addprovider" and (is_owner or is_admin):
                     if len(parts) < 5:
@@ -3313,7 +3386,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
