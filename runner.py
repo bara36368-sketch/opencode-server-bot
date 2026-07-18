@@ -24,7 +24,7 @@ def log(msg):
 
 def file_hashes():
     h = {}
-    for f in glob.glob(os.path.join(DIR, "*.py")) + glob.glob(os.path.join(DIR, "*.json")):
+    for f in glob.glob(os.path.join(DIR, "*.py")) + glob.glob(os.path.join(DIR, "*.json")) + glob.glob(os.path.join(DIR, "whatsapp", "*.js")):
         try:
             with open(f, "rb") as fh:
                 h[f] = hashlib.sha256(fh.read()).hexdigest()
@@ -66,9 +66,6 @@ def health_check():
         return False
 
 def free_port(port):
-    if os.name == 'nt':
-        subprocess.run(["taskkill", "/F", "/IM", "python*"], capture_output=True, timeout=5)
-        return
     try:
         subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True, timeout=5)
     except Exception:
