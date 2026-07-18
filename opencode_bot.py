@@ -1715,10 +1715,11 @@ async def main():
     log(f"OpenCode Bot v{ver} started")
 
     await gateway.start_worker()
-    asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
-    asyncio.create_task(bf.run_reminder_loop(send))
+    if bf:
+        asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
+        asyncio.create_task(bf.run_reminder_loop(send))
+        bf.init_plugins()
     asyncio.create_task(auto_version_checker())
-    bf.init_plugins()
 
     # Initialize AI Stack memory on startup
     if user_memory:
