@@ -2959,22 +2959,26 @@ async def main():
                         await send(chat, "\n".join(lines))
                     except Exception as e:
                         await send(chat, f"Crypto error: {e}")
+                    continue
 
                 elif cmd == "/vision":
-                    await typing(chat)
-                    if not photo_file_id:
-                        if msg.get("reply_to_message") and msg["reply_to_message"].get("photo"):
-                            photo_file_id = msg["reply_to_message"]["photo"][-1]["file_id"]
-                    if not photo_file_id:
-                        await send(chat, "Send a photo with /vision <prompt> or reply to a photo.")
-                        continue
-                    prompt = " ".join(parts[1:]) or "Describe this image in detail"
-                    url = await bf.get_photo_url(photo_file_id)
-                    if not url:
-                        await send(chat, "Could not fetch photo.")
-                        continue
-                    result = await bf.vision_analyze(url, prompt)
-                    await send(chat, result[:3500])
+                    try:
+                        await typing(chat)
+                        if not photo_file_id:
+                            if msg.get("reply_to_message") and msg["reply_to_message"].get("photo"):
+                                photo_file_id = msg["reply_to_message"]["photo"][-1]["file_id"]
+                        if not photo_file_id:
+                            await send(chat, "Send a photo with /vision <prompt> or reply to a photo.")
+                            continue
+                        prompt = " ".join(parts[1:]) or "Describe this image in detail"
+                        url = await bf.get_photo_url(photo_file_id)
+                        if not url:
+                            await send(chat, "Could not fetch photo.")
+                            continue
+                        result = await bf.vision_analyze(url, prompt)
+                        await send(chat, result[:3500])
+                    except Exception as e:
+                        await send(chat, f"Vision error: {e}")
                     continue
 
                 elif cmd == "/draw":
