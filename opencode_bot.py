@@ -560,6 +560,7 @@ MODES = {
 }
 
 MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
+TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token_usage.json")
 vector_memory = {}
 memory_buffers = {}
 
@@ -599,6 +600,32 @@ def load_memory():
                     for k, v in data.get("blocks", {}).items():
                         user_memory.set_block(k, v)
         except: pass
+
+# Token usage tracking for FreeTokenFaucet
+token_usage = {"balance": 1096964, "used": 0, "last_claim": "", "history": []}
+
+def load_token_usage():
+    global token_usage
+    if os.path.exists(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE) as f:
+                token_usage.update(json.load(f))
+        except: pass
+
+def save_token_usage():
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(token_usage, f, indent=2)
+
+def track_tokens(model, tokens_used):
+    token_usage["used"] += tokens_used
+    token_usage["history"].append({
+        "time": datetime.now().isoformat(),
+        "model": model,
+        "tokens": tokens_used
+    })
+    if len(token_usage["history"]) > 100:
+        token_usage["history"] = token_usage["history"][-100:]
+    save_token_usage()
 
 TOOLFK_TOKEN = os.environ.get("TOOLFK_TOKEN", "")
 
@@ -1566,6 +1593,7 @@ async def main():
     if user_memory:
         log("AI Stack memory initialized")
         load_memory()
+    load_token_usage()
 
     while True:
         try:
@@ -1759,6 +1787,9 @@ async def main():
                             "/context — Show auto-context",
                             "/data list|query — Spreadsheet ops",
                             "/export json|md — Export chat",
+                            "/tokens — FreeTokenFaucet balance",
+                            "/tokens set <amount> — Set balance",
+                            "/tokens claim <amount> — Record daily claim",
                         ]),
                         ("AUTOMATION", [
                             "/schedule add|list|remove — Recurring AI tasks",
@@ -3092,6 +3123,53 @@ async def main():
                     global_stats = bf.get_global_stats()
                     await send(chat, f"Global: {global_stats['total_users']} users, {global_stats['total_requests']} requests, {global_stats['total_tokens']} tokens")
 
+                elif cmd == "/tokens":
+                    if len(parts) < 2:
+                        # Show token status
+                        remaining = token_usage["balance"] - token_usage["used"]
+                        lines = [
+                            "FreeTokenFaucet Balance:",
+                            f"  Balance: {token_usage['balance']:,} tokens",
+                            f"  Used today: {token_usage['used']:,} tokens",
+                            f"  Remaining: {remaining:,} tokens",
+                        ]
+                        if token_usage["last_claim"]:
+                            lines.append(f"  Last claim: {token_usage['last_claim']}")
+                        if token_usage["history"]:
+                            recent = token_usage["history"][-3:]
+                            lines.append("  Recent usage:")
+                            for h in recent:
+                                lines.append(f"    {h['model']}: {h['tokens']} tokens")
+                        await send(chat, "\n".join(lines))
+                    elif parts[1] == "set" and len(parts) > 2:
+                        # Set balance: /tokens set 1096964
+                        try:
+                            new_balance = int(parts[2])
+                            token_usage["balance"] = new_balance
+                            token_usage["used"] = 0
+                            token_usage["last_claim"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                            save_token_usage()
+                            await send(chat, f"Balance set to {new_balance:,} tokens. Usage reset.")
+                        except ValueError:
+                            await send(chat, "Usage: /tokens set <amount>")
+                    elif parts[1] == "claim":
+                        # Mark daily claim: /tokens claim 1000000
+                        try:
+                            claimed = int(parts[2]) if len(parts) > 2 else 1000000
+                            token_usage["balance"] = claimed
+                            token_usage["used"] = 0
+                            token_usage["last_claim"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                            save_token_usage()
+                            await send(chat, f"Daily claim recorded: {claimed:,} tokens. Usage reset.")
+                        except ValueError:
+                            await send(chat, "Usage: /tokens claim <amount>")
+                    elif parts[1] == "reset":
+                        token_usage["used"] = 0
+                        save_token_usage()
+                        await send(chat, "Usage counter reset.")
+                    else:
+                        await send(chat, "Usage: /tokens [set <amount>|claim <amount>|reset]")
+
                 elif cmd == "/data":
                     if len(parts) < 3:
                         await send(chat, "Usage: /data query <natural language question about loaded spreadsheets>\n       /data list — list loaded data files")
@@ -3235,7 +3313,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
