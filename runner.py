@@ -33,6 +33,8 @@ def file_hashes():
 
 def git_update():
     try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        old_head = r.stdout.strip()
         subprocess.run(["git", "stash"], cwd=DIR, capture_output=True, text=True, timeout=15)
         r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
@@ -41,11 +43,15 @@ def git_update():
         r = subprocess.run(["git", "log", "--oneline", "-3", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=15)
         log(f"[runner] remote commits: {r.stdout.strip()}")
         r = subprocess.run(["git", "reset", "--hard", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=30)
-        log(f"[runner] force pulled to origin/master:")
-        r2 = subprocess.run(["git", "log", "--oneline", "-3"], cwd=DIR, capture_output=True, text=True, timeout=15)
-        for line in r2.stdout.strip().split("\n"):
+        r2 = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        new_head = r2.stdout.strip()
+        if new_head == old_head:
+            return False
+        log(f"[runner] updated: {old_head[:8]}..{new_head[:8]}")
+        r3 = subprocess.run(["git", "log", "--oneline", "-3"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        for line in r3.stdout.strip().split("\n"):
             log(f"[runner]   {line}")
-        return r.returncode == 0
+        return True
     except Exception as e:
         log(f"[runner] git update failed: {e}")
     return False
