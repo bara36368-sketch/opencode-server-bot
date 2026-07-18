@@ -31,18 +31,23 @@ def file_hashes():
             pass
     return h
 
-def git_pull():
+def git_update():
     try:
         subprocess.run(["git", "stash"], cwd=DIR, capture_output=True, text=True, timeout=15)
         r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
             log(f"[runner] git fetch failed: {r.stderr.strip()}")
             return False
-        r = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=DIR, capture_output=True, text=True, timeout=30)
-        log(f"[runner] force pulled: {r.stdout.strip()}")
+        r = subprocess.run(["git", "log", "--oneline", "-3", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        log(f"[runner] remote commits: {r.stdout.strip()}")
+        r = subprocess.run(["git", "reset", "--hard", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=30)
+        log(f"[runner] force pulled to origin/master:")
+        r2 = subprocess.run(["git", "log", "--oneline", "-3"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        for line in r2.stdout.strip().split("\n"):
+            log(f"[runner]   {line}")
         return r.returncode == 0
     except Exception as e:
-        log(f"[runner] git pull failed: {e}")
+        log(f"[runner] git update failed: {e}")
     return False
 
 def health_check():
@@ -112,7 +117,7 @@ while True:
             changed = True
     last_hashes = current
 
-    if git_pull():
+    if git_update():
         changed = True
 
     if not health_check() and "web" in procs and procs["web"].poll() is not None:
