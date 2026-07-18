@@ -1684,7 +1684,7 @@ async def announce_update(old_v, new_v, changes, state):
 
 async def auto_version_checker():
     while True:
-        await asyncio.sleep(300)
+        await asyncio.sleep(30)
         try:
             current = load_version()
             current_ver = current.get("version", "unknown")
