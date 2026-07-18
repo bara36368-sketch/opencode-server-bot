@@ -1,0 +1,138 @@
+import sys, os, json, asyncio, logging, time, base64
+
+DIR = os.path.dirname(os.path.abspath(__file__))
+logging.basicConfig(filename=os.path.join(DIR, "whatsapp.log"), level=logging.INFO,
+                    format="%(asctime)s [%(levelname)s] %(message)s")
+
+SIDECAR = ["node", os.path.join(DIR, "whatsapp", "sidecar.js")]
+SEND_DELAY = 1.5
+SESSIONS = {}
+
+sys.path.insert(0, DIR)
+from opencode_bot import smart_call, PROVIDERS, bf
+
+def log(msg):
+    print(f"[wa] {msg}", flush=True)
+    logging.info(msg)
+
+async def send_msg(sock, jid, text):
+    text = str(text)[:4000]
+    cmd = json.dumps({"type": "send", "to": jid, "text": text}) + "\n"
+    if sock.stdin:
+        sock.stdin.write(cmd)
+        await sock.stdin.drain()
+    await asyncio.sleep(SEND_DELAY)
+
+async def read_stdout(sock, queue):
+    while True:
+        line = await sock.stdout.readline()
+        if not line:
+            await queue.put({"type": "sidecar_exit"})
+            break
+        try:
+            msg = json.loads(line.strip())
+            await queue.put(msg)
+        except json.JSONDecodeError:
+            pass
+
+def pick_provider():
+    best, best_score = None, 0
+    for name, p in PROVIDERS.items():
+        score = 0
+        if p.get("key") and p["key"] not in ("set-via-env-var", "", "free"):
+            score += 2
+        if p.get("url"):
+            score += 1
+        if score > best_score:
+            best, best_score = name, score
+    return best or "groq"
+
+async def handle_message(msg, sock):
+    jid = msg["from"]
+    text = msg["text"]
+    push = msg.get("pushName", "")
+    log(f"Msg from {jid} ({push}): {text[:60]}")
+
+    SESSIONS.setdefault(jid, [])
+    agent_prompt = "You are a helpful AI assistant on WhatsApp."
+    if not SESSIONS[jid]:
+        SESSIONS[jid].append({"role": "system", "content": agent_prompt})
+    SESSIONS[jid].append({"role": "user", "content": text})
+    if len(SESSIONS[jid]) > 20:
+        SESSIONS[jid] = SESSIONS[jid][:1] + SESSIONS[jid][-10:]
+
+    provider = pick_provider()
+    try:
+        reply = await smart_call(SESSIONS[jid][-15:], provider)
+        SESSIONS[jid].append({"role": "assistant", "content": reply})
+        await send_msg(sock, jid, reply)
+    except Exception as e:
+        log(f"Error handling message: {e}")
+        await send_msg(sock, jid, f"Error: {e}")
+
+async def run():
+    loop = asyncio.get_event_loop()
+    sock = await asyncio.create_subprocess_exec(
+        *SIDECAR, stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        cwd=DIR,
+    )
+    queue = asyncio.Queue()
+    reader = asyncio.create_task(read_stdout(sock, queue))
+    stderr_logger = asyncio.create_task(log_stderr(sock))
+
+    log("Sidecar started. Scan QR code to link WhatsApp.")
+    print("\n*** WAIT for QR code in sidecar stderr, scan with WhatsApp ***\n", flush=True)
+
+    while True:
+        msg = await queue.get()
+        t = msg.get("type")
+
+        if t == "qr":
+            log("QR code generated — scan with WhatsApp > Linked Devices")
+        elif t == "ready":
+            log("WhatsApp connected!")
+        elif t == "connecting":
+            log("Connecting...")
+        elif t == "close":
+            reason = msg.get("reason", "unknown")
+            log(f"Disconnected (reason: {reason}), reconnecting...")
+            if reason == 401:
+                log("Logged out, delete auth_info and restart")
+                break
+            await asyncio.sleep(5)
+            return
+        elif t == "auth_expired":
+            log("Auth expired, restarting to generate new QR...")
+            return
+        elif t == "sidecar_exit":
+            log("Sidecar process exited")
+            break
+        elif t == "message":
+            await handle_message(msg, sock)
+        elif t == "error":
+            log(f"Sidecar error: {msg.get('msg', 'unknown')}")
+
+    sock.terminate()
+    await sock.wait()
+
+async def log_stderr(sock):
+    while True:
+        line = await sock.stderr.readline()
+        if not line:
+            break
+        text = line.decode("utf-8", errors="replace").strip()
+        if text:
+            logging.info(f"[sidecar] {text}")
+
+async def main():
+    while True:
+        try:
+            await run()
+        except Exception as e:
+            log(f"Fatal: {e}")
+        log("Restarting in 5s...")
+        await asyncio.sleep(5)
+
+if __name__ == "__main__":
+    asyncio.run(main())
