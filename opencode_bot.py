@@ -1561,27 +1561,65 @@ async def announce_update(old_v, new_v, changes, state):
         known_chats.add(int(cid))
     for cid in list(multi_sessions.keys()):
         known_chats.add(int(cid))
+    try:
+        usage_file = os.path.join(os.path.dirname(__file__), "usage_stats.json")
+        if os.path.exists(usage_file):
+            with open(usage_file) as f:
+                usage = json.load(f)
+            for uid in usage:
+                known_chats.add(int(uid))
+    except:
+        pass
     known_chats.discard(0)
-    msg = [
-        f"\u2728 OpenCode Bot updated: v{old_v} \u2192 v{new_v}",
-        "",
+    lines = [
+        f"✨ OpenCode Bot Updated!",
+        f"",
+        f"  v{old_v} → v{new_v}",
+        f"",
     ]
     if changes:
-        msg.append("\U0001F4DD What's new:")
+        lines.append("🆕 What's New:")
+        lines.append("")
         for i, c in enumerate(changes, 1):
-            msg.append(f"  {i}. {c}")
-    msg.append("")
-    msg.append(f"Type /version to see full changelog")
-    msg = "\n".join(msg)
+            lines.append(f"  {i}. {c}")
+        lines.append("")
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("")
+    lines.append("💡 Try these new features:")
+    lines.append("  /start — See updated command list")
+    lines.append("  /help — Browse all features")
+    lines.append("  /version — Full changelog")
+    lines.append("")
+    lines.append("🚀 Enjoying the bot? Share it with friends!")
+    msg = "\n".join(lines)
+    sent_count = 0
     for cid in known_chats:
         try:
             if str(cid) not in state.get("notified_chats", {}).get(new_v, []):
                 await send(cid, msg)
                 state.setdefault("notified_chats", {}).setdefault(new_v, []).append(str(cid))
+                sent_count += 1
+                await asyncio.sleep(0.1)
         except:
             pass
+    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats")
     save_version_state(state)
     return state
+
+async def auto_version_checker():
+    while True:
+        await asyncio.sleep(300)
+        try:
+            current = load_version()
+            current_ver = current.get("version", "unknown")
+            state = load_version_state()
+            last_ver = state.get("last_version", "")
+            if last_ver and current_ver != last_ver:
+                changes = current.get("whats_new", {}).get(current_ver, [])
+                log(f"Auto-check: version changed {last_ver} -> {current_ver}")
+                await announce_update(last_ver, current_ver, changes, state)
+        except Exception as e:
+            log(f"Auto version check error: {e}")
 
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode
@@ -1603,6 +1641,7 @@ async def main():
     await gateway.start_worker()
     asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
     asyncio.create_task(bf.run_reminder_loop(send))
+    asyncio.create_task(auto_version_checker())
     bf.init_plugins()
 
     # Initialize AI Stack memory on startup

@@ -4,10 +4,12 @@
   "whats_new": {
     "2.4.0": [
       "Web Admin Dashboard — real-time stats, provider status, bot control at /admin",
-      "/weather <city> — weather forecast via wttr.in (free, no API key)",
-      "/backup — backup all bot data to zip (admin only)",
-      "/restore — restore from backup zip file (admin only)",
-      "/dailydigest — daily summary with stats, weather, headlines"
+      "/weather <city> — weather forecast via wttr.in (free, no API key needed)",
+      "/backup — backup all bot data to ZIP file (admin only)",
+      "/restore — restore from backup ZIP file (admin only)",
+      "/dailydigest — daily summary with stats, weather, headlines, token balance",
+      "Auto version checker — detects new updates every 5 minutes and notifies all users",
+      "Richer update notifications — detailed feature list sent to all users on new versions"
     ],
     "2.3.0": [
       "New /stackstatus command — live status of all 10 AI stack layers",
