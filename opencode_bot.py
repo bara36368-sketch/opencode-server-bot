@@ -46,7 +46,7 @@ except:
 _M = object()
 asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
-    import asyncio, httpx, json, uuid, time, copy, re, random, urllib.parse
+    import asyncio, json, uuid, time, copy, re, random, urllib.parse
 except Exception:
     try:
         with open("bot_crash.txt", "w") as _f:
@@ -54,6 +54,14 @@ except Exception:
     except:
         pass
     raise
+try:
+    import httpx
+except Exception:
+    try:
+        with open("bot_crash.txt", "w") as _f:
+            _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
+    except:
+        pass
 
 try:
     import pyrit_attacks
@@ -133,6 +141,8 @@ _save_counter = 0
 
 async def get_http():
     global _http
+    if httpx is _M or not hasattr(httpx, "AsyncClient"):
+        raise RuntimeError("httpx is not installed. Install with: pip install httpx")
     if _http is None or _http.is_closed:
         _http = httpx.AsyncClient(timeout=120, limits=httpx.Limits(max_keepalive_connections=10, max_connections=20))
     return _http

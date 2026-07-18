@@ -1,5 +1,5 @@
 {
-  "version": "2.7.0",
+  "version": "2.7.1",
   "updated": "2026-07-18",
   "experimental": [
     "Deep Research v2 — multi-step research with source verification",
@@ -17,6 +17,11 @@
     "Knowledge Vault — save, search, and organize facts like a second brain"
   ],
   "whats_new": {
+    "2.7.1": [
+      "Fixed urllib import crash — synox providers no longer fail with 'name urllib is not defined'",
+      "Separated stdlib imports from httpx — bot starts even if httpx is missing",
+      "Added httpx availability guard in get_http()"
+    ],
     "2.7.0": [
       "Self-Evolving Skills — bot auto-creates new tools when it encounters unknown tasks",
       "Telegraph Articles — long AI responses published as clean Telegraph articles",
