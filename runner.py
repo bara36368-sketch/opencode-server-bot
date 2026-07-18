@@ -1,12 +1,24 @@
-import subprocess, time, os, sys, hashlib, glob, urllib.request, json
+import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging
 
 DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(DIR, "runner.log")
+logging.basicConfig(
+    filename=LOG_FILE, level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
 }
 CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
+MAX_RESTARTS = 5
+RESTART_WINDOW = 300
+
+def log(msg):
+    print(msg)
+    logging.info(msg)
 
 def file_hashes():
     h = {}
@@ -20,41 +32,43 @@ def file_hashes():
 
 def git_pull():
     try:
-        r = subprocess.run(["git", "pull"], cwd=DIR, capture_output=True, text=True, timeout=30)
-        if r.returncode == 0 and r.stdout and "Already up to date" not in r.stdout:
-            print(f"[runner] git pulled: {r.stdout.strip()}")
-            return True
+        subprocess.run(["git", "stash"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            log(f"[runner] git fetch failed: {r.stderr.strip()}")
+            return False
+        r = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=DIR, capture_output=True, text=True, timeout=30)
+        log(f"[runner] force pulled: {r.stdout.strip()}")
+        return r.returncode == 0
     except Exception as e:
-        print(f"[runner] git check failed: {e}")
+        log(f"[runner] git pull failed: {e}")
     return False
 
 def health_check():
     try:
         req = urllib.request.Request(HEALTH_URL, method="GET")
-        with urllib.request.urlopen(req, timeout=5) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:
             return r.status == 200
     except:
         return False
 
 def free_port(port):
     if os.name == 'nt':
+        subprocess.run(["taskkill", "/F", "/IM", "python*"], capture_output=True, timeout=5)
         return
     try:
-        r = subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True, timeout=5)
-        if r.returncode == 0:
-            print(f"[runner] freed port {port}")
+        subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True, timeout=5)
     except Exception:
         pass
     try:
-        r = subprocess.run(["pkill", "-f", "web_gateway.py"], capture_output=True, timeout=5)
-        if r.returncode == 0:
-            print(f"[runner] killed stale web_gateway process")
+        subprocess.run(["pkill", "-f", "web_gateway.py"], capture_output=True, timeout=5)
     except Exception:
         pass
 
 last_hashes = file_hashes()
 procs = {}
 first = True
+restart_times = []
 
 while True:
     for name, cmd in PROCESSES.items():
@@ -62,14 +76,16 @@ while True:
             if name == "web":
                 free_port(4357)
                 time.sleep(1)
-            print(f"[runner] starting {name}...")
+            log(f"[runner] starting {name}...")
             procs[name] = subprocess.Popen(cmd, cwd=DIR)
             if name == "web":
-                time.sleep(3)
-                if not health_check():
-                    print(f"[runner] ⚠ web gateway health check failed after start")
+                for _ in range(6):
+                    time.sleep(5)
+                    if health_check():
+                        log(f"[runner] ✓ web gateway healthy on {HEALTH_URL}")
+                        break
                 else:
-                    print(f"[runner] ✓ web gateway healthy on {HEALTH_URL}")
+                    log(f"[runner] ⚠ web gateway health check failed after start")
     if first:
         time.sleep(CHECK_INTERVAL)
         first = False
@@ -80,7 +96,7 @@ while True:
     current = file_hashes()
     for f, h in current.items():
         if last_hashes.get(f) != h:
-            print(f"[runner] change detected in {os.path.basename(f)}")
+            log(f"[runner] change detected in {os.path.basename(f)}")
             changed = True
     last_hashes = current
 
@@ -88,15 +104,24 @@ while True:
         changed = True
 
     if not health_check() and "web" in procs and procs["web"].poll() is not None:
-        print(f"[runner] web gateway not responding, marking for restart")
+        log(f"[runner] web gateway not responding, marking for restart")
         changed = True
 
     if changed:
-        print("[runner] update found, restarting...")
-        for p in procs.values():
-            p.terminate()
+        now = time.time()
+        restart_times = [t for t in restart_times if now - t < RESTART_WINDOW]
+        if len(restart_times) >= MAX_RESTARTS:
+            log(f"[runner] max restarts ({MAX_RESTARTS}) exceeded in {RESTART_WINDOW}s, sleeping 60s")
+            time.sleep(60)
+            restart_times.clear()
+        restart_times.append(now)
+        log("[runner] update found, restarting processes...")
+        proc_list = list(procs.values())
+        for p in proc_list:
+            try: p.terminate()
+            except: pass
         time.sleep(2)
-        for p in procs.values():
+        for p in proc_list:
             try: p.kill()
             except: pass
         procs.clear()

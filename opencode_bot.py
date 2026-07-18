@@ -2961,6 +2961,7 @@ async def main():
                         continue
                     result = await bf.vision_analyze(url, prompt)
                     await send(chat, result[:3500])
+                    continue
 
                 elif cmd == "/draw":
                     if len(parts) < 2:
