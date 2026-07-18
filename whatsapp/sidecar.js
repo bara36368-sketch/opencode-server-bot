@@ -43,10 +43,10 @@ async function start() {
     auth: state,
     printQRInTerminal: false,
     syncFullHistory: false,
-    emitOwnEvents: false,
-    browser: ["Chrome", "Linux", ""],
+    browser: ["Ubuntu", "Chrome", "120.0.6099.62"],
     generateHighQualityLinkPreview: false,
     markOnlineOnConnect: false,
+    connectTimeoutMs: 60000,
   });
 
   sock.ev.on("creds.update", saveCreds);
