@@ -17,27 +17,39 @@ async def get_http():
 # ── 1. IMAGE VISION ───────────────────────────────────────
 
 async def vision_analyze(photo_url, prompt="Describe this image in detail"):
-    models = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
-    for model in models:
-        try:
-            result = await _try_vision(model, photo_url, prompt)
-            if result:
-                return result
-        except Exception as e:
-            last_err = e
-    return f"Vision error: {last_err}"
-
-async def _try_vision(model, photo_url, prompt):
-    c = await get_http()
-    gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
     import base64
-    img_resp = await c.get(photo_url)
+    img_resp = await (await get_http()).get(photo_url)
     img_data = img_resp.content
     ct = img_resp.headers.get("content-type", "image/jpeg").split(";")[0]
     if len(img_data) > 4_000_000:
         img_data = img_data[:4_000_000]
+    b64 = base64.b64encode(img_data).decode("utf-8")
+    data_uri = f"data:{ct};base64,{b64}"
+
+    gemini_key = os.environ.get("GEMINI_KEY", "")
+    openai_key = os.environ.get("OPENAI_KEY", "")
+
+    models = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
+    for model in models:
+        if gemini_key and gemini_key not in ("", "set-via-env-var"):
+            try:
+                return await _try_gemini_vision(model, data_uri, prompt)
+            except Exception as e:
+                last_err = e
+        else:
+            last_err = Exception("no gemini key")
+    if openai_key and openai_key not in ("", "set-via-env-var"):
+        try:
+            return await _try_openai_vision(data_uri, prompt, openai_key)
+        except Exception as e:
+            last_err = e
+    return f"Vision error: {last_err}"
+
+async def _try_gemini_vision(model, data_uri, prompt):
+    c = await get_http()
+    gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
     parts = [
-        {"inline_data": {"mime_type": ct, "data": base64.b64encode(img_data).decode("utf-8")}},
+        {"inline_data": {"mime_type": data_uri.split(";")[0].split(":")[1], "data": data_uri.split("base64,")[1]}},
         {"text": prompt},
     ]
     r = await c.post(
@@ -60,6 +72,23 @@ async def _try_vision(model, photo_url, prompt):
     if "does not support image" in text.lower():
         raise Exception(f"{model}: {text}")
     return text or "No response"
+
+async def _try_openai_vision(data_uri, prompt, key):
+    c = await get_http()
+    r = await c.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": "gpt-4o-mini",
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": data_uri}}]}],
+            "max_tokens": 1024,
+        },
+        timeout=30,
+    )
+    data = r.json()
+    if r.status_code != 200:
+        raise Exception(f"openai: {data.get('error',{}).get('message','')[:300]}")
+    return data["choices"][0]["message"]["content"]
 
 async def get_photo_url(file_id):
     try:
