@@ -3692,6 +3692,21 @@ async def main():
                             lines.append(f"    \u2022 {c}")
                     await send(chat, "\n".join(lines))
 
+                elif cmd == "/update":
+                    ver_info = load_version()
+                    ver = ver_info.get("version", "unknown")
+                    updated = ver_info.get("updated", "unknown")
+                    changes = ver_info.get("whats_new", {}).get(ver, [])
+                    t = "big" if len(changes) >= 5 else ("mini" if len(changes) >= 2 else "patch")
+                    lines = [f"OpenCode Bot v{ver} ({updated})", ""]
+                    if changes:
+                        lines.append(f"{'🚀 BIG' if t == 'big' else '🟢 Mini' if t == 'mini' else '✨ Patch'} update:")
+                        for c in changes:
+                            lines.append(f"  \u2022 {c}")
+                    lines.append("")
+                    lines.append("/version for full changelog")
+                    await send(chat, "\n".join(lines))
+
                 elif cmd == "/stack":
                     if stack_ref is None:
                         await send(chat, "AI Stack Reference module not loaded.")
@@ -3781,7 +3796,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
