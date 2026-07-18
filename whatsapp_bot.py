@@ -19,7 +19,7 @@ async def send_msg(sock, jid, text):
     text = str(text)[:4000]
     cmd = json.dumps({"type": "send", "to": jid, "text": text}) + "\n"
     if sock.stdin:
-        sock.stdin.write(cmd)
+        sock.stdin.write(cmd.encode())
         await sock.stdin.drain()
     await asyncio.sleep(SEND_DELAY)
 
@@ -106,7 +106,7 @@ async def run(pair_phone=None):
             if pair_phone and not paired:
                 paired = True
                 cmd = json.dumps({"type": "pair", "phone": pair_phone}) + "\n"
-                sock.stdin.write(cmd)
+                sock.stdin.write(cmd.encode())
                 await sock.stdin.drain()
         elif t == "pair_code":
             code = msg.get("code", "")
