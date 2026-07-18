@@ -31,11 +31,13 @@ async def _try_vision(model, photo_url, prompt):
     c = await get_http()
     gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
     import base64
-    img_data = (await c.get(photo_url)).content
+    img_resp = await c.get(photo_url)
+    img_data = img_resp.content
+    ct = img_resp.headers.get("content-type", "image/jpeg").split(";")[0]
     if len(img_data) > 4_000_000:
         img_data = img_data[:4_000_000]
     parts = [
-        {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(img_data).decode("utf-8")}},
+        {"inline_data": {"mime_type": ct, "data": base64.b64encode(img_data).decode("utf-8")}},
         {"text": prompt},
     ]
     r = await c.post(
