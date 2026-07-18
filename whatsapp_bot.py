@@ -1,4 +1,4 @@
-import sys, os, json, asyncio, logging, time, base64
+import sys, os, json, asyncio, logging, time, base64, re
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(filename=os.path.join(DIR, "whatsapp.log"), level=logging.INFO,
@@ -70,7 +70,7 @@ async def handle_message(msg, sock):
         log(f"Error handling message: {e}")
         await send_msg(sock, jid, f"Error: {e}")
 
-async def run():
+async def run(pair_phone=None):
     loop = asyncio.get_event_loop()
     sock = await asyncio.create_subprocess_exec(
         *SIDECAR, stdin=asyncio.subprocess.PIPE,
@@ -81,6 +81,7 @@ async def run():
     reader = asyncio.create_task(read_stdout(sock, queue))
 
     log("Sidecar started.")
+    paired = False
 
     while True:
         msg = await queue.get()
@@ -102,6 +103,21 @@ async def run():
             log("WhatsApp connected!")
         elif t == "connecting":
             log("Connecting...")
+            if pair_phone and not paired:
+                paired = True
+                cmd = json.dumps({"type": "pair", "phone": pair_phone}) + "\n"
+                sock.stdin.write(cmd)
+                await sock.stdin.drain()
+        elif t == "pair_code":
+            code = msg.get("code", "")
+            print("\n" + "=" * 50, flush=True)
+            print("PAIRING CODE:", flush=True)
+            print("Open WhatsApp > Linked Devices > Link with Phone Number", flush=True)
+            print("Enter this code:", flush=True)
+            print("=" * 50, flush=True)
+            print(f"    {code}", flush=True)
+            print("=" * 50 + "\n", flush=True)
+            log(f"Pairing code: {code}")
         elif t == "close":
             reason = msg.get("reason", "unknown")
             log(f"Disconnected (reason: {reason}), reconnecting...")
@@ -125,9 +141,14 @@ async def run():
     await sock.wait()
 
 async def main():
+    pair_phone = None
+    if "--pair" in sys.argv:
+        idx = sys.argv.index("--pair")
+        if idx + 1 < len(sys.argv):
+            pair_phone = re.sub(r"\D", "", sys.argv[idx + 1])
     while True:
         try:
-            await run()
+            await run(pair_phone)
         except Exception as e:
             log(f"Fatal: {e}")
         log("Restarting in 5s...")

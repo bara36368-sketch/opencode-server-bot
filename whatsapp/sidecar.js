@@ -24,6 +24,12 @@ function startStdinReader(sock) {
           const text = cmd.text.slice(0, 4000);
           sock.sendMessage(jid, { text }).catch((e) => send({ type: "error", msg: e.message }));
         }
+        if (cmd.type === "pair") {
+          const phone = cmd.phone.replace(/\D/g, "");
+          sock.requestPairingCode(phone).then((code) => {
+            send({ type: "pair_code", code });
+          }).catch((e) => send({ type: "error", msg: "pair failed: " + e.message }));
+        }
       } catch (e) {
         send({ type: "error", msg: "invalid stdin command" });
       }
