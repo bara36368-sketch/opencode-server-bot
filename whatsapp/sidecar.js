@@ -57,7 +57,8 @@ async function start() {
       send({ type: "qr", qr });
     }
     if (connection === "open") {
-      send({ type: "ready" });
+      const me = sock.user?.id?.split(":")[0] || "";
+      send({ type: "ready", jid: me });
     }
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || DisconnectReason.loggedOut;

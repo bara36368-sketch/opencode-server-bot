@@ -104,6 +104,12 @@ async def run(pair_phone=None):
             log("QR displayed above")
         elif t == "ready":
             log("WhatsApp connected!")
+            my_jid = msg.get("jid", "")
+            if my_jid:
+                my_jid += "@s.whatsapp.net"
+                cmd = json.dumps({"type": "send", "to": my_jid, "text": "✅ Bot WhatsApp siap! Kirim pesan ke sini buat chat AI."}) + "\n"
+                sock.stdin.write(cmd.encode())
+                await sock.stdin.drain()
         elif t == "connecting":
             log("Connecting...")
             if pair_phone and not paired:
