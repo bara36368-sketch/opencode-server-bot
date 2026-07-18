@@ -17,29 +17,47 @@ async def get_http():
 # ── 1. IMAGE VISION ───────────────────────────────────────
 
 async def vision_analyze(photo_url, prompt="Describe this image in detail"):
-    try:
-        c = await get_http()
-        gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
-        import base64
-        img_data = (await c.get(photo_url)).content
-        parts = [
-            {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(img_data).decode("utf-8")}},
-            {"text": prompt},
-        ]
-        r = await c.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}",
-            json={"contents": [{"parts": parts}]},
-            timeout=30,
-        )
-        if r.status_code == 200:
-            data = r.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                return candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "No response")
-            return str(data)
-        return f"Vision error: {r.status_code} - {r.text[:300]}"
-    except Exception as e:
-        return f"Vision error: {e}"
+    models = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
+    for model in models:
+        try:
+            result = await _try_vision(model, photo_url, prompt)
+            if result:
+                return result
+        except Exception as e:
+            last_err = e
+    return f"Vision error: {last_err}"
+
+async def _try_vision(model, photo_url, prompt):
+    c = await get_http()
+    gemini_key = os.environ.get("GEMINI_KEY", "set-via-env-var")
+    import base64
+    img_data = (await c.get(photo_url)).content
+    if len(img_data) > 4_000_000:
+        img_data = img_data[:4_000_000]
+    parts = [
+        {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(img_data).decode("utf-8")}},
+        {"text": prompt},
+    ]
+    r = await c.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}",
+        json={"contents": [{"parts": parts}]},
+        timeout=30,
+    )
+    data = r.json()
+    if r.status_code != 200:
+        msg = data.get("error", {}).get("message", "") or r.text[:300]
+        raise Exception(f"{model}: {msg}")
+    candidates = data.get("candidates", [])
+    if not candidates:
+        raise Exception(f"{model}: no candidates - {json.dumps(data)[:300]}")
+    finish = candidates[0].get("finishReason", "")
+    if finish == "BLOCKED":
+        block = candidates[0].get("blockReason", "unknown")
+        raise Exception(f"{model}: blocked ({block})")
+    text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+    if "does not support image" in text.lower():
+        raise Exception(f"{model}: {text}")
+    return text or "No response"
 
 async def get_photo_url(file_id):
     try:
