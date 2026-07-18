@@ -1,7 +1,6 @@
 {
-  "version": "2.4.0",
+  "version": "2.7.0",
   "updated": "2026-07-18",
-  "big_update": true,
   "experimental": [
     "Deep Research v2 — multi-step research with source verification",
     "Voice Cloning — clone any voice from a short audio sample",
@@ -12,9 +11,27 @@
     "AI Image Editor — edit images with natural language",
     "Smart Search v2 — enhanced search with AI summarization",
     "Knowledge Graph — build a personal knowledge graph",
-    "Realtime Collaboration — share sessions with other users"
+    "Realtime Collaboration — share sessions with other users",
+    "Streaming Responses — bot types word-by-word as AI generates",
+    "Economy System — virtual currency, work, shop, pay friends",
+    "Knowledge Vault — save, search, and organize facts like a second brain"
   ],
   "whats_new": {
+    "2.7.0": [
+      "Self-Evolving Skills — bot auto-creates new tools when it encounters unknown tasks",
+      "Telegraph Articles — long AI responses published as clean Telegraph articles",
+      "Forum Topic Sessions — each Telegram forum topic gets its own independent AI session"
+    ],
+    "2.6.0": [
+      "Streaming Responses — bot types response word-by-word as AI generates (like ChatGPT)",
+      "Economy System — /balance, /work, /shop, /pay @user virtual currency system",
+      "Knowledge Vault — /vault save, /vault search, /vault list — your personal second brain"
+    ],
+    "2.5.0": [
+      "Mini Games Suite — /trivia, /wordle, /hangman, /slots, /riddle — play while you chat",
+      "Cross-Device Notes — /save, /notes, /find — synced notes accessible anywhere",
+      "Daily Briefing — auto-send morning summary with news, weather, tasks at configured time"
+    ],
     "2.4.0": [
       "Web Admin Dashboard — real-time stats, provider status, bot control at /admin",
       "/weather <city> — weather forecast via wttr.in (free, no API key needed)",

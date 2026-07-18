@@ -1617,33 +1617,45 @@ async def announce_update(old_v, new_v, changes, state):
         pass
     known_chats.discard(0)
     ver_info = load_version()
-    is_big = ver_info.get("big_update", False)
     exp_features = ver_info.get("experimental", [])
+    total = len(changes) + len(exp_features)
+    if total < 2:
+        update_type = "patch"
+    elif total <= 4:
+        update_type = "mini"
+    else:
+        update_type = "big"
     lines = []
-    if is_big:
+    if update_type == "big":
         lines.append("🚀 ==============================")
         lines.append("   BIG UPDATE INCOMING!")
         lines.append("   ==============================")
         lines.append("")
         lines.append(f"  v{old_v} → v{new_v}")
         lines.append("")
-    else:
-        lines.append(f"✨ OpenCode Bot Updated!")
+    elif update_type == "mini":
+        lines.append("🟢 Mini Update!")
         lines.append(f"  v{old_v} → v{new_v}")
         lines.append("")
+    else:
+        lines.append(f"✨ Patch v{new_v}")
+        lines.append("")
     if changes:
-        lines.append("🆕 What's New:")
+        if update_type == "big":
+            lines.append("🆕 What's New:")
+        else:
+            lines.append(f"🆕 {len(changes)} New Feature{'s' if len(changes) > 1 else ''}:")
         lines.append("")
         for i, c in enumerate(changes, 1):
             lines.append(f"  {i}. {c}")
         lines.append("")
     if exp_features:
-        lines.append("🧪 Experimental Features (NEW!):")
+        lines.append(f"🧪 Experimental ({len(exp_features)}):")
         lines.append("")
         for i, ef in enumerate(exp_features, 1):
             lines.append(f"  {i}. {ef}")
         lines.append("")
-        lines.append("  Use /experimental to enable these features!")
+        lines.append("  Use /experimental to enable!")
         lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("")
@@ -1666,7 +1678,7 @@ async def announce_update(old_v, new_v, changes, state):
                 await asyncio.sleep(0.1)
         except:
             pass
-    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (big={is_big})")
+    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (type={update_type}, features={total})")
     save_version_state(state)
     return state
 

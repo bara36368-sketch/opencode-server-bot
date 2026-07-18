@@ -69,6 +69,48 @@
       "version": "2.4.0",
       "enabled": false,
       "category": "social"
+    },
+    "self-evolving-skills": {
+      "name": "Self-Evolving Skills",
+      "desc": "Bot auto-creates new tools and skills when it encounters unknown tasks",
+      "version": "2.7.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "telegraph-articles": {
+      "name": "Telegraph Articles",
+      "desc": "Long AI responses published as clean, readable Telegraph articles",
+      "version": "2.7.0",
+      "enabled": false,
+      "category": "media"
+    },
+    "forum-topic-sessions": {
+      "name": "Forum Topic Sessions",
+      "desc": "Each Telegram forum topic gets its own independent AI session and memory",
+      "version": "2.7.0",
+      "enabled": false,
+      "category": "social"
+    },
+    "streaming-responses": {
+      "name": "Streaming Responses",
+      "desc": "Bot types response word-by-word as AI generates, like ChatGPT",
+      "version": "2.6.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "economy-system": {
+      "name": "Economy System",
+      "desc": "Virtual currency: earn, spend, trade with /balance, /work, /shop, /pay",
+      "version": "2.6.0",
+      "enabled": false,
+      "category": "social"
+    },
+    "knowledge-vault": {
+      "name": "Knowledge Vault",
+      "desc": "Personal second brain: save facts, search notes, organize knowledge with AI",
+      "version": "2.6.0",
+      "enabled": false,
+      "category": "ai"
     }
   }
 }
