@@ -27,7 +27,7 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
             {"text": prompt},
         ]
         r = await c.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}",
             json={"contents": [{"parts": parts}]},
             timeout=30,
         )
