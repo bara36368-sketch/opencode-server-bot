@@ -1759,12 +1759,7 @@ async def main():
         state = await announce_update(old_ver, ver, changes, state)
     else:
         state["last_version"] = ver
-        changes = version_info.get("whats_new", {}).get(ver, [])
-        if changes:
-            state.setdefault("notified_chats", {}).pop(ver, None)
-            state = await announce_update(old_ver, ver, changes, state)
-        else:
-            save_version_state(state)
+        save_version_state(state)
     log(f"OpenCode Bot v{ver} started")
 
     await gateway.start_worker()
