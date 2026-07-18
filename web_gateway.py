@@ -408,6 +408,7 @@ def _load_providers():
     PROVIDERS.setdefault("g4f", {"url": "g4f", "model": "auto", "key": "skip-auth"})
     PROVIDERS.setdefault("hy3", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": _resolve_key("hy3", "not configured")})
     PROVIDERS.setdefault("hy3-preview", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": _resolve_key("hy3-preview", "not configured")})
+    PROVIDERS.setdefault("freetokenfaucet", {"url": "https://freetokenfaucet.com/v1/chat/completions", "model": "gpt-4o-mini", "key": "tf_ae094ac3d7fd4a73b8d1f40bf5f2d5f4"})
     if "omniroute" in PROVIDERS:
         if os.environ.get("OMNIROUTE_URL"):
             PROVIDERS["omniroute"]["url"] = os.environ.get("OMNIROUTE_URL")

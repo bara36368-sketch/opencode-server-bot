@@ -1256,6 +1256,11 @@ PROVIDERS = {
         "model": "glm-5.1",
         "key": os.environ.get("FREETHEAI_KEY", "set-via-env-var")
     },
+    "freetokenfaucet": {
+        "url": "https://freetokenfaucet.com/v1/chat/completions",
+        "model": "gpt-4o-mini",
+        "key": "tf_ae094ac3d7fd4a73b8d1f40bf5f2d5f4"
+    },
 }
 
 if os.path.exists(PROVIDERS_FILE):
