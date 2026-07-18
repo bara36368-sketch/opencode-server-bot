@@ -1275,6 +1275,140 @@ async def handle_chat(method, path, headers, body, params):
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     })
 
+# ---- Admin Dashboard ----
+
+ADMIN_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenCode Bot — Admin Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.header{background:linear-gradient(135deg,#161b22 0%,#1c2333 100%);border-bottom:1px solid #30363d;padding:20px 30px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:22px;color:#58a6ff}
+.header .nav{display:flex;gap:12px}
+.header .nav a{color:#8b949e;text-decoration:none;padding:6px 14px;border-radius:6px;font-size:13px;border:1px solid #30363d;transition:.2s}
+.header .nav a:hover,.header .nav a.active{background:#21262d;color:#58a6ff;border-color:#58a6ff}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px}
+.card h3{font-size:14px;color:#8b949e;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.card .big{font-size:36px;font-weight:700;color:#58a6ff}
+.card .sub{font-size:12px;color:#8b949e;margin-top:4px}
+.card .list{list-style:none}
+.card .list li{padding:6px 0;border-bottom:1px solid #21262d;font-size:13px}
+.card .list li:last-child{border:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-green{background:#1a3a2a;color:#3fb950}
+.badge-red{background:#3a1a1a;color:#f85149}
+.badge-yellow{background:#3a3a1a;color:#d29922}
+.badge-blue{background:#1a2a3a;color:#58a6ff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+table th{text-align:left;padding:8px 12px;border-bottom:2px solid #30363d;color:#8b949e;font-size:11px;text-transform:uppercase}
+table td{padding:8px 12px;border-bottom:1px solid #21262d}
+table tr:hover td{background:#1c2128}
+.btn{padding:6px 14px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;cursor:pointer;font-size:12px;transition:.2s}
+.btn:hover{border-color:#58a6ff;color:#58a6ff}
+.btn-danger{border-color:#f85149;color:#f85149}
+.btn-danger:hover{background:#3a1a1a}
+.btn-success{border-color:#3fb950;color:#3fb950}
+.section{margin-bottom:24px}
+.section h2{font-size:16px;color:#c9d1d9;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #21262d}
+.toast{position:fixed;bottom:20px;right:20px;background:#161b22;border:1px solid #30363d;padding:10px 20px;border-radius:8px;font-size:13px;z-index:100;opacity:0;transition:.3s}
+.toast.show{opacity:1}
+.spinner{width:20px;height:20px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-btn{cursor:pointer;opacity:.6;transition:.2s}
+.refresh-btn:hover{opacity:1}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.container{padding:10px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>OpenCode Bot — Admin Dashboard</h1>
+  <div class="nav">
+    <a href="/admin" class="active">Dashboard</a>
+    <a href="/">Chat</a>
+    <a href="/workflow">Workflows</a>
+  </div>
+</div>
+<div class="container">
+  <div class="grid" id="stats-grid">
+    <div class="card"><h3>Total Users</h3><div class="big" id="stat-users">--</div><div class="sub">Active users</div></div>
+    <div class="card"><h3>Total Requests</h3><div class="big" id="stat-requests">--</div><div class="sub">All time</div></div>
+    <div class="card"><h3>Bot Status</h3><div class="big" id="stat-bot">--</div><div class="sub" id="stat-bot-detail"></div></div>
+    <div class="card"><h3>Providers</h3><div class="big" id="stat-providers">--</div><div class="sub">Configured AI providers</div></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3>Providers <span class="refresh-btn" onclick="loadData()" title="Refresh">↻</span></h3>
+      <table><thead><tr><th>Provider</th><th>Model</th><th>Status</th><th>Requests</th></tr></thead>
+      <tbody id="provider-table"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <h3>Top Agents</h3>
+      <ul class="list" id="agent-list"><li>Loading...</li></ul>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3>Recent Activity</h3>
+      <ul class="list" id="activity-list"><li>Loading...</li></ul>
+    </div>
+    <div class="card">
+      <h3>System Info</h3>
+      <ul class="list" id="system-list"><li>Loading...</li></ul>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+async function loadData(){
+  try{
+    const[provRes,statusRes]=await Promise.all([fetch('/api/providers'),fetch('/api/bot/status')]);
+    const provs=await provRes.json();
+    const status=await statusRes.json();
+    const configured=provs.filter(p=>p.configured!==false);
+    document.getElementById('stat-providers').textContent=configured.length+'/'+provs.length;
+    document.getElementById('stat-bot').textContent=status.running?'ONLINE':'OFFLINE';
+    document.getElementById('stat-bot').style.color=status.running?'#3fb950':'#f85149';
+    document.getElementById('stat-bot-detail').textContent=status.pid?'PID: '+status.pid:'Not running';
+    const pt=document.getElementById('provider-table');
+    pt.innerHTML='';
+    provs.forEach(p=>{
+      const tr=document.createElement('tr');
+      const configured=p.configured!==false;
+      tr.innerHTML='<td>'+p.name+'</td><td style="font-size:11px;color:#8b949e">'+p.model+'</td><td>'+(configured?'<span class="badge badge-green">OK</span>':'<span class="badge badge-red">No Key</span>')+'</td><td>'+(p.requests||0)+'</td>';
+      pt.appendChild(tr);
+    });
+  }catch(e){document.getElementById('provider-table').innerHTML='<tr><td colspan=4>Error: '+e.message+'</td></tr>'}
+  try{
+    const r=await fetch('/api/bot/logs?count=5');
+    const d=await r.json();
+    const al=document.getElementById('activity-list');
+    al.innerHTML='';
+    const logs=(d.logs||[]).slice(-8).reverse();
+    if(!logs.length){al.innerHTML='<li>No recent activity</li>';return}
+    logs.forEach(l=>{const li=document.createElement('li');li.textContent=l;al.appendChild(li)});
+  }catch(e){}
+  try{
+    const sl=document.getElementById('system-list');
+    sl.innerHTML='';
+    const info=[['Version','v2.4.0'],['Uptime',new Date().toLocaleString()],['Memory',''+(performance.memory?Math.round(performance.memory.usedJSHeapSize/1048576)+'MB':'N/A')],['Platform',navigator.platform]];
+    info.forEach(([k,v])=>{const li=document.createElement('li');li.innerHTML='<strong>'+k+':</strong> '+v;sl.appendChild(li)});
+  }catch(e){}
+}
+loadData();
+setInterval(loadData,10000);
+</script>
+</body></html>"""
+
+@route("GET", "/admin")
+async def handle_admin(method, path, headers, body, params):
+    return html_response(ADMIN_HTML)
+
 # ---- MCP Routes ----
 
 @route("POST", "/mcp")
@@ -1311,6 +1445,33 @@ async def handle_mcp_sse(method, path, headers, body, params):
 async def handle_mcp_tools(method, path, headers, body, params):
     return json_response({"tools": MCP_TOOLS})
 
+@route("GET", "/api/admin/stats")
+async def handle_admin_stats(method, path, headers, body, params):
+    usage_file = os.path.join(BASE_DIR, "usage_stats.json")
+    usage = {}
+    if os.path.exists(usage_file):
+        try:
+            with open(usage_file) as f:
+                usage = json.load(f)
+        except: pass
+    total_users = len(usage)
+    total_requests = sum(u.get("total_requests", 0) for u in usage.values())
+    top_agents = {}
+    top_providers = {}
+    for uid, u in usage.items():
+        for a, c in u.get("agents", {}).items():
+            top_agents[a] = top_agents.get(a, 0) + c
+        for p, c in u.get("providers", {}).items():
+            top_providers[p] = top_providers.get(p, 0) + c
+    return json_response({
+        "total_users": total_users,
+        "total_requests": total_requests,
+        "top_agents": sorted(top_agents.items(), key=lambda x: -x[1])[:10],
+        "top_providers": sorted(top_providers.items(), key=lambda x: -x[1])[:10],
+        "providers_total": len(PROVIDERS),
+        "providers_configured": len([p for p in PROVIDERS.values() if p.get("key", "") not in ("", "not configured", "set-via-env-var")]),
+    })
+
 # ---- Server ----
 
 async def _serve(host, port):
@@ -1318,6 +1479,7 @@ async def _serve(host, port):
     addr = server.sockets[0].getsockname()
     print(f"Gateway running on http://{addr[0]}:{addr[1]}")
     print(f"Chat: http://{addr[0]}:{addr[1]}/")
+    print(f"Admin Dashboard: http://{addr[0]}:{addr[1]}/admin")
     print(f"Workflow Builder: http://{addr[0]}:{addr[1]}/workflow")
     print(f"MCP Endpoint: POST http://{addr[0]}:{addr[1]}/mcp (JSON-RPC 2.0)")
     print(f"MCP SSE: http://{addr[0]}:{addr[1]}/mcp/sse")

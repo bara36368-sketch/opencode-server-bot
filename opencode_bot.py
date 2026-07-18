@@ -1739,6 +1739,8 @@ async def main():
                         "  /version — Show version and changelog",
                         "  /stack — 2026 AI Infrastructure Reference",
                         "  /webgateway — Web AI Gateway status + URL",
+                        "  /weather <city> — Weather forecast",
+                        "  /dailydigest — Daily summary",
                     ]
                     if is_owner or is_admin or is_mod:
                         lines += [
@@ -1747,6 +1749,8 @@ async def main():
                             "  /addprovider — Add a provider",
                             "  /createagent — AI creates an agent",
                             "  /repair — Reset provider health",
+                            "  /backup — Backup all data",
+                            "  /restore — Restore from backup",
                         ]
                     if is_owner:
                         lines += [
@@ -1797,6 +1801,7 @@ async def main():
                             "/fetch <url> — Fetch & summarize any URL",
                             "/translate <src>:<tgt> <text> — Translate",
                             "/run python|js <code> — Sandboxed code exec",
+                            "/weather <city> — Weather forecast",
                         ]),
                         ("DATA", [
                             "/doc — List indexed docs",
@@ -1807,6 +1812,7 @@ async def main():
                             "/tokens — FreeTokenFaucet balance",
                             "/tokens set <amount> — Set balance",
                             "/tokens claim <amount> — Record daily claim",
+                            "/dailydigest — Daily summary with stats",
                         ]),
                         ("AUTOMATION", [
                             "/schedule add|list|remove — Recurring AI tasks",
@@ -1831,7 +1837,7 @@ async def main():
                             "/version — Show version and changelog",
                             "/stack — 2026 AI Infrastructure Reference (10 layers)",
                             "/stackstatus — Live status of all 10 AI stack layers",
-                            "/webgateway — Web gateway status",
+                            "/webgateway — Web gateway status + admin dashboard",
                             "/toolfk — 200+ free utilities",
                             "/synoxcloud — 434 tools + 52 AI models",
                             "/stats — Your usage stats",
@@ -1858,6 +1864,8 @@ async def main():
                         lines.append("  /createagent <desc> — AI creates agent")
                         lines.append("  /addprompt <agent> <prompt> — Set agent prompt")
                         lines.append("  /repair — Reset provider health")
+                        lines.append("  /backup — Backup all data to zip")
+                        lines.append("  /restore — Restore from backup (reply to zip)")
                         lines.append("  /pyrit <mode> <objective> — Red-team attack")
                     if is_owner:
                         lines.append("  /addadmin <id> — Add admin")
@@ -3196,6 +3204,132 @@ async def main():
                     global_stats = bf.get_global_stats()
                     await send(chat, f"Global: {global_stats['total_users']} users, {global_stats['total_requests']} requests, {global_stats['total_tokens']} tokens")
 
+                elif cmd == "/weather":
+                    city = " ".join(parts[1:]) if len(parts) > 1 else ""
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        if city:
+                            r = await c.get(f"https://wttr.in/{city}?format=%C+%t+%h+%w&lang=en", timeout=10)
+                        else:
+                            r = await c.get("https://wttr.in?format=%C+%t+%h+%w", timeout=10)
+                        if r.status_code == 200:
+                            weather_text = r.text.strip()
+                            r2 = await c.get(f"https://wttr.in/{city or ''}?format=3", timeout=10)
+                            header = r2.text.strip() if r2.status_code == 200 else ""
+                            r3 = await c.get(f"https://wttr.in/{city or ''}?format=%C+%t+Feels+like+%f+Wind:%w+Humidity:%h+UV:%u+Visibility:%V", timeout=10)
+                            details = r3.text.strip() if r3.status_code == 200 else weather_text
+                            lines = [f"Weather {header}", details]
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, f"Weather error: HTTP {r.status_code}")
+                    except Exception as e:
+                        await send(chat, f"Weather error: {e}")
+
+                elif cmd == "/backup":
+                    if not is_owner and not is_admin:
+                        await send(chat, "Owner/Admin only.")
+                        continue
+                    await typing(chat)
+                    try:
+                        import zipfile, io as _bio
+                        buf = _bio.BytesIO()
+                        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+                            data_files = [
+                                "agents.json", "providers.json", "premade_skills.json",
+                                "teams.json", "sessions.json", "admins.json", "mods.json",
+                                "agent_providers.json", "routines.json", "multi_sessions.json",
+                                "memory.json", "token_usage.json", "mods.json",
+                                "schedule.json", "reminders.json", "usage_stats.json",
+                                "version.json", "workflows.json",
+                            ]
+                            for fname in data_files:
+                                fpath = os.path.join(os.path.dirname(__file__), fname)
+                                if os.path.exists(fpath):
+                                    zf.write(fpath, fname)
+                            backups_dir = os.path.join(os.path.dirname(__file__), "backups")
+                            os.makedirs(backups_dir, exist_ok=True)
+                            backup_name = f"backup_{int(time.time())}.zip"
+                            backup_path = os.path.join(backups_dir, backup_name)
+                            with open(backup_path, "wb") as bf:
+                                bf.write(buf.getvalue())
+                            buf.seek(0)
+                            await tg("sendDocument", {
+                                "chat_id": chat,
+                                "document": ("backup.zip", buf.getvalue()),
+                                "caption": f"Backup: {len(data_files)} files, {len(buf.getvalue())} bytes"
+                            })
+                            await send(chat, f"Backup saved: {backup_name}")
+                    except Exception as e:
+                        await send(chat, f"Backup error: {e}")
+
+                elif cmd == "/restore":
+                    if not is_owner and not is_admin:
+                        await send(chat, "Owner/Admin only.")
+                        continue
+                    if not msg.get("reply_to_message") or not msg["reply_to_message"].get("document"):
+                        await send(chat, "Reply to a backup.zip file with /restore")
+                        continue
+                    await typing(chat)
+                    try:
+                        file_id = msg["reply_to_message"]["document"]["file_id"]
+                        c = await get_http()
+                        r = await c.get(f"https://api.telegram.org/bot{TOKEN}/getFile?file_id={file_id}")
+                        data = r.json()
+                        if not data.get("ok"):
+                            await send(chat, "Could not fetch backup file.")
+                            continue
+                        path = data["result"]["file_path"]
+                        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{path}"
+                        zip_data = (await c.get(file_url)).content
+                        import zipfile, io as _bio
+                        zf = zipfile.ZipFile(_bio.BytesIO(zip_data))
+                        restored = []
+                        for name in zf.namelist():
+                            if name.endswith(".json"):
+                                target = os.path.join(os.path.dirname(__file__), name)
+                                with open(target, "wb") as f:
+                                    f.write(zf.read(name))
+                                restored.append(name)
+                        zf.close()
+                        await send(chat, f"Restored {len(restored)} files:\n" + "\n".join(f"  {n}" for n in restored) + "\nRestart bot with /start to apply.")
+                    except Exception as e:
+                        await send(chat, f"Restore error: {e}")
+
+                elif cmd == "/dailydigest":
+                    await typing(chat)
+                    try:
+                        usage = bf.get_global_stats()
+                        top_agents = ", ".join(f"{a}({c})" for a, c in usage.get("top_agents", [])[:5]) or "none"
+                        top_providers = ", ".join(f"{p}({c})" for p, c in usage.get("top_providers", [])[:5]) or "none"
+                        c = await get_http()
+                        r = await c.get("https://wttr.in?format=%C+%t+%h+%w", timeout=10)
+                        weather = r.text.strip() if r.status_code == 200 else "N/A"
+                        r2 = await c.get("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", timeout=10)
+                        headlines = []
+                        if r2.status_code == 200:
+                            headlines = re.findall(r"<title>(.*?)</title>", r2.text)[1:6]
+                        lines = [
+                            f"Daily Digest — {time.strftime('%Y-%m-%d %H:%M')}",
+                            "",
+                            f"Weather: {weather}",
+                            "",
+                            f"Bot Stats:",
+                            f"  Users: {usage['total_users']}",
+                            f"  Requests: {usage['total_requests']}",
+                            f"  Top agents: {top_agents}",
+                            f"  Top providers: {top_providers}",
+                        ]
+                        if headlines:
+                            lines += ["", "Headlines:"]
+                            for i, h in enumerate(headlines, 1):
+                                lines.append(f"  {i}. {h[:80]}")
+                        remaining = token_usage["balance"] - token_usage["used"]
+                        lines += ["", f"Token balance: {remaining:,} remaining"]
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"Digest error: {e}")
+
                 elif cmd == "/tokens":
                     if len(parts) < 2:
                         # Show token status
@@ -3373,7 +3507,7 @@ async def main():
 
                 elif cmd == "/webgateway":
                     gw_port = int(os.environ.get("WEB_GATEWAY_PORT", "4357"))
-                    lines = [f"Web AI Gateway: http://localhost:{gw_port}"]
+                    lines = [f"Web AI Gateway: http://localhost:{gw_port}", f"Admin Dashboard: http://localhost:{gw_port}/admin"]
                     try:
                         async with aiohttp.ClientSession() as s:
                             r = await s.get(f"http://127.0.0.1:{gw_port}/api/providers", timeout=5)
@@ -3386,7 +3520,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
