@@ -76,8 +76,9 @@ async function start() {
   });
 
   sock.ev.on("messages.upsert", ({ messages }) => {
+    const me = sock.user?.id?.split(":")[0] + "@s.whatsapp.net" || "";
     for (const m of messages) {
-      if (m.key.fromMe) continue;
+      if (m.key.fromMe && m.key.remoteJid !== me) continue;
       if (m.key.remoteJid.endsWith("@broadcast")) continue;
       const text =
         m.message?.conversation ||
@@ -91,6 +92,7 @@ async function start() {
         pushName: m.pushName || "",
         text: text.trim(),
         isGroup: m.key.remoteJid.endsWith("@g.us"),
+        fromMe: m.key.fromMe || false,
       });
     }
   });

@@ -50,6 +50,7 @@ def pick_provider():
 async def handle_message(msg, sock):
     jid = msg["from"]
     text = msg["text"]
+    is_self = msg.get("fromMe", False)
     push = msg.get("pushName", "")
     log(f"Msg from {jid} ({push}): {text[:60]}")
 
