@@ -90,20 +90,18 @@ def git_update():
             default_branch = ref.replace("refs/remotes/", "")
         r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
         new_commits = [l for l in r.stdout.strip().split("\n") if l.strip()]
-        if new_commits:
-            log(f"remote has {len(new_commits)} new commit(s):", "git")
-            for c in new_commits:
-                log(f"  {c}", "git")
-        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        r2 = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        new_head = r2.stdout.strip()
-        if new_head == old_head:
+        if not new_commits:
             return False
-        r3 = subprocess.run(["git", "log", "--oneline", "-3"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        merged = [l for l in r3.stdout.strip().split("\n") if l.strip()]
-        log(f"merged {old_head[:8]} → {new_head[:8]} ({len(merged)} commits)", "git")
-        for c in merged:
-            log(f"  └ {c}", "git")
+        log("update detected", "git")
+        for c in new_commits:
+            log(f"  {c}", "git")
+        log("pulling...", "git")
+        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
+        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        new_head = r2.stdout.strip()
+        if new_head == old_head[:len(new_head)]:
+            return False
+        log(f"success ({new_head}) is pulled!", "git")
         return True
     except Exception as e:
         log(f"update failed: {e}", "git")
