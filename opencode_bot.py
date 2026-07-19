@@ -1699,8 +1699,10 @@ async def smart_call(messages, preferred):
         return await call_provider(messages, "__agent_provider__", override=ap)
     return await gateway.execute(messages, preferred)
 
+_empty_polls = 0
+
 async def poll():
-    global last_update
+    global last_update, _empty_polls
     _dbg("I0")
     p = {"timeout": 15, "allowed_updates": ["message"]}
     if last_update:
@@ -1711,6 +1713,9 @@ async def poll():
             _dbg("I1")
             r = (await c.get(f"{TG_API}/getUpdates", params=p, timeout=20)).json()
             _dbg("I2")
+            if not r.get("ok"):
+                _dbg(f"Ie_api:{r}")
+                return []
             for u in r.get("result", []):
                 last_update = u["update_id"]
             try:
@@ -1720,6 +1725,14 @@ async def poll():
                 pass
             result = r.get("result", [])
             _dbg(f"I3={len(result)}")
+            if result:
+                _empty_polls = 0
+            else:
+                _empty_polls += 1
+                if _empty_polls > 6:
+                    _dbg("I_reset_offset")
+                    last_update = 0
+                    _empty_polls = 0
             return result
         except Exception as e:
             _dbg(f"Ie:{type(e).__name__}")
@@ -1998,7 +2011,13 @@ async def main():
     try:
         c = await get_http()
         r = await c.post(f"{TG_API}/deleteWebhook", timeout=10)
-        _dbg(f"Fw={r.json().get('ok')}")
+        d = r.json()
+        _dbg(f"Fw={d.get('ok')}")
+        try:
+            r2 = await c.get(f"{TG_API}/getWebhookInfo", timeout=10)
+            _dbg(f"Fwh={r2.json().get('result',{}).get('url','none')}")
+        except:
+            _dbg("Fwh_fail")
     except:
         _dbg("Fw_fail")
     log("Bot started")
