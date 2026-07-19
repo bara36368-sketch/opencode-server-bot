@@ -3389,7 +3389,7 @@ async def main():
                             if not results:
                                 await send(chat, "No results.")
                                 continue
-                            lines = [f"🔍 Notion search results for '{query}':"]
+                            lines = [f" Notion search results for '{query}':"]
                             for r in results[:10]:
                                 title = "untitled"
                                 props = r.get("properties", {})
@@ -3641,16 +3641,62 @@ async def main():
 
                 elif cmd == "/search":
                     if len(parts) < 2:
-                        await send(chat, "Usage: /search <query>\nExample: /search latest AI news 2026")
+                        if is_experimental_enabled("enhanced-search"):
+                            await send(chat, "Usage:\n  /search tags <tag>\n  /search files <keyword>\n  /search history <keyword>\n  /search web <query>")
+                        else:
+                            await send(chat, "Usage: /search <query>\nExample: /search latest AI news 2026")
                         continue
-                    q = " ".join(parts[1:])
-                    await typing(chat)
-                    results = await bf.web_search(q)
-                    reply = await smart_call([
-                        {"role": "system", "content": "Summarize these web search results concisely, highlighting key findings."},
-                        {"role": "user", "content": f"Search query: {q}\n\n{results}"},
-                    ], active_provider)
-                    await send(chat, f"ðŸ” Search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1000]}")
+                    mode = parts[1].lower()
+                    if is_experimental_enabled("enhanced-search") and mode == "tags":
+                        query = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not query:
+                            await send(chat, "Usage: /search tags <tag>")
+                            continue
+                        results = [(cid, tag, count) for cid, tags in conversation_tags.items() for tag, count in tags.items() if query in tag]
+                        if not results:
+                            await send(chat, f"No chats found for tag '{query}'")
+                        else:
+                            results.sort(key=lambda x: -x[2])
+                            lines = [f"Results for tag '{query}':"]
+                            for cid, tag, count in results[:15]:
+                                lines.append(f"  Chat {cid} - #{tag} ({count}x)")
+                            await send(chat, "\n".join(lines))
+                    elif is_experimental_enabled("enhanced-search") and mode == "files":
+                        query = " ".join(parts[2:]).lower() if len(parts) > 2 else ""
+                        if not query:
+                            await send(chat, "Usage: /search files <keyword>")
+                            continue
+                        results = [(cid, f.get("name","unnamed"), f.get("content","")[:80]) for cid, files in context_files.items() for f in files if query in f.get("name","").lower() or query in f.get("content","").lower()]
+                        if not results:
+                            await send(chat, f"No attached files matching '{query}'")
+                        else:
+                            lines = [f"Files matching '{query}' ({len(results)}):"]
+                            for cid, fname, preview in results[:10]:
+                                lines.append(f"  {fname} ({'this chat' if cid==str(chat) else 'Chat '+cid}): {preview}")
+                            await send(chat, "\n".join(lines))
+                    elif is_experimental_enabled("enhanced-search") and mode == "history":
+                        query = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not query:
+                            await send(chat, "Usage: /search history <keyword>")
+                            continue
+                        uid = msg["from"]["id"]
+                        matches = [m for m in sessions.get(uid, []) if query.lower() in m.get("content","").lower() and m["role"]!="system"]
+                        if matches:
+                            lines = [f"Found {len(matches)} in session:"]
+                            for m in matches[-5:]:
+                                lines.append(f"  [{m['role']}]: {m.get('content','')[:200]}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "No matches in session.")
+                    else:
+                        q = " ".join(parts[1:])
+                        await typing(chat)
+                        results = await bf.web_search(q)
+                        reply = await smart_call([
+                            {"role": "system", "content": "Summarize these web search results concisely, highlighting key findings."},
+                            {"role": "user", "content": f"Search query: {q}\n\n{results}"},
+                        ], active_provider)
+                        await send(chat, f"Search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1000]}")
 
                 elif cmd == "/youtube":
                     if len(parts) < 2:
