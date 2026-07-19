@@ -782,6 +782,20 @@ def load_experimental():
                 experimental_features = data.get("features", {})
         except:
             experimental_features = {}
+    defaults = {
+        "custom-commands": {"name": "Custom Commands", "desc": "Users can create their own /commands with custom responses", "version": "2.8.0", "category": "automation"},
+        "context-files": {"name": "Context Files", "desc": "Attach and detach files as permanent AI context in conversations", "version": "2.8.0", "category": "ai"},
+        "auto-tagging": {"name": "Auto-Tagging", "desc": "Auto-categorize conversations with tags, searchable via /find", "version": "2.8.0", "category": "automation"},
+        "enhanced-search": {"name": "Enhanced Search", "desc": "Search through tags, attached files, and conversation history", "version": "2.8.0", "category": "research"},
+    }
+    changed = False
+    for fid, fdef in defaults.items():
+        if fid not in experimental_features:
+            fdef["enabled"] = False
+            experimental_features[fid] = fdef
+            changed = True
+    if changed:
+        save_experimental()
 
 def save_experimental():
     with open(EXPERIMENTAL_FILE, "w", encoding="utf-8") as f:
