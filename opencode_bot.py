@@ -65,20 +65,21 @@ def _check_single_instance():
     except: pass
 _check_single_instance()
 
-def _write_dbg(n):
+import sys as _sys
+def _dbg(n):
     try:
-        with open("bot_startup.txt", "a", encoding="utf-8") as _f:
-            _f.write(f"{n}\n")
+        _sys.stderr.write(f"[dbg:{n}]\n")
+        _sys.stderr.flush()
     except:
         pass
 
-_write_dbg(1)
+_dbg("A")
 
 _M = object()
 asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
     import asyncio, json, uuid, time, copy, re, random, urllib.parse
-    _write_dbg(2)
+    _dbg("B")
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -86,7 +87,7 @@ except Exception:
     except:
         pass
     raise
-_write_dbg(3)
+_dbg("C")
 import logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -99,11 +100,11 @@ except Exception:
             _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
     except:
         pass
-_write_dbg(4)
+_dbg("D")
 
 try:
     import pyrit_attacks
-    _write_dbg(5)
+    _dbg("E")
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -168,13 +169,6 @@ def _safe_track_usage(uid, agent, provider):
             bf.track_usage(uid, agent, provider)
         except:
             pass
-
-try:
-    _dbg2 = open("bot_startup.txt", "a", encoding="utf-8")
-    _dbg2.write("2\n")
-    _dbg2.close()
-except:
-    pass
 
 _http = None
 _save_counter = 0
@@ -1993,6 +1987,7 @@ async def run_startup_check():
 
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
+    _dbg("F")
     log("Bot started")
 
     await gateway.start_worker()
@@ -2009,11 +2004,13 @@ async def main():
     load_token_usage()
     load_experimental()
 
+    _dbg("G")
     while True:
         try:
             for u in (await poll()):
                 msg = u.get("message")
                 if not msg: continue
+                _dbg("H")
                 mid, cid = msg.get("message_id"), msg["chat"]["id"]
                 if mid and (cid, mid) in processed: continue
                 if mid: processed.add((cid, mid))
