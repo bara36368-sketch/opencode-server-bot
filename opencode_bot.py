@@ -1848,6 +1848,66 @@ def get_git_commit():
         pass
     return ""
 
+def get_git_log(from_sha, to_sha):
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["git", "log", "--oneline", "--no-decorate", f"{from_sha}..{to_sha}"],
+            capture_output=True, text=True, timeout=5,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            lines = r.stdout.strip().split("\n")
+            return [l.split(" ", 1)[1] if " " in l else l for l in lines if l.strip()]
+    except:
+        pass
+    return []
+
+def auto_bump_version():
+    v = load_version()
+    cur = v.get("version", "0.0.0")
+    major = "0"
+    minor = "0"
+    try:
+        segs = cur.split(".")
+        major = segs[0]
+        minor = segs[1] if len(segs) > 1 else "0"
+    except:
+        pass
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        if r.returncode == 0:
+            build = r.stdout.strip()
+            new_ver = f"{major}.{minor}.{build}"
+        else:
+            new_ver = f"{major}.{minor}.{int(time.time())}"
+    except:
+        new_ver = f"{major}.{minor}.{int(time.time())}"
+    v["version"] = new_ver
+    v["updated"] = time.strftime("%Y-%m-%d")
+    v["whats_new"] = v.get("whats_new", {})
+    v["whats_new"][new_ver] = []
+    try:
+        with open(VERSION_FILE, "w", encoding="utf-8") as f:
+            json.dump(v, f, indent=2)
+    except:
+        pass
+    return new_ver, v["whats_new"][new_ver]
+
+def set_changelog(ver, changes):
+    try:
+        v = load_version()
+        v.setdefault("whats_new", {})[ver] = changes
+        with open(VERSION_FILE, "w", encoding="utf-8") as f:
+            json.dump(v, f, indent=2)
+    except:
+        pass
+
 async def auto_version_checker():
     while True:
         await asyncio.sleep(30)
@@ -1859,10 +1919,15 @@ async def auto_version_checker():
             last_git = state.get("last_git_commit", "")
             cur_git = get_git_commit()
             if cur_git and cur_git != last_git and current_ver == last_ver:
-                state["last_git_commit"] = cur_git
-                save_version_state(state)
                 log(f"Auto-check: git commit changed {last_git} -> {cur_git}")
-                await announce_update(f"commit {last_git}", f"commit {cur_git}", ["Code update - see git log for details"], state)
+                changes = get_git_log(last_git, cur_git)
+                new_ver = auto_bump_version()
+                if changes:
+                    set_changelog(new_ver, changes)
+                log(f"Auto-check: version bumped {last_ver} -> {new_ver}")
+                state["last_version"] = new_ver
+                state["last_git_commit"] = cur_git
+                await announce_update(last_ver, new_ver, changes, state)
             elif current_ver != "unknown" and current_ver != last_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
                 log(f"Auto-check: version changed {last_ver or 'initial'} -> {current_ver}")
@@ -1879,19 +1944,24 @@ async def main():
     ver = version_info.get("version", "unknown")
     state = load_version_state()
     old_ver = state.get("last_version", "")
-    cur_git = get_git_commit()
     old_git = state.get("last_git_commit", "")
-    if old_ver and old_ver != ver:
+    cur_git = get_git_commit()
+    if cur_git and cur_git != old_git and ver == old_ver:
+        log(f"Git commit changed: {old_git} -> {cur_git}")
+        changes = get_git_log(old_git, cur_git)
+        new_ver = auto_bump_version()
+        if changes:
+            set_changelog(new_ver, changes)
+        log(f"Auto-bumped: {old_ver} -> {new_ver} ({len(changes)} changes)")
+        state["last_version"] = new_ver
+        state["last_git_commit"] = cur_git
+        state = await announce_update(old_ver, new_ver, changes, state)
+        ver = new_ver
+    elif old_ver and old_ver != ver:
         changes = version_info.get("whats_new", {}).get(ver, [])
         log(f"Version changed: {old_ver} -> {ver}")
         state["last_git_commit"] = cur_git
         state = await announce_update(old_ver, ver, changes, state)
-    elif cur_git and cur_git != old_git and ver == old_ver:
-        state["last_git_commit"] = cur_git
-        state["last_version"] = ver
-        save_version_state(state)
-        log(f"Git commit changed: {old_git} -> {cur_git} (same version)")
-        state = await announce_update(f"rev {old_git}", f"rev {cur_git}", ["Code update - see git log for details"], state)
     elif not old_ver and ver != "unknown":
         changes = version_info.get("whats_new", {}).get(ver, [])
         state["last_git_commit"] = cur_git
