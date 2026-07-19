@@ -65,17 +65,20 @@ def _check_single_instance():
     except: pass
 _check_single_instance()
 
-try:
-    _dbg = open("bot_startup.txt", "w", encoding="utf-8")
-    _dbg.write("1\n")
-    _dbg.close()
-except:
-    pass
+def _write_dbg(n):
+    try:
+        with open("bot_startup.txt", "a", encoding="utf-8") as _f:
+            _f.write(f"{n}\n")
+    except:
+        pass
+
+_write_dbg(1)
 
 _M = object()
 asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
     import asyncio, json, uuid, time, copy, re, random, urllib.parse
+    _write_dbg(2)
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -83,6 +86,7 @@ except Exception:
     except:
         pass
     raise
+_write_dbg(3)
 import logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -95,9 +99,11 @@ except Exception:
             _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
     except:
         pass
+_write_dbg(4)
 
 try:
     import pyrit_attacks
+    _write_dbg(5)
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -1750,13 +1756,16 @@ def save_version_state(state):
 async def announce_update(old_v, new_v, changes, state):
     state["last_version"] = new_v
     known_chats = set()
-    for cid in sessions:
-        known_chats.add(cid)
-    for chat_ids in state.get("notified_chats", {}).values():
-        for cid in chat_ids:
+    try:
+        for cid in sessions:
+            known_chats.add(cid)
+        for chat_ids in state.get("notified_chats", {}).values():
+            for cid in chat_ids:
+                known_chats.add(int(cid))
+        for cid in list(multi_sessions.keys()):
             known_chats.add(int(cid))
-    for cid in list(multi_sessions.keys()):
-        known_chats.add(int(cid))
+    except Exception as e:
+        log(f"announce_update: chat collection error: {e}")
     try:
         usage_file = os.path.join(os.path.dirname(__file__), "usage_stats.json")
         if os.path.exists(usage_file):
@@ -1849,6 +1858,8 @@ def get_git_commit():
     return ""
 
 def get_git_log(from_sha, to_sha):
+    if not from_sha or not to_sha or from_sha == to_sha:
+        return []
     try:
         import subprocess
         r = subprocess.run(
@@ -1939,37 +1950,53 @@ async def auto_version_checker():
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
     log("Bot started")
+    _write_dbg(6)
 
-    version_info = load_version()
-    ver = version_info.get("version", "unknown")
-    state = load_version_state()
-    old_ver = state.get("last_version", "")
-    old_git = state.get("last_git_commit", "")
-    cur_git = get_git_commit()
-    if cur_git and cur_git != old_git and ver == old_ver:
-        log(f"Git commit changed: {old_git} -> {cur_git}")
-        changes = get_git_log(old_git, cur_git)
-        new_ver = auto_bump_version()
-        if changes:
-            set_changelog(new_ver, changes)
-        log(f"Auto-bumped: {old_ver} -> {new_ver} ({len(changes)} changes)")
-        state["last_version"] = new_ver
-        state["last_git_commit"] = cur_git
-        state = await announce_update(old_ver, new_ver, changes, state)
-        ver = new_ver
-    elif old_ver and old_ver != ver:
-        changes = version_info.get("whats_new", {}).get(ver, [])
-        log(f"Version changed: {old_ver} -> {ver}")
-        state["last_git_commit"] = cur_git
-        state = await announce_update(old_ver, ver, changes, state)
-    elif not old_ver and ver != "unknown":
-        changes = version_info.get("whats_new", {}).get(ver, [])
-        state["last_git_commit"] = cur_git
-        state = await announce_update("initial", ver, changes, state)
-    else:
-        state["last_version"] = ver
-        state["last_git_commit"] = cur_git
-        save_version_state(state)
+    try:
+        version_info = load_version()
+        ver = version_info.get("version", "unknown")
+        state = load_version_state()
+        old_ver = state.get("last_version", "")
+        old_git = state.get("last_git_commit", "")
+        cur_git = get_git_commit()
+        _write_dbg(7)
+        if cur_git and cur_git != old_git and ver == old_ver:
+            log(f"Git commit changed: {old_git} -> {cur_git}")
+            changes = get_git_log(old_git, cur_git)
+            new_ver = auto_bump_version()
+            if changes:
+                set_changelog(new_ver, changes)
+            log(f"Auto-bumped: {old_ver} -> {new_ver} ({len(changes)} changes)")
+            state["last_version"] = new_ver
+            state["last_git_commit"] = cur_git
+            state = await announce_update(old_ver, new_ver, changes, state)
+            ver = new_ver
+            _write_dbg(8)
+        elif old_ver and old_ver != ver:
+            changes = version_info.get("whats_new", {}).get(ver, [])
+            log(f"Version changed: {old_ver} -> {ver}")
+            state["last_git_commit"] = cur_git
+            state = await announce_update(old_ver, ver, changes, state)
+            _write_dbg(9)
+        elif not old_ver and ver != "unknown":
+            changes = version_info.get("whats_new", {}).get(ver, [])
+            state["last_git_commit"] = cur_git
+            state = await announce_update("initial", ver, changes, state)
+            _write_dbg(10)
+        else:
+            state["last_version"] = ver
+            state["last_git_commit"] = cur_git
+            save_version_state(state)
+            _write_dbg(11)
+    except Exception as e:
+        log(f"Startup version check error: {e}")
+        _tb.print_exc()
+        try:
+            with open("bot_crash.txt", "w", encoding="utf-8") as _cf:
+                _cf.write(f"startup version check error:\n{_tb.format_exc()}")
+        except:
+            pass
+    _write_dbg(12)
     log(f"OpenCode Bot v{ver} started")
 
     await gateway.start_worker()
@@ -1985,6 +2012,7 @@ async def main():
         load_memory()
     load_token_usage()
     load_experimental()
+    _write_dbg(13)
 
     while True:
         try:

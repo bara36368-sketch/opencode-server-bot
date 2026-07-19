@@ -59,7 +59,10 @@ def log(msg, section="runner"):
 
 def file_hashes():
     h = {}
+    skip = {"version.json", "version_state.json", "runner.log", "crash.log"}
     for f in glob.glob(os.path.join(DIR, "*.py")) + glob.glob(os.path.join(DIR, "*.json")) + glob.glob(os.path.join(DIR, "whatsapp", "*.js")):
+        if os.path.basename(f) in skip:
+            continue
         try:
             with open(f, "rb") as fh:
                 h[f] = hashlib.sha256(fh.read()).hexdigest()
