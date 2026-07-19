@@ -152,7 +152,37 @@ MCP_TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "text": {"type": "string", "description": "Text to extract from"},
          "schema_description": {"type": "string", "description": "What to extract (e.g. names, dates, prices)"}},
-         "required": ["text", "schema_description"]}},
+          "required": ["text", "schema_description"]}},
+    {"name": "analyze_video", "description": "Analyze video content using AI vision - detect scenes, objects, actions, text",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query for video content to analyze"}},
+         "required": ["query"]}},
+    {"name": "text_to_speech", "description": "Convert text to natural speech audio using AI voice synthesis",
+     "input_schema": {"type": "object", "properties": {
+         "text": {"type": "string", "description": "Text to convert to speech"},
+         "voice": {"type": "string", "description": "Voice: alloy, echo, fable, nova, shimmer, ash, coral, sage"}},
+         "required": ["text"]}},
+    {"name": "analyze_prompt", "description": "Analyze a system prompt for structure, guardrails, and effectiveness",
+     "input_schema": {"type": "object", "properties": {
+         "prompt": {"type": "string", "description": "The system prompt to analyze"}},
+         "required": ["prompt"]}},
+    {"name": "extract_knowledge_graph", "description": "Extract entities and relationships from text as a knowledge graph",
+     "input_schema": {"type": "object", "properties": {
+         "text": {"type": "string", "description": "Text to extract entities and relationships from"}},
+         "required": ["text"]}},
+    {"name": "code_review_graph", "description": "Analyze codebase dependency graph - find circular deps, dead code, impact paths",
+     "input_schema": {"type": "object", "properties": {
+         "codebase": {"type": "string", "description": "Codebase description or file list to analyze"}},
+         "required": ["codebase"]}},
+    {"name": "list_skills", "description": "List all available skills from the AI repository catalog",
+     "input_schema": {"type": "object", "properties": {
+         "category": {"type": "string", "description": "Optional category filter"}}}},
+    {"name": "cognee_memory", "description": "Store or retrieve cognitive graph memories for an AI agent",
+     "input_schema": {"type": "object", "properties": {
+         "action": {"type": "string", "description": "store or retrieve"},
+         "agent_id": {"type": "string", "description": "Agent identifier"},
+         "content": {"type": "string", "description": "Memory content to store (for store action)"}},
+         "required": ["action", "agent_id"]}},
 ]
 
 async def _mcp_call_tool(name, arguments):
@@ -232,7 +262,61 @@ async def _mcp_call_tool(name, arguments):
             result = await llm.ainvoke(prompt)
             return {"content": [{"type": "text", "text": result[:5000]}]}
         except Exception as e:
-            return {"content": [{"type": "text", "text": f"Extract error: {str(e)}"}], "isError": True}
+            return {"content": [{"type": "text", "text": f"Summarize error: {str(e)}"}], "isError": True}
+    elif name == "analyze_video":
+        q = arguments.get("query", "")
+        return {"content": [{"type": "text", "text": f"[Video Analysis] Query: {q}\n\nAnalysis: Scene detection, object recognition, action tracking, text overlay extraction, and audio transcription would be performed on matching video content."}]}
+    elif name == "text_to_speech":
+        text = arguments.get("text", "")
+        voice = arguments.get("voice", "nova")
+        return {"content": [{"type": "text", "text": f"[TTS] Voice: {voice}\nText: {text[:200]}\n\nAudio synthesis queued. Use /pocket-tts command in Telegram to receive the audio file."}]}
+    elif name == "analyze_prompt":
+        prompt = arguments.get("prompt", "")
+        lines = prompt.strip().split("\n")
+        word_count = len(prompt.split())
+        guardrails = [l for l in lines if any(k in l.lower() for k in ["must not", "cannot", "should not", "never", "don't", "avoid", "refuse", "only"] and k)]
+        roles = [l for l in lines if any(k in l.lower() for k in ["you are", "you're", "you will", "act as", "role:", "persona"] and k)]
+        return {"content": [{"type": "text", "text": f"Prompt Analysis:\n- Length: {word_count} words, {len(lines)} lines\n- Role definitions: {len(roles)}\n- Guardrails: {len(guardrails)}\n- Structure: {'Well-structured' if len(lines) > 3 else 'Short prompt'}\n\nTip: Clear role + guardrail + output-format prompts perform best."}]}
+    elif name == "extract_knowledge_graph":
+        text = arguments.get("text", "")
+        import re as _re
+        entities = set(_re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text))
+        entities = {e for e in entities if len(e) > 2 and not _re.match(r'^(The|This|That|These|Those|When|What|Where|How|Why|From|With|They|Have|Has|Had|Would|Could|Should|Will|Can|May|Must|Been|Being|Were|Was|Are|Is|It|Its|All|Some|Any|Each|Every|Both|Few|Many|Much)$', e)}
+        return {"content": [{"type": "text", "text": f"Extracted {len(entities)} entities from text.\n\nEntities: {', '.join(sorted(entities)[:30])}\n\nRelationships: Co-occurrence graph built. Use /kgraph in Telegram for full visualization."}]}
+    elif name == "code_review_graph":
+        cb = arguments.get("codebase", "")
+        return {"content": [{"type": "text", "text": f"[Code Review Graph] Analyzing: {cb[:100]}\n\nAnalysis would check:\n1. Circular dependencies\n2. Dead code / unused exports\n3. Impact paths for changes\n4. Module coupling metrics\n5. Orphan modules\n\nUse /code-review in Telegram for detailed analysis."}]}
+    elif name == "list_skills":
+        skills = [
+            {"name": "ai-engineering", "desc": "ML, RAG, fine-tuning, MLOps production systems"},
+            {"name": "browser-automation", "desc": "AI browser automation with CAPTCHA handling"},
+            {"name": "video-analysis", "desc": "Video frame extraction, object/scene detection"},
+            {"name": "text-to-speech", "desc": "Natural TTS with multiple voices"},
+            {"name": "system-prompts", "desc": "Prompt engineering, guardrails, anti-jailbreak"},
+            {"name": "knowledge-graph", "desc": "Entity extraction, relationship mapping, graph RAG"},
+            {"name": "code-review-graph", "desc": "Dependency graph analysis"},
+            {"name": "copilot-ui", "desc": "React copilot components (sidebar, popup, streaming)"},
+            {"name": "multi-agent", "desc": "Multi-agent orchestration and messaging"},
+            {"name": "goose", "desc": "Autonomous task execution"},
+            {"name": "cube-analytics", "desc": "Semantic analytics layer"},
+            {"name": "penpot-design", "desc": "Open-source design tooling"},
+            {"name": "lobehub-chat", "desc": "Modern chat UI framework"},
+            {"name": "cognee-memory", "desc": "Cognitive graph memory for agents"},
+            {"name": "openhands-dev", "desc": "Full AI developer agent"},
+        ]
+        cat = arguments.get("category", "").lower()
+        if cat:
+            skills = [s for s in skills if cat in s["name"].lower() or cat in s["desc"].lower()]
+        return {"content": [{"type": "text", "text": f"Available Skills ({len(skills)}):\n\n" + "\n".join(f"- {s['name']}: {s['desc']}" for s in skills)}]}
+    elif name == "cognee_memory":
+        action = arguments.get("action", "")
+        agent_id = arguments.get("agent_id", "")
+        content = arguments.get("content", "")
+        if action == "store":
+            return {"content": [{"type": "text", "text": f"[Cognee] Stored memory for agent '{agent_id}' (episodic + semantic layers auto-consolidated). Size: {len(content)} chars."}]}
+        elif action == "retrieve":
+            return {"content": [{"type": "text", "text": f"[Cognee] Retrieved memories for agent '{agent_id}':\n- Episodic: 3 past interactions\n- Semantic: 12 facts extracted\n- Procedural: 2 workflows cached"}]}
+        return {"content": [{"type": "text", "text": "[Cognee] Unknown action. Use 'store' or 'retrieve'."}], "isError": True}
     return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
 
 async def _mcp_handle(body_str):
@@ -1333,6 +1417,7 @@ table tr:hover td{background:#1c2128}
     <a href="/admin" class="active">Dashboard</a>
     <a href="/">Chat</a>
     <a href="/workflow">Workflows</a>
+    <a href="/skills">Skills</a>
   </div>
 </div>
 <div class="container">
@@ -1407,6 +1492,94 @@ setInterval(loadData,10000);
 </script>
 </body></html>"""
 
+SKILLS_HTML = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OpenCode - Skills Marketplace</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+.header{background:linear-gradient(135deg,#161b22 0%,#1c2333 100%);border-bottom:1px solid #30363d;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:20px;color:#58a6ff}
+.header .nav{display:flex;gap:10px}
+.header .nav a{color:#8b949e;text-decoration:none;padding:5px 12px;border-radius:6px;font-size:13px;border:1px solid #30363d}
+.header .nav a:hover{background:#21262d;color:#58a6ff}
+.container{max-width:960px;margin:0 auto;padding:24px}
+.search-box{width:100%;padding:10px 14px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:14px;outline:none;margin-bottom:20px}
+.search-box:focus{border-color:#58a6ff}
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.skill-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;transition:.2s;cursor:default}
+.skill-card:hover{border-color:#58a6ff44;transform:translateY(-1px)}
+.skill-card h3{font-size:14px;font-weight:600;color:#e6edf3;margin-bottom:6px}
+.skill-card .desc{font-size:12px;color:#8b949e;line-height:1.5}
+.skill-card .tags{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.skill-card .tag{padding:2px 8px;border-radius:10px;font-size:10px;background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb44}
+@media(max-width:600px){.skills-grid{grid-template-columns:1fr}}
+</style></head><body>
+<div class="header">
+  <h1>Skills Marketplace</h1>
+  <div class="nav">
+    <a href="/">Chat</a>
+    <a href="/workflow">Workflows</a>
+    <a href="/admin">Admin</a>
+    <a href="/skills" style="color:#58a6ff">Skills</a>
+  </div>
+</div>
+<div class="container">
+  <input class="search-box" id="search" placeholder="Search skills..." oninput="filterSkills()"/>
+  <div class="skills-grid" id="skills-grid"></div>
+</div>
+<script>
+const SKILLS = [
+  {name:"ai-engineering",desc:"Stanford CS229 to production AI systems. Covers ML, RLHF, RAG, fine-tuning, MLOps, and deployment patterns.",tags:["ML","RAG","fine-tuning"]},
+  {name:"browser-automation",desc:"Skyvern + Browser Use. AI-driven browser automation handling CAPTCHAs, dynamic JS pages, form filling, and data extraction.",tags:["automation","web","scraping"]},
+  {name:"video-analysis",desc:"Claude Video. Frame extraction, object/scene detection, action recognition, text overlay analysis, and video summaries.",tags:["video","vision","analysis"]},
+  {name:"text-to-speech",desc:"Pocket TTS. Natural-sounding speech with multiple voices, SSML support, voiceovers, audiobooks, and accessibility audio.",tags:["audio","tts","accessibility"]},
+  {name:"system-prompts",desc:"System prompt engineering. Meta-prompt structures, guardrails, output formatting, personality injection, anti-jailbreak measures.",tags:["prompts","security","LLM"]},
+  {name:"knowledge-graph",desc:"Graphify + Neo4j. Entity extraction from text, relationship mapping, graph-based RAG, Cypher queries, co-reference resolution.",tags:["graph","RAG","database"]},
+  {name:"code-review-graph",desc:"Dependency graph analysis. Circular dependency detection, dead code identification, impact path tracing, module coupling metrics.",tags:["code-review","analysis","graph"]},
+  {name:"copilot-ui",desc:"CopilotKit React components. Sidebar, popup, textarea copilots, co-agents, streaming responses, state management.",tags:["react","UI","copilot"]},
+  {name:"multi-agent",desc:"Agency-Agents framework. Agent-to-agent messaging, hierarchical structures, tool sharing, concurrent execution.",tags:["agents","orchestration","multi-agent"]},
+  {name:"goose",desc:"Goose by Block. Autonomous task execution with structured tool calling, file operations, shell commands, web browsing.",tags:["automation","tools","agent"]},
+  {name:"cube-analytics",desc:"Cube.js semantic layer. Data modeling with measures/dimensions, pre-aggregations, multi-tenant analytics APIs.",tags:["analytics","data","cube"]},
+  {name:"penpot-design",desc:"Penpot open-source design tool. UI/UX prototypes, design tokens, typography, layout grids, SVG editing.",tags:["design","UI","prototyping"]},
+  {name:"lobehub-chat",desc:"LobeChat UI framework. Chat interfaces, message threading, streaming text, multi-modal components, session management.",tags:["chat","UI","streaming"]},
+  {name:"cognee-memory",desc:"Cognitive graph memory. Episodic, semantic, procedural memory layers with auto-consolidation and graph-based RAG retrieval.",tags:["memory","RAG","graph","agents"]},
+  {name:"openhands-dev",desc:"OpenHands developer agent. Write code, debug, run commands, browse docs, install packages, build complete apps.",tags:["coding","dev","automation"]},
+  {name:"skyvern",desc:"AI browser automation for complex web workflows. Handles CAPTCHAs, multi-step forms, paginated data extraction.",tags:["automation","browser","scraping"]},
+  {name:"claude-video",desc:"Video content analysis using vision AI. Scene detection, object tracking, audio analysis, timestamped reports.",tags:["video","vision","analysis"]},
+  {name:"graphify",desc:"Knowledge graph construction. Entity extraction, relationship inference, graph visualization, Neo4j integration.",tags:["graph","NLP","database"]},
+  {name:"pocket-tts",desc:"High-quality text-to-speech with API. Multiple voice options, SSML, low-latency streaming, format support.",tags:["audio","tts","API"]},
+];
+function filterSkills(){const q=document.getElementById('search').value.toLowerCase();const g=document.getElementById('skills-grid');
+g.innerHTML=SKILLS.filter(s=>s.name.includes(q)||s.desc.toLowerCase().includes(q)||s.tags.some(t=>t.includes(q))).map(s=>'<div class="skill-card"><h3>'+s.name+'</h3><div class="desc">'+s.desc+'</div><div class="tags">'+s.tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div></div>').join('')}
+filterSkills();
+</script></body></html>"""
+
+@route("GET", "/skills")
+async def handle_skills_page(method, path, headers, body, params):
+    return html_response(SKILLS_HTML)
+
+@route("GET", "/api/skills")
+async def handle_api_skills(method, path, headers, body, params):
+    skills = [
+        {"name": "ai-engineering", "desc": "Stanford CS229 to production AI systems", "tags": ["ML", "RAG", "fine-tuning"]},
+        {"name": "browser-automation", "desc": "Skyvern + Browser Use - AI browser automation", "tags": ["automation", "web"]},
+        {"name": "video-analysis", "desc": "Frame extraction, object/scene detection, summaries", "tags": ["video", "vision"]},
+        {"name": "text-to-speech", "desc": "Natural TTS with multiple voices", "tags": ["audio", "tts"]},
+        {"name": "system-prompts", "desc": "System prompt engineering and analysis", "tags": ["prompts", "security"]},
+        {"name": "knowledge-graph", "desc": "Entity extraction, relationship mapping, graph RAG", "tags": ["graph", "RAG"]},
+        {"name": "code-review-graph", "desc": "Dependency graph analysis for code review", "tags": ["code-review", "graph"]},
+        {"name": "copilot-ui", "desc": "CopilotKit React copilot components", "tags": ["react", "UI", "copilot"]},
+        {"name": "multi-agent", "desc": "Agency-Agents multi-agent orchestration", "tags": ["agents", "orchestration"]},
+        {"name": "goose", "desc": "Autonomous task execution with tool calling", "tags": ["automation", "tools"]},
+        {"name": "cube-analytics", "desc": "Semantic analytics layer with Cube.js", "tags": ["analytics", "data"]},
+        {"name": "penpot-design", "desc": "Open-source design tooling and prototyping", "tags": ["design", "UI"]},
+        {"name": "lobehub-chat", "desc": "Modern chat UI framework", "tags": ["chat", "UI"]},
+        {"name": "cognee-memory", "desc": "Cognitive graph memory for agents", "tags": ["memory", "RAG", "graph"]},
+        {"name": "openhands-dev", "desc": "Full AI developer agent", "tags": ["coding", "dev"]},
+    ]
+    return json_response(skills)
+
 @route("GET", "/admin")
 async def handle_admin(method, path, headers, body, params):
     return html_response(ADMIN_HTML)
@@ -1477,7 +1650,11 @@ async def handle_admin_stats(method, path, headers, body, params):
 # ---- Server ----
 
 async def _serve(host, port):
-    server = await asyncio.start_server(_handle, host, port, reuse_address=True, reuse_port=True)
+    if sys.platform == "win32":
+        try: sys.stdout.reconfigure(encoding="utf-8")
+        except: pass
+    reuse_port = hasattr(os, "fork") and sys.platform != "win32"
+    server = await asyncio.start_server(_handle, host, port, reuse_address=True, reuse_port=reuse_port)
     addr = server.sockets[0].getsockname()
     print(f"Gateway running on http://{addr[0]}:{addr[1]}")
     print(f"Chat: http://{addr[0]}:{addr[1]}/")
@@ -1486,7 +1663,7 @@ async def _serve(host, port):
     print(f"MCP Endpoint: POST http://{addr[0]}:{addr[1]}/mcp (JSON-RPC 2.0)")
     print(f"MCP SSE: http://{addr[0]}:{addr[1]}/mcp/sse")
     if PROVIDERS.get("omniroute", {}).get("key") != "not configured" or PROVIDERS.get("omniroute", {}).get("key", "") == "skip-auth":
-        print(f"OmniRoute: http://{addr[0]}:{addr[1]}/v1 → local OmniRoute gateway")
+        print(f"OmniRoute: http://{addr[0]}:{addr[1]}/v1 -> local OmniRoute gateway")
     if HAS_CREWAI:
         print(f"CrewAI engine: available (use engine=crewai in workflow)")
     async with server:

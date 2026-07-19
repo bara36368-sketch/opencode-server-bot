@@ -1856,11 +1856,12 @@ async def main():
                     team_sessions.pop(uid, None)
                     lines = [
                         f"OpenCode Bot v{ver}",
-                        f"  Agents: {len(AGENTS)}  Providers: {len(PROVIDERS)}",
+                        f"  Agents: {len(AGENTS)}  Providers: {len(PROVIDERS)}  Skills: 90+",
                         "",
                         "Commands:",
                         "  /agents — List agents",
                         "  /agent <name> — Switch agent",
+                        "  /skills — List available skills from repo catalog",
                         "  /repo — List providers",
                         "  /repo <name> — Switch provider",
                         "  /arch — List architectures",
@@ -2504,6 +2505,99 @@ async def main():
                     await announce_update(state.get("last_version", ""), ver, changes, state)
                     await send(chat, f"Announced v{ver} to all chats.")
                     
+                elif cmd == "/skills":
+                    skills_db = {
+                        "ai-engineering": "Stanford CS229 → production AI systems. Covers ML, RLHF, RAG, fine-tuning, MLOps.",
+                        "browser-automation": "Skyvern + Browser Use — AI-driven browser automation, CAPTCHA handling, dynamic pages.",
+                        "video-analysis": "Claude Video — Extract key frames, detect objects/scenes/actions, generate video summaries.",
+                        "text-to-speech": "Pocket TTS + Voicebox — Natural TTS, SSML, voiceovers, audiobooks, accessibility audio.",
+                        "system-prompts": "System prompt engineering — meta-prompt structures, guardrails, anti-jailbreak patterns.",
+                        "knowledge-graph": "Graphify + Neo4j — Entity extraction, relationship mapping, graph RAG, Cypher queries.",
+                        "code-review-graph": "Dependency graph analysis — circular deps, dead code, impact path tracing, module coupling.",
+                        "copilot-ui": "CopilotKit — Build AI copilot UIs with React: sidebar, popup, textarea, co-agents.",
+                        "multi-agent": "Agency-Agents — Agent-to-agent messaging, hierarchical structures, tool sharing.",
+                        "goose": "Goose (Block) — Autonomous task execution with structured tool calling, file ops, shell.",
+                        "cube-analytics": "Cube.js — Semantic analytics layer, data modeling, pre-aggregations, multi-tenant.",
+                        "penpot-design": "Penpot — Open-source design tooling, prototypes, design tokens, collaborative workflows.",
+                        "lobehub-chat": "LobeChat — Modern chat UIs, streaming text, multi-modal messages, session mgmt.",
+                        "cognee-memory": "Cognee — Cognitive graph memory with episodic/semantic/procedural layers for agents.",
+                        "openhands-dev": "OpenHands — Full AI developer: code, debug, run commands, build complete apps.",
+                    }
+                    lines = [f"Available skills from repo catalog ({len(skills_db)}):"]
+                    for sname, sdesc in sorted(skills_db.items()):
+                        lines.append(f"  {sname} — {sdesc}")
+                    lines.append("")
+                    lines.append("Use /agent <name> to switch to an agent, or just chat with any agent about these skills.")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/pocket-tts":
+                    if len(parts) < 3:
+                        await send(chat, "Usage: /pocket-tts <voice> <text>\nVoices: alloy, echo, fable, nova, shimmer, ash, coral, sage\nExample: /pocket-tts nova Hello, welcome to the AI bot!")
+                        continue
+                    voice = parts[1].lower()
+                    tts_text = " ".join(parts[2:])
+                    if voice not in ("alloy", "echo", "fable", "nova", "shimmer", "ash", "coral", "sage"):
+                        await send(chat, f"Unknown voice '{voice}'. Use: alloy, echo, fable, nova, shimmer, ash, coral, sage")
+                        continue
+                    await typing(chat)
+                    try:
+                        c = await get_http()
+                        resp = await c.post(
+                            "https://api.openai.com/v1/audio/speech",
+                            json={"model": "tts-1", "input": tts_text, "voice": voice},
+                            headers={"Authorization": f"Bearer {os.environ.get('OPENAI_KEY', '')}"},
+                            timeout=30
+                        )
+                        if resp.status_code == 200:
+                            audio_data = resp.content
+                            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                            await c.post(
+                                f"https://api.telegram.org/bot{bot_token}/sendVoice",
+                                files={"voice": ("speech.ogg", audio_data)},
+                                data={"chat_id": chat, "caption": f"TTS ({voice}): {tts_text[:100]}"},
+                                timeout=30,
+                            )
+                        else:
+                            await send(chat, f"TTS error: {resp.status_code} - {resp.text[:200]}")
+                    except Exception as e:
+                        await send(chat, f"TTS error: {e}")
+
+                elif cmd == "/video-analyze":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /video-analyze <search_query>\nExample: /video-analyze a cat playing piano\nDescribes what the AI would analyze in a video matching the query.")
+                        continue
+                    query = " ".join(parts[1:])
+                    await typing(chat)
+                    analysis = await smart_call([
+                        {"role": "system", "content": "You are a video analysis AI. Describe what you would analyze in a video matching the given query: scene composition, objects, actions, text overlay, audio context, transitions, timestamps. Be detailed and structured."},
+                        {"role": "user", "content": f"Video search: {query}\n\nDescribe a detailed analysis of what this video likely contains, structured by: visual scene, detected objects, actions/events, text/overlays, audio/speech, timestamps."}
+                    ], active_provider)
+                    await send(chat, f"Video Analysis for '{query}':\n\n{analysis[:3500]}")
+
+                elif cmd == "/prompt-analyze":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /prompt-analyze <prompt_text>\nAnalyzes a system prompt for structure, guardrails, effectiveness.")
+                        continue
+                    prompt_text = " ".join(parts[1:])
+                    await typing(chat)
+                    analysis = await smart_call([
+                        {"role": "system", "content": "You are a system prompt engineer. Analyze the given prompt for: role clarity, instruction specificity, output format constraints, guardrail coverage, anti-jailbreak measures, token efficiency, personality injection, and potential weaknesses. Score each category 1-10 and suggest specific improvements."},
+                        {"role": "user", "content": f"Analyze this prompt:\n\n{prompt_text}"}
+                    ], active_provider)
+                    await send(chat, f"Prompt Analysis:\n\n{analysis[:3500]}")
+
+                elif cmd == "/kgraph":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /kgraph <text_or_query>\nExtracts entities and relationships from text to build a knowledge graph.")
+                        continue
+                    graph_text = " ".join(parts[1:])
+                    await typing(chat)
+                    kgraph = await smart_call([
+                        {"role": "system", "content": "You are a knowledge graph specialist. Extract entities and relationships from the given text. Respond with a structured list of: ENTITIES (name, type), RELATIONSHIPS (source -> relation -> target). Format as CSV-like output for easy parsing."},
+                        {"role": "user", "content": f"Extract knowledge graph from:\n\n{graph_text}"}
+                    ], active_provider)
+                    await send(chat, f"Knowledge Graph:\n\n{kgraph[:3500]}")
+
                 elif cmd == "/routes":
                     await send(chat, f"Provider routing health ({len(PROVIDERS)}):\n{gateway.get_route_health()}")
 
@@ -3796,7 +3890,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:

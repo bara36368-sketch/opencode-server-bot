@@ -11,7 +11,6 @@ logging.basicConfig(
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
-    "wa": ["python", "whatsapp_bot.py"],
 }
 CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
@@ -35,15 +34,24 @@ def file_hashes():
 def git_update():
     try:
         r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        if r.returncode != 0:
+            log(f"[runner] not a git repo: {r.stderr.strip()}")
+            return False
         old_head = r.stdout.strip()
-        subprocess.run(["git", "stash"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        subprocess.run(["git", "stash", "--include-untracked"], cwd=DIR, capture_output=True, text=True, timeout=15)
         r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
             log(f"[runner] git fetch failed: {r.stderr.strip()}")
             return False
-        r = subprocess.run(["git", "log", "--oneline", "-3", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15)
+        if r.returncode != 0:
+            default_branch = "origin/master"
+        else:
+            ref = r.stdout.strip()
+            default_branch = ref.replace("refs/remotes/", "")
+        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=DIR, capture_output=True, text=True, timeout=15)
         log(f"[runner] remote commits: {r.stdout.strip()}")
-        r = subprocess.run(["git", "reset", "--hard", "origin/master"], cwd=DIR, capture_output=True, text=True, timeout=30)
+        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=30)
         r2 = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15)
         new_head = r2.stdout.strip()
         if new_head == old_head:
@@ -51,7 +59,9 @@ def git_update():
         log(f"[runner] updated: {old_head[:8]}..{new_head[:8]}")
         r3 = subprocess.run(["git", "log", "--oneline", "-3"], cwd=DIR, capture_output=True, text=True, timeout=15)
         for line in r3.stdout.strip().split("\n"):
-            log(f"[runner]   {line}")
+            line = line.strip()
+            if line:
+                log(f"[runner]   {line}")
         return True
     except Exception as e:
         log(f"[runner] git update failed: {e}")
