@@ -88,8 +88,9 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - video-creator agent with full OpenMontage reverse-engineered knowledge: 12 pipelines, 52+ tools, installation guide, agent orchestration contract, pipeline state machine, style playbooks, quality gates
 - /video [prompt] — shortcut to enter video-creator agent
 
-## Workflow Rule
-After every update, auto git commit + git push. (Set by user 2026-07-19)
+## Workflow Rules
+1. After every update, auto git commit + git push. (Set by user 2026-07-19)
+2. Version auto-bumps on every git push — no need to edit version.json manually. Changelog is generated from git log messages. (Set by user 2026-07-19)
 
 ## Next Steps
 1. Restart runner.py so all fixes take effect
