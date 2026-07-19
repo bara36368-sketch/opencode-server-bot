@@ -4430,7 +4430,7 @@ async def main():
                             lines.append(f"  #{t} — {c}x")
                         await send(chat, "\n".join(lines))
 
-                elif cmd == "/find" and is_experimental_enabled("auto-tagging"):
+                elif cmd == "/find" and is_experimental_enabled("enhanced-search"):
                     if len(parts) < 2:
                         await send(chat, "Usage: /find <tag>\nExample: /find python")
                         continue
