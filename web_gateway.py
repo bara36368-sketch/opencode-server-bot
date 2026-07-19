@@ -1,5 +1,9 @@
 import asyncio, json, os, time, threading, urllib.parse, uuid, re, traceback, subprocess, sys, inspect
 
+import logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 HAS_HTTPX = True
 try:
     import httpx
@@ -274,8 +278,8 @@ async def _mcp_call_tool(name, arguments):
         prompt = arguments.get("prompt", "")
         lines = prompt.strip().split("\n")
         word_count = len(prompt.split())
-        guardrails = [l for l in lines if any(k in l.lower() for k in ["must not", "cannot", "should not", "never", "don't", "avoid", "refuse", "only"] and k)]
-        roles = [l for l in lines if any(k in l.lower() for k in ["you are", "you're", "you will", "act as", "role:", "persona"] and k)]
+        guardrails = [l for l in lines if any(k in l.lower() for k in ["must not", "cannot", "should not", "never", "don't", "avoid", "refuse", "only"])]
+        roles = [l for l in lines if any(k in l.lower() for k in ["you are", "you're", "you will", "act as", "role:", "persona"])]
         return {"content": [{"type": "text", "text": f"Prompt Analysis:\n- Length: {word_count} words, {len(lines)} lines\n- Role definitions: {len(roles)}\n- Guardrails: {len(guardrails)}\n- Structure: {'Well-structured' if len(lines) > 3 else 'Short prompt'}\n\nTip: Clear role + guardrail + output-format prompts perform best."}]}
     elif name == "extract_knowledge_graph":
         text = arguments.get("text", "")
@@ -480,7 +484,7 @@ def _load_providers():
     PROVIDERS = {}
     if os.path.exists(PROVIDERS_FILE):
         try:
-            with open(PROVIDERS_FILE) as f:
+            with open(PROVIDERS_FILE, encoding="utf-8") as f:
                 raw = json.load(f)
             for pid, cfg in raw.items():
                 cfg["key"] = _resolve_key(pid, cfg.get("key", "not configured"))
@@ -518,7 +522,7 @@ def _load_workflows():
     global WORKFLOWS, _next_wf_id
     if os.path.exists(WORKFLOWS_FILE):
         try:
-            with open(WORKFLOWS_FILE) as f:
+            with open(WORKFLOWS_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 WORKFLOWS = data.get("workflows", {})
                 _next_wf_id = data.get("next_id", 1)
@@ -527,7 +531,7 @@ def _load_workflows():
 
 def _save_workflows():
     try:
-        with open(WORKFLOWS_FILE, "w") as f:
+        with open(WORKFLOWS_FILE, "w", encoding="utf-8") as f:
             json.dump({"workflows": WORKFLOWS, "next_id": _next_wf_id}, f, indent=2)
     except:
         pass
@@ -1626,7 +1630,7 @@ async def handle_admin_stats(method, path, headers, body, params):
     usage = {}
     if os.path.exists(usage_file):
         try:
-            with open(usage_file) as f:
+            with open(usage_file, encoding="utf-8") as f:
                 usage = json.load(f)
         except: pass
     total_users = len(usage)

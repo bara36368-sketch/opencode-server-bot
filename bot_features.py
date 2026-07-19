@@ -158,7 +158,7 @@ class DocumentDB:
     def _load(self):
         if os.path.exists(RAG_FILE):
             try:
-                with open(RAG_FILE) as f:
+                with open(RAG_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                     self.docs = data.get("docs", [])
                     self.chunks = data.get("chunks", [])
@@ -166,7 +166,7 @@ class DocumentDB:
                 pass
 
     def _save(self):
-        with open(RAG_FILE, "w") as f:
+        with open(RAG_FILE, "w", encoding="utf-8") as f:
             json.dump({"docs": self.docs, "chunks": self.chunks}, f)
 
     def add_document(self, name, text):
@@ -242,13 +242,13 @@ class Scheduler:
     def _load(self):
         if os.path.exists(SCHEDULE_FILE):
             try:
-                with open(SCHEDULE_FILE) as f:
+                with open(SCHEDULE_FILE, encoding="utf-8") as f:
                     self.tasks = json.load(f)
             except:
                 pass
 
     def _save(self):
-        with open(SCHEDULE_FILE, "w") as f:
+        with open(SCHEDULE_FILE, "w", encoding="utf-8") as f:
             json.dump(self.tasks, f, indent=2)
 
     def add(self, interval_seconds, prompt, chat_id, label=""):
@@ -475,11 +475,10 @@ def _exec_python(code):
             "list": list, "dict": dict, "tuple": tuple, "set": set, "bool": bool,
             "range": range, "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
             "sorted": sorted, "reversed": reversed, "abs": abs, "max": max, "min": min,
-            "sum": sum, "any": any, "all": all, "isinstance": isinstance, "type": type,
-            "True": True, "False": False, "None": None, "Exception": Exception,
+            "sum": sum, "any": any, "all": all, "isinstance": isinstance,
+            "True": True, "False": False, "None": None,
             "ValueError": ValueError, "TypeError": TypeError, "KeyError": KeyError,
-            "IndexError": IndexError, "AttributeError": AttributeError,
-            "NameError": NameError, "ZeroDivisionError": ZeroDivisionError,
+            "IndexError": IndexError, "ZeroDivisionError": ZeroDivisionError,
         }}
         try:
             exec(code, restricted)
@@ -523,12 +522,29 @@ def _exec_node(code):
 
 # ── 12. URL READER ─────────────────────────────────────────
 
+def _is_private_ip(host):
+    import ipaddress
+    try:
+        addr = ipaddress.ip_address(host)
+        return addr.is_private or addr.is_loopback or addr.is_link_local
+    except ValueError:
+        return False
+
 async def fetch_url(url):
     try:
         if not url.startswith(("http://", "https://")):
             url = "https://" + url
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        if _is_private_ip(host):
+            return "Fetch error: URL points to a private/internal network address."
         c = await get_http()
-        r = await c.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        r = await c.get(url, timeout=20, follow_redirects=False, headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code in (301, 302, 303, 307, 308):
+            location = r.headers.get("location", "")
+            if location and _is_private_ip(urlparse(location).hostname or ""):
+                return "Fetch error: Redirect blocked (internal network)."
         if r.status_code != 200:
             return f"HTTP {r.status_code}: Could not fetch {url}"
         text = r.text
@@ -553,13 +569,13 @@ class Reminders:
     def _load(self):
         if os.path.exists(REMINDERS_FILE):
             try:
-                with open(REMINDERS_FILE) as f:
+                with open(REMINDERS_FILE, encoding="utf-8") as f:
                     self.reminders = json.load(f)
             except:
                 pass
 
     def _save(self):
-        with open(REMINDERS_FILE, "w") as f:
+        with open(REMINDERS_FILE, "w", encoding="utf-8") as f:
             json.dump(self.reminders, f, indent=2)
 
     def add(self, chat_id, delay_seconds, message):
@@ -672,7 +688,7 @@ async def qr_decode_from_url(photo_url):
             from PIL import Image
             try:
                 from pyzbar.pyzbar import decode
-                img = Image.open(fpath)
+                img = Image.open(fpath, encoding="utf-8")
                 codes = decode(img)
                 if codes:
                     return codes[0].data.decode("utf-8")
@@ -684,7 +700,7 @@ import sys
 try:
     from pyzbar.pyzbar import decode
     from PIL import Image
-    img = Image.open({repr(fpath)})
+    img = Image.open({repr(fpath, encoding="utf-8")})
     codes = decode(img)
     if codes: print(codes[0].data.decode('utf-8'))
     else: print('No QR code found')
@@ -724,14 +740,14 @@ USAGE_FILE = os.path.join(BASE_DIR, "usage_stats.json")
 def load_usage():
     if os.path.exists(USAGE_FILE):
         try:
-            with open(USAGE_FILE) as f:
+            with open(USAGE_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except:
             pass
     return {}
 
 def save_usage(data):
-    with open(USAGE_FILE, "w") as f:
+    with open(USAGE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 def track_usage(user_id, agent, provider, tokens=0):
@@ -827,7 +843,7 @@ def init_plugins():
     _plugin_commands.clear()
     init_file = os.path.join(PLUGINS_DIR, "__init__.py")
     if not os.path.exists(init_file):
-        with open(init_file, "w") as f:
+        with open(init_file, "w", encoding="utf-8") as f:
             f.write("# plugins package\n")
 
 async def load_plugin(url_or_path):
@@ -845,7 +861,7 @@ async def load_plugin(url_or_path):
             if not name:
                 name = f"plugin_{hashlib.md5(url_or_path.encode()).hexdigest()[:8]}"
         else:
-            with open(url_or_path) as f:
+            with open(url_or_path, encoding="utf-8") as f:
                 code = f.read()
             name = os.path.splitext(os.path.basename(url_or_path))[0]
         spec = importlib.util.spec_from_loader(name, None)

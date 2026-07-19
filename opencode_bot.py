@@ -1,11 +1,40 @@
-import sys, os, traceback as _tb, io as _io
+import sys, os, json, traceback as _tb, io as _io, re as _re
 from datetime import datetime
+
+def _security_check():
+    issues = []
+    setenv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "setenv.sh")
+    if os.path.exists(setenv):
+        with open(setenv, encoding="utf-8") as f:
+            content = f.read()
+        keys = _re.findall(r'export\s+(\w+)="([^"]+)"', content)
+        for name, val in keys:
+            if "_KEY" in name and val not in ("set-via-env-var", "", "skip-auth") and not val.startswith("$"):
+                issues.append(f"HARDCODED KEY: {name} in setenv.sh")
+    providers = os.path.join(os.path.dirname(os.path.abspath(__file__)), "providers.json")
+    if os.path.exists(providers):
+        with open(providers, encoding="utf-8") as f:
+            pdata = json.load(f)
+        for pname, pconf in pdata.items():
+            if isinstance(pconf, dict) and pconf.get("key") and pconf["key"] not in ("set-via-env-var", "skip-auth", ""):
+                issues.append(f"HARDCODED KEY: {pname} in providers.json")
+    if issues:
+        try:
+            with open("security_warnings.txt", "w", encoding="utf-8") as f:
+                f.write(f"Security warnings ({len(issues)}):\n")
+                for i in issues:
+                    f.write(f"  - {i}\n")
+        except:
+            pass
+        print(f"[security] {len(issues)} hardcoded API keys detected (see security_warnings.txt)")
+
+_security_check()
 
 _LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".bot.lock")
 def _check_single_instance():
     try:
         if os.path.exists(_LOCK_FILE):
-            with open(_LOCK_FILE) as _f:
+            with open(_LOCK_FILE, encoding="utf-8") as _f:
                 _old_pid = int(_f.read().strip())
             _alive = False
             if os.name == "nt":
@@ -20,7 +49,7 @@ def _check_single_instance():
                     _alive = True
                 except PermissionError:
                     try:
-                        _ = open(f"/proc/{_old_pid}/status")
+                        _ = open(f"/proc/{_old_pid}/status", encoding="utf-8")
                         _.close()
                         _alive = True
                     except:
@@ -31,13 +60,13 @@ def _check_single_instance():
                 sys.exit(0)
     except: pass
     try:
-        with open(_LOCK_FILE, "w") as _f:
+        with open(_LOCK_FILE, "w", encoding="utf-8") as _f:
             _f.write(str(os.getpid()))
     except: pass
 _check_single_instance()
 
 try:
-    _dbg = open("bot_startup.txt", "w")
+    _dbg = open("bot_startup.txt", "w", encoding="utf-8")
     _dbg.write("1\n")
     _dbg.close()
 except:
@@ -49,16 +78,20 @@ try:
     import asyncio, json, uuid, time, copy, re, random, urllib.parse
 except Exception:
     try:
-        with open("bot_crash.txt", "w") as _f:
+        with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"stdlib import failed:\n{_tb.format_exc()}")
     except:
         pass
     raise
+import logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 try:
     import httpx
 except Exception:
     try:
-        with open("bot_crash.txt", "w") as _f:
+        with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
     except:
         pass
@@ -67,7 +100,7 @@ try:
     import pyrit_attacks
 except Exception:
     try:
-        with open("bot_crash.txt", "w") as _f:
+        with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"pyrit import failed:\n{_tb.format_exc()}")
     except:
         pass
@@ -101,7 +134,7 @@ try:
     _ = bf  # verify it actually loaded
 except Exception as _bf_err:
     try:
-        with open("bot_crash.txt", "w") as _f:
+        with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"bot_features import failed: {_bf_err}\n{_tb.format_exc()}")
     except:
         pass
@@ -131,7 +164,7 @@ def _safe_track_usage(uid, agent, provider):
             pass
 
 try:
-    _dbg2 = open("bot_startup.txt", "a")
+    _dbg2 = open("bot_startup.txt", "a", encoding="utf-8")
     _dbg2.write("2\n")
     _dbg2.close()
 except:
@@ -139,6 +172,18 @@ except:
 
 _http = None
 _save_counter = 0
+
+_rate_limits = {}
+def _check_rate_limit(key, max_calls=5, window=60):
+    now = time.time()
+    window_start = now - window
+    if key not in _rate_limits:
+        _rate_limits[key] = []
+    _rate_limits[key] = [t for t in _rate_limits[key] if t > window_start]
+    if len(_rate_limits[key]) >= max_calls:
+        return False
+    _rate_limits[key].append(now)
+    return True
 
 async def get_http():
     global _http
@@ -307,7 +352,7 @@ class ProviderGateway:
             try:
                 result = await asyncio.wait_for(call_provider(messages, provider), timeout=25)
                 elapsed = time.time() - t1
-                if "error" in result.lower()[:20]:
+                if isinstance(result, str) and "error" in result.lower()[:20]:
                     self.record(provider, elapsed, False)
                     errors.append(f"{provider}: {result[:80]}")
                     continue
@@ -373,6 +418,7 @@ class ProviderGateway:
             await asyncio.sleep(0.5)
 
 gateway = ProviderGateway()
+_last_msg_times = {}
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
@@ -519,30 +565,34 @@ DEFAULT_AGENTS = {
         "desc": "This agent is for custom tasks (use /addprompt to set prompt)",
         "prompt": "You are a helpful assistant. Answer the user's questions accurately and concisely.",
     },
+    "video-creator": {
+        "desc": "OpenMontage agentic video production — 12 pipelines, 52 tools, full production studio",
+        "prompt": "You are OpenMontage, the world's first open-source agentic video production system. You turn plain-language descriptions into finished videos through a structured production pipeline. Your job is to guide users through installing OpenMontage, selecting the right pipeline, and producing a video from concept to final render.\n\n## Identity & Architecture\nYou are based on calesthio/OpenMontage (AGPL-3.0). Core principle: the AI agent IS the orchestrator. Python provides tools and persistence; the agent reads YAML pipeline manifests + Markdown skill files to drive production. The flow is: agent reads pipeline manifest -> reads stage director skill -> calls Python tools -> self-reviews using meta skill -> checkpoints -> presents for human approval.\n\n## Prerequisites & Installation\nPrerequisites: Python 3.10+, FFmpeg, Node.js 18+, AI coding assistant (Claude Code, Cursor, Copilot, Windsurf, Codex). Install:\n- git clone https://github.com/calesthio/OpenMontage.git && cd OpenMontage && make setup\n- Windows: py -3 -m venv .venv; .\\.venv\\Scripts\\Activate.ps1; python -m pip install -r requirements.txt; cd remotion-composer; npm install; cd ..; python -m pip install piper-tts; Copy-Item .env.example .env\n- If npm install fails on Windows with ERR_INVALID_ARG_TYPE, use: npx --yes npm install\n- Copy .env.example to .env and add API keys (all optional)\n\n## 12 Production Pipelines\nEach pipeline is a YAML manifest under pipeline_defs/. The state machine: research -> proposal -> script -> scene_plan -> assets -> edit -> compose -> publish. Some pipelines start with idea instead of research+proposal.\n\n1. **animated-explainer** — AI-generated explainers with research, narration, visuals, music. Best for educational content, tutorials, topic breakdowns. Budget $2. Stages: research proposal script scene_plan assets edit compose publish. Human gates: proposal script scene_plan assets publish.\n2. **animation** — Motion graphics, kinetic typography, animated sequences. Social media, product demos. Budget $2. Same stages/gates as explainer.\n3. **avatar-spokesperson** — Avatar-driven presenter videos. Corporate comms, training. Budget $2. Starts at idea stage. Human gates: idea script scene_plan assets publish.\n4. **character-animation** — SVG-rigged character animation with pose libraries. 10 stages including character_design and rig_plan. Budget $2. Beta stability.\n5. **cinematic** — Trailers, teasers, mood-driven edits. Brand films, promotional. Budget $2. Full research+proposal flow.\n6. **clip-factory** — Batch ranked short-form clips from one long source. Repurposing content for social media. Budget $1. Beta.\n7. **documentary-montage** — Thematic montage from CLIP-indexed corpus of free stock footage (Archive.org, NASA, Wikimedia, Pexels). Real footage, no paid video models needed. Budget $1. Beta. Stages: idea scene_plan assets edit compose. Edit is human-gated.\n8. **hybrid** — Source footage + AI-generated support visuals. Enhancing existing footage. Budget $2.\n9. **localization-dub** — Subtitle, dub, translate existing video. Multi-language. Budget $3. Beta.\n10. **podcast-repurpose** — Podcast highlights to video. Budget $1. Beta.\n11. **screen-demo** — Software screen recordings and walkthroughs. Dual mode: REAL CAPTURE (OS recording) or SYNTHETIC (Remotion TerminalScene). Budget $1.\n12. **talking-head** — Footage-led speaker videos. Presentations, vlogs. Budget $0.50. Beta.\n\n## Tools (52+ production tools)\nCategories with examples:\n- **Video Generation**: Kling (fal.ai), Kling Official, Runway Gen-4, Google Veo 3, Grok Imagine Video, Higgsfield, MiniMax, HeyGen. Local GPU: WAN 2.1 (1.3B/14B), Hunyuan, CogVideo (2B/5B), LTX-Video. Stock: Pexels, Pixabay, Wikimedia Commons, Archive.org. Composition: Remotion (React-based), HyperFrames (HTML/CSS/GSAP), FFmpeg.\n- **Image Generation**: FLUX (fal.ai), Google Imagen 4, Grok Imagine Image, GPT Image 2, Recraft, Kling Official, Local Diffusion. Stock: Pexels, Pixabay, Unsplash.\n- **Text-to-Speech**: ElevenLabs (premium), Google TTS (700+ voices, 50+ languages), OpenAI TTS (fast/cheap), Kling Official TTS, Piper (free offline), Doubao, DashScope.\n- **Music**: Suno AI (full songs), ElevenLabs Music/SFX, Pixabay, Freesound, Google Music, Music Library (local).\n- **Post-Production** (all free/local): FFmpeg encoding, Video Stitch (crossfades/PIP/layouts), Video Trimmer, Audio Mixer (ducking/fades), Audio Enhance (noise reduction/normalization), Color Grade (LUT-based), Subtitle Gen (SRT/VTT).\n- **Enhancement**: Upscale (Real-ESRGAN), Background Remove (rembg/U2Net), Face Enhance, Face Restore (CodeFormer/GFPGAN).\n- **Analysis**: Transcriber (WhisperX word-level timestamps), Scene Detect, Frame Sampler, Video Understand (CLIP/BLIP-2), Visual QA, Audio Energy/Probe, Composition Validator.\n- **Avatar & Lip Sync**: Talking Head (SadTalker/MuseTalk), Lip Sync (Wav2Lip), Kling Avatar, Kling Lip Sync.\n- **Capture**: Screen Recorder, Cap Recorder, Screen Capture Selector.\n- **Graphics**: Diagram Gen, Code Snippet, Math Animate (ManimCE), Character Animation (spec builder, SVG rig builder, pose library, action timeline, rig renderer, anim review).\n\n## Agent Orchestration Contract (Rules You MUST Follow)\n1. ALL production goes through the pipeline system. No ad-hoc scripts.\n2. Read every tool's agent_skills before calling it (check .agents/skills/).\n3. Announce provider/model/runtime before execution; ask before major changes.\n4. Re-log changed decisions as new entries; never mutate old ones.\n5. Present both composition runtimes (Remotion + HyperFrames) when available; wait for approval.\n6. Default to atelier (bespoke) composition for hero work.\n7. No unilateral substitutions — provider/model/runtime swaps require user approval.\n8. Escalate blockers explicitly: what was attempted, what failed, why, options, recommendation.\n9. Music plan is mandatory — surface at proposal time.\n10. Cannot mark a gated stage completed without human_approved=True (gate violation = defect).\n11. Never silently swap Remotion<->HyperFrames<->FFmpeg — logged decision + user approval required.\n12. Decision log is append-only, identified by (category, subject) pair.\n\n## Full Production Workflow\nWhen a user says \"Make a video about X\":\n1. **Pipeline Selection** — Match request to the right pipeline. Ask clarifying questions if needed (duration, tone, style, real footage vs generated, budget).\n2. **Mandatory Preflight** — Run tool_registry.discover() and show provider_menu_summary() to show what's configured. Present both composition runtimes. User approves plan.\n3. **Initialize Workspace** — init_project(..., pipeline_type=...), open backlot board.\n4. **Research Stage** (if applicable) — 15-25+ web searches across YouTube, Reddit, HN, news, academic. Produce research_brief with citations.\n5. **Proposal Stage** (HUMAN GATE) — Present 4-5 concept directions, recommended tool path, cost estimate, music plan, render_runtime options. Wait for approval.\n6. **Script Stage** (HUMAN GATE) — Write structured script with enhancement cues, voice performance plan (pacing, pause, emphasis).\n7. **Scene Plan** (HUMAN GATE) — Map script to scenes with asset requirements. Ensure visual variety.\n8. **Assets Stage** (HUMAN GATE) — Generate narration (tts_selector), images (image_selector), video clips (video_selector), music. Each scene generates audio+image+optional video.\n9. **Edit Stage** — Define cuts, transitions, subtitles, audio ducking. Produce edit_decisions.\n10. **Compose Stage** — Route to locked render_runtime. Audio mixing, subtitle burn-in. Post-render self-review (ffprobe + frame extraction + audio analysis). Must pass to present video.\n11. **Publish Stage** (HUMAN GATE) — SEO metadata, export package. Final video.\n\n## Configuration & API Keys\nAll keys go in .env (every key is optional). Key ones: FAL_KEY (FLUX/Veo/Kling/MiniMax via fal.ai), KLING_API_KEY (official Kling), GOOGLE_API_KEY (Imagen/Gemini/Google TTS), ELEVENLABS_API_KEY (TTS/music/SFX), OPENAI_API_KEY (TTS/gpt-image), XAI_API_KEY (Grok), SUNO_API_KEY (music), HEYGEN_API_KEY, RUNWAY_API_KEY, PEXELS_API_KEY, PIXABAY_API_KEY, UNSPLASH_ACCESS_KEY. Local GPU: VIDEO_GEN_LOCAL_ENABLED=true with wan2.1-1.3b or hunyuan-1.5.\n\n## Style Playbooks\n- clean-professional — corporate, educational, SaaS\n- flat-motion-graphics — social media, TikTok, startups\n- minimalist-diagram — technical deep-dives, architecture\n- premium-minimalist — investor updates, expert explainers\n- anime-ghibli — Ghibli-style animation\n- ink-sketch — hand-drawn ink doodle animation\n\n## Platform Output Profiles\nYouTube Landscape 1920x1080, YouTube 4K 3840x2160, YouTube Shorts 1080x1920, Instagram Reels 1080x1920, TikTok 1080x1920, LinkedIn 1920x1080, Cinematic 2560x1080 (21:9).\n\n## Quality Gates\n- Human approval gates enforced for proposal, script, scene_plan, assets, publish\n- Pre-compose validation: blocks render if delivery promise violated, slideshow risk critical, or renderer missing\n- Post-render self-review: ffprobe validation, frame extraction (4 positions checking black frames + broken overlays), audio level analysis (silence + clipping), delivery promise verification, subtitle presence check\n- Slideshow risk scoring: 6-dimension analysis prevents animated-PowerPoint outputs\n- Failed review = video not presented\n\n## What You Get With Zero API Keys\nNarration via Piper TTS (free offline), open footage from Archive.org/NASA/Wikimedia Commons, free stock from Pexels/Unsplash/Pixabay (developer keys free to get), Remotion composition, FFmpeg encoding, auto-generated captions. Two free paths: image-based video (Piper + still images animated by Remotion) or real-footage video (documentary montage from free stock footage).",
+    },
 }
 
 def save_agents():
-    with open(AGENTS_FILE, "w") as f:
+    with open(AGENTS_FILE, "w", encoding="utf-8") as f:
         json.dump(AGENTS, f, indent=2)
 
 def save_providers():
-    with open(PROVIDERS_FILE, "w") as f:
+    with open(PROVIDERS_FILE, "w", encoding="utf-8") as f:
         json.dump(PROVIDERS, f, indent=2)
 
 def save_admins():
-    with open(ADMINS_FILE, "w") as f:
+    with open(ADMINS_FILE, "w", encoding="utf-8") as f:
         json.dump(list(admins), f)
 
 def save_mods():
-    with open(MODS_FILE, "w") as f:
+    with open(MODS_FILE, "w", encoding="utf-8") as f:
         json.dump(list(mods), f)
 
 def save_premade():
-    with open(PREMADE_SKILLS_FILE, "w") as f:
+    with open(PREMADE_SKILLS_FILE, "w", encoding="utf-8") as f:
         json.dump(PREMADE_SKILLS, f, indent=2)
 
 def save_teams():
-    with open(TEAMS_FILE, "w") as f:
+    with open(TEAMS_FILE, "w", encoding="utf-8") as f:
         json.dump(TEAMS, f, indent=2)
 
 def save_sessions():
@@ -555,14 +605,14 @@ def save_sessions():
         "team_sessions": {str(k): v for k, v in team_sessions.items()},
         "_last_update": last_update,
     }
-    with open(SESSIONS_FILE, "w") as f:
+    with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 def load_sessions():
     global last_update
     if os.path.exists(SESSIONS_FILE):
         try:
-            with open(SESSIONS_FILE) as f:
+            with open(SESSIONS_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 sessions.update({int(k): v for k, v in data.get("sessions", {}).items()})
                 team_sessions.update({int(k): v for k, v in data.get("team_sessions", {}).items()})
@@ -572,27 +622,79 @@ def load_sessions():
         except: pass
 
 routines = {}
+
+CONVERSATIONS_FILE = os.path.join(os.path.dirname(__file__), "conversations.json")
+
+def load_conversations():
+    if os.path.exists(CONVERSATIONS_FILE):
+        try:
+            with open(CONVERSATIONS_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"counter": 0, "archives": {}}
+
+def save_conversations(data):
+    try:
+        with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except:
+        pass
+
+def _summarize_conversation(messages):
+    if not messages:
+        return ""
+    first_user = ""
+    for m in messages:
+        if m.get("role") == "user":
+            first_user = m["content"][:80]
+            break
+    summary = first_user if first_user else f"{len(messages)} messages"
+    return f"{summary}{'...' if len(first_user) >= 80 else ''}"
+
+def _archive_current(uid, chat):
+    if uid not in sessions or not sessions[uid]:
+        return
+    convs = load_conversations()
+    msgs = sessions[uid]
+    summary = _summarize_conversation(msgs)
+    cid = convs["counter"] + 1
+    convs["counter"] = cid
+    chat_key = str(chat)
+    if chat_key not in convs["archives"]:
+        convs["archives"][chat_key] = []
+    convs["archives"][chat_key].append({
+        "id": cid,
+        "time": time.time(),
+        "summary": summary,
+        "count": len(msgs),
+        "messages": msgs,
+    })
+    if len(convs["archives"][chat_key]) > 50:
+        convs["archives"][chat_key] = convs["archives"][chat_key][-50:]
+    save_conversations(convs)
+
 def save_routines():
-    with open(ROUTINES_FILE, "w") as f:
+    with open(ROUTINES_FILE, "w", encoding="utf-8") as f:
         json.dump(routines, f)
 def load_routines():
     global routines
     if os.path.exists(ROUTINES_FILE):
         try:
-            with open(ROUTINES_FILE) as f:
+            with open(ROUTINES_FILE, encoding="utf-8") as f:
                 routines = json.load(f)
         except:
             routines = {}
 
 multi_sessions = {}
 def save_multi():
-    with open(MULTI_FILE, "w") as f:
+    with open(MULTI_FILE, "w", encoding="utf-8") as f:
         json.dump(multi_sessions, f)
 def load_multi():
     global multi_sessions
     if os.path.exists(MULTI_FILE):
         try:
-            with open(MULTI_FILE) as f:
+            with open(MULTI_FILE, encoding="utf-8") as f:
                 multi_sessions = json.load(f)
         except:
             multi_sessions = {}
@@ -636,14 +738,14 @@ def save_memory():
     if user_memory:
         data["memories"] = [{"id": m.id, "content": m.content, "user_id": m.user_id, "metadata": m.metadata} for m in user_memory.memories]
         data["blocks"] = {k: v.value for k, v in user_memory.blocks.items()}
-    with open(MEMORY_FILE, "w") as f:
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 def load_memory():
     global vector_memory, memory_buffers
     if os.path.exists(MEMORY_FILE):
         try:
-            with open(MEMORY_FILE) as f:
+            with open(MEMORY_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 vector_memory.update(data.get("vector", {}))
                 memory_buffers.update({int(k): v for k, v in data.get("buffers", {}).items()})
@@ -662,12 +764,12 @@ def load_token_usage():
     global token_usage
     if os.path.exists(TOKEN_FILE):
         try:
-            with open(TOKEN_FILE) as f:
+            with open(TOKEN_FILE, encoding="utf-8") as f:
                 token_usage.update(json.load(f))
         except: pass
 
 def save_token_usage():
-    with open(TOKEN_FILE, "w") as f:
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
         json.dump(token_usage, f, indent=2)
 
 experimental_features = {}
@@ -675,14 +777,14 @@ def load_experimental():
     global experimental_features
     if os.path.exists(EXPERIMENTAL_FILE):
         try:
-            with open(EXPERIMENTAL_FILE) as f:
+            with open(EXPERIMENTAL_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 experimental_features = data.get("features", {})
         except:
             experimental_features = {}
 
 def save_experimental():
-    with open(EXPERIMENTAL_FILE, "w") as f:
+    with open(EXPERIMENTAL_FILE, "w", encoding="utf-8") as f:
         json.dump({"features": experimental_features}, f, indent=2)
 
 def is_experimental_enabled(name):
@@ -978,11 +1080,11 @@ async def save_checkpoint(uid, tag, data):
     all_ckpts = {}
     if os.path.exists("checkpoints.json"):
         try:
-            with open("checkpoints.json") as f: all_ckpts = json.load(f)
+            with open("checkpoints.json", encoding="utf-8") as f: all_ckpts = json.load(f)
         except: pass
     all_ckpts.setdefault(str(uid), []).append(cp)
     if len(all_ckpts[str(uid)]) > 20: all_ckpts[str(uid)] = all_ckpts[str(uid)][-20:]
-    with open("checkpoints.json", "w") as f: json.dump(all_ckpts, f)
+    with open("checkpoints.json", "w", encoding="utf-8") as f: json.dump(all_ckpts, f)
 
 async def run_architecture(arch, agents_in_team, user_text, provider, uid=None, msg_log=None):
     if msg_log is None: msg_log = []
@@ -1210,28 +1312,28 @@ DEFAULT_PREMADE_SKILLS = {
 AGENTS = copy.deepcopy(DEFAULT_AGENTS)
 if os.path.exists(AGENTS_FILE):
     try:
-        with open(AGENTS_FILE) as f:
+        with open(AGENTS_FILE, encoding="utf-8") as f:
             AGENTS.update(json.load(f))
     except: pass
 
 AGENT_PROVIDERS = {}
 if os.path.exists(AGENT_PROVIDERS_FILE):
     try:
-        with open(AGENT_PROVIDERS_FILE) as f:
+        with open(AGENT_PROVIDERS_FILE, encoding="utf-8") as f:
             AGENT_PROVIDERS.update(json.load(f))
     except: pass
 
 PREMADE_SKILLS = copy.deepcopy(DEFAULT_PREMADE_SKILLS)
 if os.path.exists(PREMADE_SKILLS_FILE):
     try:
-        with open(PREMADE_SKILLS_FILE) as f:
+        with open(PREMADE_SKILLS_FILE, encoding="utf-8") as f:
             PREMADE_SKILLS.update(json.load(f))
     except: pass
 
 TEAMS = {}
 if os.path.exists(TEAMS_FILE):
     try:
-        with open(TEAMS_FILE) as f:
+        with open(TEAMS_FILE, encoding="utf-8") as f:
             TEAMS.update(json.load(f))
     except: pass
 
@@ -1395,7 +1497,7 @@ PROVIDERS = {
 
 if os.path.exists(PROVIDERS_FILE):
     try:
-        with open(PROVIDERS_FILE) as f:
+        with open(PROVIDERS_FILE, encoding="utf-8") as f:
             PROVIDERS.update(json.load(f))
     except: pass
 
@@ -1446,19 +1548,19 @@ active_mode = "chat"
 admins = {OWNER_ID}
 if os.path.exists(ADMINS_FILE):
     try:
-        with open(ADMINS_FILE) as f:
+        with open(ADMINS_FILE, encoding="utf-8") as f:
             admins.update(json.load(f))
     except: pass
 mods = set()
 if os.path.exists(MODS_FILE):
     try:
-        with open(MODS_FILE) as f:
+        with open(MODS_FILE, encoding="utf-8") as f:
             mods.update(json.load(f))
     except: pass
 _OFFSET_FILE = os.path.join(os.path.dirname(__file__), ".bot.offset")
 last_update = 0
 try:
-    with open(_OFFSET_FILE) as _f:
+    with open(_OFFSET_FILE, encoding="utf-8") as _f:
         last_update = int(_f.read().strip())
 except:
     pass
@@ -1474,9 +1576,10 @@ load_multi()
 async def tg(method, data=None):
     c = await get_http()
     r = await c.post(f"{TG_API}/{method}", json=data or {}, timeout=15)
-    if not r.json().get("ok"):
-        log(f"TG API error: {method} {r.json()}")
-    return r.json()
+    resp = r.json()
+    if not resp.get("ok"):
+        log(f"TG API error: {method} {resp}")
+    return resp
 
 _sent_cache = {}
 async def send(chat, text):
@@ -1484,7 +1587,7 @@ async def send(chat, text):
     now = time.time()
     if key in _sent_cache and now - _sent_cache[key] < 3:
         log(f"dedup: skipped duplicate send to {chat}")
-        return
+        return {"ok": True, "dedup": True}
     _sent_cache[key] = now
     if len(_sent_cache) > 500:
         for k in list(_sent_cache.keys()):
@@ -1607,7 +1710,7 @@ async def poll():
             for u in r.get("result", []):
                 last_update = u["update_id"]
             try:
-                with open(_OFFSET_FILE, "w") as _f:
+                with open(_OFFSET_FILE, "w", encoding="utf-8") as _f:
                     _f.write(str(last_update))
             except:
                 pass
@@ -1625,21 +1728,21 @@ VERSION_STATE_FILE = os.path.join(os.path.dirname(__file__), "version_state.json
 
 def load_version():
     try:
-        with open(VERSION_FILE) as f:
+        with open(VERSION_FILE, encoding="utf-8") as f:
             return json.load(f)
     except:
         return {"version": "unknown", "whats_new": {}}
 
 def load_version_state():
     try:
-        with open(VERSION_STATE_FILE) as f:
+        with open(VERSION_STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
     except:
         return {"last_version": "", "notified_chats": {}}
 
 def save_version_state(state):
     try:
-        with open(VERSION_STATE_FILE, "w") as f:
+        with open(VERSION_STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
     except:
         pass
@@ -1649,14 +1752,15 @@ async def announce_update(old_v, new_v, changes, state):
     known_chats = set()
     for cid in sessions:
         known_chats.add(cid)
-    for cid in list(state.get("notified_chats", {}).keys()):
-        known_chats.add(int(cid))
+    for chat_ids in state.get("notified_chats", {}).values():
+        for cid in chat_ids:
+            known_chats.add(int(cid))
     for cid in list(multi_sessions.keys()):
         known_chats.add(int(cid))
     try:
         usage_file = os.path.join(os.path.dirname(__file__), "usage_stats.json")
         if os.path.exists(usage_file):
-            with open(usage_file) as f:
+            with open(usage_file, encoding="utf-8") as f:
                 usage = json.load(f)
             for uid in usage:
                 known_chats.add(int(uid))
@@ -1738,10 +1842,10 @@ async def auto_version_checker():
             current_ver = current.get("version", "unknown")
             state = load_version_state()
             last_ver = state.get("last_version", "")
-            if last_ver and current_ver != last_ver:
+            if current_ver != "unknown" and current_ver != last_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
-                log(f"Auto-check: version changed {last_ver} -> {current_ver}")
-                await announce_update(last_ver, current_ver, changes, state)
+                log(f"Auto-check: version changed {last_ver or 'initial'} -> {current_ver}")
+                await announce_update(last_ver or "initial", current_ver, changes, state)
         except Exception as e:
             log(f"Auto version check error: {e}")
 
@@ -1757,6 +1861,9 @@ async def main():
         changes = version_info.get("whats_new", {}).get(ver, [])
         log(f"Version changed: {old_ver} -> {ver}")
         state = await announce_update(old_ver, ver, changes, state)
+    elif not old_ver and ver != "unknown":
+        changes = version_info.get("whats_new", {}).get(ver, [])
+        state = await announce_update("initial", ver, changes, state)
     else:
         state["last_version"] = ver
         save_version_state(state)
@@ -1793,6 +1900,10 @@ async def main():
                 _prev = last_user_msg.get(uid, {})
                 if _prev and now - _prev.get("t", 0) < 10 and _prev.get("text") == text:
                     continue
+                if uid in last_user_msg:
+                    _last_msg_times[uid] = last_user_msg[uid].get("t", now)
+                else:
+                    _last_msg_times[uid] = now
                 last_user_msg[uid] = {"t": now, "text": text}
                 photo = msg.get("photo")
                 voice = msg.get("voice")
@@ -2065,13 +2176,13 @@ async def main():
                     _pd = {}
                     if os.path.exists(SESSIONS_FILE):
                         try:
-                            with open(SESSIONS_FILE) as _f: _pd = json.load(_f)
+                            with open(SESSIONS_FILE, encoding="utf-8") as _f: _pd = json.load(_f)
                         except: pass
                     profiles = _pd.get("profiles", {})
                     if sub == "save":
                         profiles[str(uid)] = {"agent": active_agent, "provider": active_provider, "effort": effort, "thinking": thinking_mode, "arch": active_arch}
                         _pd["profiles"] = profiles
-                        with open(SESSIONS_FILE, "w") as _f: json.dump(_pd, _f)
+                        with open(SESSIONS_FILE, "w", encoding="utf-8") as _f: json.dump(_pd, _f)
                         await send(chat, "Profile saved.")
                     elif sub == "load":
                         p = profiles.get(str(uid))
@@ -2087,7 +2198,7 @@ async def main():
                     elif sub == "reset":
                         profiles.pop(str(uid), None)
                         _pd["profiles"] = profiles
-                        with open(SESSIONS_FILE, "w") as _f: json.dump(_pd, _f)
+                        with open(SESSIONS_FILE, "w", encoding="utf-8") as _f: json.dump(_pd, _f)
                         await send(chat, "Profile reset.")
                     else:
                         p = profiles.get(str(uid), {})
@@ -2131,6 +2242,27 @@ async def main():
                         await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>\nExample: /agentprovider {name} https://api.example.com/v1/chat/completions sk-abc123 gpt-4o")
                     await send(chat, f"Great choice! Do you wanna set token usage?\nUse /low /normal /medium /high /superhigh\nCurrent: {effort} ({EFFORT_LEVELS[effort]['desc']})")
 
+                elif cmd == "/video":
+                    name = "video-creator"
+                    if name not in AGENTS:
+                        await send(chat, "Video creator agent not loaded.")
+                        continue
+                    a = AGENTS[name]
+                    active_agent = name
+                    sessions.pop(uid, None)
+                    msg = f"Agent: {name} — {a['desc']}\n\nSwitched to OpenMontage video creator."
+                    rest = parts[1:] if len(parts) > 1 else []
+                    if rest:
+                        prompt = " ".join(rest)
+                        sessions[uid] = [{"role": "system", "content": a["prompt"]}, {"role": "user", "content": prompt}]
+                        msg += f"\n\nPrompt received: {prompt[:200]}"
+                    await send(chat, msg)
+                    ap = AGENT_PROVIDERS.get(name)
+                    if not ap or not _is_configured(ap.get("key", "")):
+                        await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>")
+                    await send(chat, f"Token usage: /low /normal /medium /high /superhigh (current: {effort} - {EFFORT_LEVELS[effort]['desc']})")
+                    await send(chat, "OpenMontage is not installed on this machine yet. I can walk you through installing it — start by saying 'install openmontage' or tell me what video you want to make and I'll guide you through the setup.")
+
                 elif cmd == "/repo":
                     if len(parts) < 2:
                         lines = ["Available providers:"]
@@ -2166,9 +2298,75 @@ async def main():
                     ))
 
                 elif cmd == "/clear":
+                    _archive_current(uid, chat)
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
-                    await send(chat, "Session cleared.")
+                    await send(chat, "Session cleared and archived.")
+
+                elif cmd == "/archive":
+                    _archive_current(uid, chat)
+                    await send(chat, "Conversation archived.")
+
+                elif cmd == "/history":
+                    convs = load_conversations()
+                    chat_key = str(chat)
+                    items = convs.get("archives", {}).get(chat_key, [])
+                    if not items:
+                        await send(chat, "No archived conversations.")
+                        continue
+                    items = items[-20:]
+                    lines = [f"Your conversations ({len(items)}):", ""]
+                    for item in reversed(items):
+                        ago = int(time.time() - item["time"])
+                        if ago < 60: ts = "just now"
+                        elif ago < 3600: ts = f"{ago//60}m ago"
+                        elif ago < 86400: ts = f"{ago//3600}h ago"
+                        else: ts = f"{ago//86400}d ago"
+                        lines.append(f"  #{item['id']} — {item['summary'][:60]} ({item['count']} msgs, {ts})")
+                    lines.append("")
+                    lines.append("Use /view <id> to see, /change <id> to resume")
+                    for chunk in [lines[i:i+15] for i in range(0, len(lines), 15)]:
+                        await send(chat, "\n".join(chunk))
+
+                elif cmd == "/view":
+                    convs = load_conversations()
+                    chat_key = str(chat)
+                    items = convs.get("archives", {}).get(chat_key, [])
+                    target = int(parts[1]) if len(parts) > 1 else 0
+                    found = None
+                    for item in items:
+                        if item["id"] == target:
+                            found = item
+                            break
+                    if not found:
+                        await send(chat, f"No archived conversation #{target}. Use /history to list.")
+                        continue
+                    msgs = found["messages"][-30:]
+                    lines = [f"Conversation #{target} ({found['count']} msgs):", ""]
+                    for m in msgs:
+                        role = m.get("role", "?")[:4]
+                        content = m.get("content", "")[:200]
+                        lines.append(f"[{role}] {content}")
+                    for chunk in [lines[i:i+20] for i in range(0, len(lines), 20)]:
+                        await send(chat, "\n".join(chunk))
+
+                elif cmd in ("/change", "/resume"):
+                    convs = load_conversations()
+                    chat_key = str(chat)
+                    items = convs.get("archives", {}).get(chat_key, [])
+                    target = int(parts[1]) if len(parts) > 1 else 0
+                    found = None
+                    for item in items:
+                        if item["id"] == target:
+                            found = item
+                            break
+                    if not found:
+                        await send(chat, f"No archived conversation #{target}. Use /history to list.")
+                        continue
+                    _archive_current(uid, chat)
+                    sessions[uid] = list(found["messages"])
+                    team_sessions.pop(uid, None)
+                    await send(chat, f"Resumed conversation #{target} ({found['count']} msgs). Current session archived.")
 
                 elif cmd == "/remember":
                     if user_memory is None:
@@ -2441,7 +2639,7 @@ async def main():
                         await send(chat, f"Unknown agent: {aname}")
                         continue
                     AGENT_PROVIDERS[aname] = {"url": purl, "key": pkey, "model": pmodel}
-                    with open(AGENT_PROVIDERS_FILE, "w") as f:
+                    with open(AGENT_PROVIDERS_FILE, "w", encoding="utf-8") as f:
                         json.dump(AGENT_PROVIDERS, f, indent=2)
                     await send(chat, f"Agent provider set for {aname}: {pmodel}")
 
@@ -2498,6 +2696,9 @@ async def main():
                     await send(chat, f"Updated prompt for agent: {pname}")
 
                 elif cmd == "/announce" and (is_owner or is_admin):
+                    if not _check_rate_limit(f"announce:{chat}", max_calls=2, window=300):
+                        await send(chat, "Rate limit: /announce can be used 2 times per 5 minutes.")
+                        continue
                     ver_info = load_version()
                     ver = ver_info.get("version", "unknown")
                     changes = ver_info.get("whats_new", {}).get(ver, [])
@@ -3204,20 +3405,32 @@ async def main():
                         await send(chat, f"ðŸ“¹ YouTube Summary:\n\n{reply[:3500]}")
 
                 elif cmd == "/run":
+                    if not is_owner and not is_admin:
+                        await send(chat, "Only owners/admins can execute code.")
+                        continue
                     if len(parts) < 3:
                         await send(chat, "Usage: /run <python|js> <code>\nExample: /run python print('hello')\nOr use /run python followed by multiple lines in subsequent messages.")
                         continue
                     lang = parts[1].lower()
                     code = " ".join(parts[2:])
+                    if len(code) > 5000:
+                        await send(chat, "Code too long (max 5000 chars).")
+                        continue
                     await typing(chat)
                     result = await bf.run_code(code, lang)
                     await send(chat, f"```\n{result[:3500]}\n```")
 
                 elif cmd == "/fetch":
+                    if not is_owner and not is_admin:
+                        await send(chat, "Only owners/admins can fetch URLs.")
+                        continue
                     if len(parts) < 2:
                         await send(chat, "Usage: /fetch <url>\nExample: /fetch https://example.com")
                         continue
                     url = parts[1]
+                    if not url.startswith(("http://", "https://")):
+                        await send(chat, "Only http/https URLs are allowed.")
+                        continue
                     await typing(chat)
                     content = await bf.fetch_url(url)
                     if content.startswith("HTTP") or content.startswith("Fetch error"):
@@ -3576,6 +3789,9 @@ async def main():
                     if not is_owner and not is_admin:
                         await send(chat, "Owner/Admin only.")
                         continue
+                    if not _check_rate_limit(f"backup:{chat}", max_calls=2, window=3600):
+                        await send(chat, "Rate limit: /backup can be used 2 times per hour.")
+                        continue
                     await typing(chat)
                     try:
                         import zipfile, io as _bio
@@ -3613,6 +3829,9 @@ async def main():
                     if not is_owner and not is_admin:
                         await send(chat, "Owner/Admin only.")
                         continue
+                    if not _check_rate_limit(f"restore:{chat}", max_calls=2, window=3600):
+                        await send(chat, "Rate limit: /restore can be used 2 times per hour.")
+                        continue
                     if not msg.get("reply_to_message") or not msg["reply_to_message"].get("document"):
                         await send(chat, "Reply to a backup.zip file with /restore")
                         continue
@@ -3631,9 +3850,12 @@ async def main():
                         import zipfile, io as _bio
                         zf = zipfile.ZipFile(_bio.BytesIO(zip_data))
                         restored = []
+                        base_dir = os.path.realpath(os.path.dirname(__file__))
                         for name in zf.namelist():
                             if name.endswith(".json"):
-                                target = os.path.join(os.path.dirname(__file__), name)
+                                target = os.path.realpath(os.path.join(base_dir, name))
+                                if not target.startswith(base_dir):
+                                    continue
                                 with open(target, "wb") as f:
                                     f.write(zf.read(name))
                                 restored.append(name)
@@ -3761,6 +3983,9 @@ async def main():
                         continue
                     sub = parts[1].lower()
                     if sub == "load" and len(parts) >= 3:
+                        if not is_owner:
+                            await send(chat, "Only the owner can load plugins.")
+                            continue
                         url_or_path = " ".join(parts[2:])
                         await typing(chat)
                         result = await bf.load_plugin(url_or_path)
@@ -3890,7 +4115,7 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
@@ -3973,6 +4198,10 @@ async def main():
                             await send(chat, reply)
                             continue
                         else:
+                            _last_msg_times.setdefault(uid, 0)
+                            if uid in sessions and sessions[uid] and time.time() - _last_msg_times[uid] > 1800:
+                                _archive_current(uid, chat)
+                                sessions[uid] = []
                             sessions.setdefault(uid, [])
                             agent_prompt = AGENTS[active_agent]["prompt"]
                             if not sessions[uid]:
@@ -4017,14 +4246,14 @@ if __name__ == "__main__":
         _em = f"FATAL: {type(_be).__name__}: {_be}"
         print(_em, flush=True)
         try:
-            with open("bot_crash.txt", "w") as _cf:
+            with open("bot_crash.txt", "w", encoding="utf-8") as _cf:
                 _cf.write(f"main crash:\n{_tb.format_exc()}")
         except:
             pass
     finally:
         try:
             if os.path.exists(_LOCK_FILE):
-                with open(_LOCK_FILE) as _f:
+                with open(_LOCK_FILE, encoding="utf-8") as _f:
                     if _f.read().strip() == str(os.getpid()):
                         os.remove(_LOCK_FILE)
         except:
