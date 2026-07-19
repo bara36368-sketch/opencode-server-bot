@@ -429,6 +429,7 @@ _last_msg_times = {}
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 TG_API = f"https://api.telegram.org/bot{TOKEN}"
+BOT_VERSION = "unknown"
 
 DEFAULT_AGENTS = {
     "orchestrator": {
@@ -1947,57 +1948,52 @@ async def auto_version_checker():
         except Exception as e:
             log(f"Auto version check error: {e}")
 
-async def main():
-    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
-    log("Bot started")
-    _write_dbg(6)
-
+async def run_startup_check():
+    global BOT_VERSION
     try:
         version_info = load_version()
         ver = version_info.get("version", "unknown")
+        BOT_VERSION = ver
         state = load_version_state()
         old_ver = state.get("last_version", "")
         old_git = state.get("last_git_commit", "")
         cur_git = get_git_commit()
-        _write_dbg(7)
         if cur_git and cur_git != old_git and ver == old_ver:
-            log(f"Git commit changed: {old_git} -> {cur_git}")
+            log(f"startup: git commit changed {old_git} -> {cur_git}")
             changes = get_git_log(old_git, cur_git)
             new_ver = auto_bump_version()
+            BOT_VERSION = new_ver
             if changes:
                 set_changelog(new_ver, changes)
-            log(f"Auto-bumped: {old_ver} -> {new_ver} ({len(changes)} changes)")
+            log(f"startup: auto-bumped {old_ver} -> {new_ver}")
             state["last_version"] = new_ver
             state["last_git_commit"] = cur_git
-            state = await announce_update(old_ver, new_ver, changes, state)
-            ver = new_ver
-            _write_dbg(8)
+            await announce_update(old_ver, new_ver, changes, state)
         elif old_ver and old_ver != ver:
             changes = version_info.get("whats_new", {}).get(ver, [])
-            log(f"Version changed: {old_ver} -> {ver}")
+            log(f"startup: version changed {old_ver} -> {ver}")
             state["last_git_commit"] = cur_git
-            state = await announce_update(old_ver, ver, changes, state)
-            _write_dbg(9)
+            await announce_update(old_ver, ver, changes, state)
         elif not old_ver and ver != "unknown":
             changes = version_info.get("whats_new", {}).get(ver, [])
             state["last_git_commit"] = cur_git
-            state = await announce_update("initial", ver, changes, state)
-            _write_dbg(10)
+            await announce_update("initial", ver, changes, state)
         else:
             state["last_version"] = ver
             state["last_git_commit"] = cur_git
             save_version_state(state)
-            _write_dbg(11)
+        log(f"Bot v{BOT_VERSION} started")
     except Exception as e:
-        log(f"Startup version check error: {e}")
-        _tb.print_exc()
+        log(f"startup check error (non-fatal): {e}")
         try:
             with open("bot_crash.txt", "w", encoding="utf-8") as _cf:
-                _cf.write(f"startup version check error:\n{_tb.format_exc()}")
+                _cf.write(f"startup check error:\n{_tb.format_exc()}")
         except:
             pass
-    _write_dbg(12)
-    log(f"OpenCode Bot v{ver} started")
+
+async def main():
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
+    log("Bot started")
 
     await gateway.start_worker()
     if bf:
@@ -2005,14 +2001,13 @@ async def main():
         asyncio.create_task(bf.run_reminder_loop(send))
         bf.init_plugins()
     asyncio.create_task(auto_version_checker())
+    asyncio.create_task(run_startup_check())
 
-    # Initialize AI Stack memory on startup
     if user_memory:
         log("AI Stack memory initialized")
         load_memory()
     load_token_usage()
     load_experimental()
-    _write_dbg(13)
 
     while True:
         try:
@@ -2097,7 +2092,7 @@ async def main():
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
                     lines = [
-                        f"OpenCode Bot v{ver}",
+                        f"OpenCode Bot v{BOT_VERSION}",
                         f"  Agents: {len(AGENTS)}  Providers: {len(PROVIDERS)}  Skills: 90+",
                         "",
                         "Commands:",
