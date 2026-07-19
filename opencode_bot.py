@@ -65,21 +65,10 @@ def _check_single_instance():
     except: pass
 _check_single_instance()
 
-import sys as _sys
-def _dbg(n):
-    try:
-        _sys.stderr.write(f"[dbg:{n}]\n")
-        _sys.stderr.flush()
-    except:
-        pass
-
-_dbg("A")
-
 _M = object()
 asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
     import asyncio, json, uuid, time, copy, re, random, urllib.parse
-    _dbg("B")
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -87,7 +76,6 @@ except Exception:
     except:
         pass
     raise
-_dbg("C")
 import logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -100,11 +88,9 @@ except Exception:
             _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
     except:
         pass
-_dbg("D")
 
 try:
     import pyrit_attacks
-    _dbg("E")
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -419,6 +405,16 @@ class ProviderGateway:
 
 gateway = ProviderGateway()
 _last_msg_times = {}
+
+try:
+    with open(os.path.join(os.path.dirname(__file__), ".env"), encoding="utf-8") as _env_f:
+        for _env_line in _env_f:
+            _env_line = _env_line.strip()
+            if _env_line and not _env_line.startswith("#") and "=" in _env_line:
+                _k, _v = _env_line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+except:
+    pass
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
@@ -1703,18 +1699,14 @@ _empty_polls = 0
 
 async def poll():
     global last_update, _empty_polls
-    _dbg("I0")
     p = {"timeout": 15, "allowed_updates": ["message"]}
     if last_update:
         p["offset"] = last_update + 1
     for attempt in range(3):
         try:
             c = await get_http()
-            _dbg("I1")
             r = (await c.get(f"{TG_API}/getUpdates", params=p, timeout=20)).json()
-            _dbg("I2")
             if not r.get("ok"):
-                _dbg(f"Ie_api:{r}")
                 return []
             for u in r.get("result", []):
                 last_update = u["update_id"]
@@ -1724,18 +1716,15 @@ async def poll():
             except:
                 pass
             result = r.get("result", [])
-            _dbg(f"I3={len(result)}")
             if result:
                 _empty_polls = 0
             else:
                 _empty_polls += 1
                 if _empty_polls > 6:
-                    _dbg("I_reset_offset")
                     last_update = 0
                     _empty_polls = 0
             return result
         except Exception as e:
-            _dbg(f"Ie:{type(e).__name__}")
             log(f"Poll attempt {attempt+1}/3 failed: {type(e).__name__}: {e}")
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
@@ -2006,20 +1995,12 @@ async def run_startup_check():
 
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update
-    _dbg("F")
     last_update = 0
     try:
         c = await get_http()
-        r = await c.post(f"{TG_API}/deleteWebhook", timeout=10)
-        d = r.json()
-        _dbg(f"Fw={d.get('ok')}")
-        try:
-            r2 = await c.get(f"{TG_API}/getWebhookInfo", timeout=10)
-            _dbg(f"Fwh={r2.json().get('result',{}).get('url','none')}")
-        except:
-            _dbg("Fwh_fail")
+        await c.post(f"{TG_API}/deleteWebhook", timeout=10)
     except:
-        _dbg("Fw_fail")
+        pass
     log("Bot started")
 
     await gateway.start_worker()
@@ -2036,13 +2017,11 @@ async def main():
     load_token_usage()
     load_experimental()
 
-    _dbg("G")
     while True:
         try:
             for u in (await poll()):
                 msg = u.get("message")
                 if not msg: continue
-                _dbg("H")
                 mid, cid = msg.get("message_id"), msg["chat"]["id"]
                 if mid and (cid, mid) in processed: continue
                 if mid: processed.add((cid, mid))

@@ -18,6 +18,7 @@ check_chars.py
 clean_file.py
 routines.json
 version_state.json
+.env
 whatsapp/auth_info/
 whatsapp/node_modules/
 whatsapp/package-lock.json
