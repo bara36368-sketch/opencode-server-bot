@@ -1,6 +1,6 @@
 {
-  "version": "2.7.1",
-  "updated": "2026-07-18",
+  "version": "2.8.0",
+  "updated": "2026-07-19",
   "experimental": [
     "Deep Research v2 — multi-step research with source verification",
     "Voice Cloning — clone any voice from a short audio sample",
@@ -17,6 +17,15 @@
     "Knowledge Vault — save, search, and organize facts like a second brain"
   ],
   "whats_new": {
+    "2.8.0": [
+      "Conversation History - /archive, /history, /view, /change to save and browse past chats",
+      "Auto-archive on /clear or after 30 min inactivity",
+      "OpenMontage Video Creator - /video agent with 12 pipelines, 52 tools, full production studio",
+      "Security hardening - /run, /fetch, /plugin locked to owner/admin, SSRF protection, sandbox escape prevention",
+      "Startup security scanner - warns on hardcoded API keys in setenv.sh/providers.json",
+      "Rate limiting on /announce, /backup, /restore to prevent spam",
+      "Fixed 8 runtime bugs: utf-8 encoding, NameError, triple json.parse, dedup None return, path traversal, .lower() crash, subprocess encoding, missing json import"
+    ],
     "2.7.1": [
       "Fixed urllib import crash — synox providers no longer fail with 'name urllib is not defined'",
       "Separated stdlib imports from httpx — bot starts even if httpx is missing",

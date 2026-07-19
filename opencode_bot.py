@@ -1834,6 +1834,20 @@ async def announce_update(old_v, new_v, changes, state):
     save_version_state(state)
     return state
 
+def get_git_commit():
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except:
+        pass
+    return ""
+
 async def auto_version_checker():
     while True:
         await asyncio.sleep(30)
@@ -1842,9 +1856,17 @@ async def auto_version_checker():
             current_ver = current.get("version", "unknown")
             state = load_version_state()
             last_ver = state.get("last_version", "")
-            if current_ver != "unknown" and current_ver != last_ver:
+            last_git = state.get("last_git_commit", "")
+            cur_git = get_git_commit()
+            if cur_git and cur_git != last_git and current_ver == last_ver:
+                state["last_git_commit"] = cur_git
+                save_version_state(state)
+                log(f"Auto-check: git commit changed {last_git} -> {cur_git}")
+                await announce_update(f"commit {last_git}", f"commit {cur_git}", ["Code update - see git log for details"], state)
+            elif current_ver != "unknown" and current_ver != last_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
                 log(f"Auto-check: version changed {last_ver or 'initial'} -> {current_ver}")
+                state["last_git_commit"] = cur_git
                 await announce_update(last_ver or "initial", current_ver, changes, state)
         except Exception as e:
             log(f"Auto version check error: {e}")
@@ -1857,15 +1879,26 @@ async def main():
     ver = version_info.get("version", "unknown")
     state = load_version_state()
     old_ver = state.get("last_version", "")
+    cur_git = get_git_commit()
+    old_git = state.get("last_git_commit", "")
     if old_ver and old_ver != ver:
         changes = version_info.get("whats_new", {}).get(ver, [])
         log(f"Version changed: {old_ver} -> {ver}")
+        state["last_git_commit"] = cur_git
         state = await announce_update(old_ver, ver, changes, state)
+    elif cur_git and cur_git != old_git and ver == old_ver:
+        state["last_git_commit"] = cur_git
+        state["last_version"] = ver
+        save_version_state(state)
+        log(f"Git commit changed: {old_git} -> {cur_git} (same version)")
+        state = await announce_update(f"rev {old_git}", f"rev {cur_git}", ["Code update - see git log for details"], state)
     elif not old_ver and ver != "unknown":
         changes = version_info.get("whats_new", {}).get(ver, [])
+        state["last_git_commit"] = cur_git
         state = await announce_update("initial", ver, changes, state)
     else:
         state["last_version"] = ver
+        state["last_git_commit"] = cur_git
         save_version_state(state)
     log(f"OpenCode Bot v{ver} started")
 
