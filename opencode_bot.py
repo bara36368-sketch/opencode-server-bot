@@ -1701,13 +1701,16 @@ async def smart_call(messages, preferred):
 
 async def poll():
     global last_update
+    _dbg("I0")
     p = {"timeout": 15, "allowed_updates": ["message"]}
     if last_update:
         p["offset"] = last_update + 1
     for attempt in range(3):
         try:
             c = await get_http()
+            _dbg("I1")
             r = (await c.get(f"{TG_API}/getUpdates", params=p, timeout=20)).json()
+            _dbg("I2")
             for u in r.get("result", []):
                 last_update = u["update_id"]
             try:
@@ -1715,8 +1718,11 @@ async def poll():
                     _f.write(str(last_update))
             except:
                 pass
-            return r.get("result", [])
+            result = r.get("result", [])
+            _dbg(f"I3={len(result)}")
+            return result
         except Exception as e:
+            _dbg(f"Ie:{type(e).__name__}")
             log(f"Poll attempt {attempt+1}/3 failed: {type(e).__name__}: {e}")
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
@@ -1988,6 +1994,12 @@ async def run_startup_check():
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
     _dbg("F")
+    try:
+        c = await get_http()
+        await c.post(f"{TG_API}/deleteWebhook", timeout=10)
+        _dbg("Fw")
+    except:
+        pass
     log("Bot started")
 
     await gateway.start_worker()
