@@ -1992,14 +1992,15 @@ async def run_startup_check():
             pass
 
 async def main():
-    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update
     _dbg("F")
+    last_update = 0
     try:
         c = await get_http()
-        await c.post(f"{TG_API}/deleteWebhook", timeout=10)
-        _dbg("Fw")
+        r = await c.post(f"{TG_API}/deleteWebhook", timeout=10)
+        _dbg(f"Fw={r.json().get('ok')}")
     except:
-        pass
+        _dbg("Fw_fail")
     log("Bot started")
 
     await gateway.start_worker()
