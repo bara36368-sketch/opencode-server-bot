@@ -714,6 +714,9 @@ MODES = {
 MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory.json")
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token_usage.json")
 EXPERIMENTAL_FILE = os.path.join(os.path.dirname(__file__), "experimental.json")
+CUSTOM_COMMANDS_FILE = os.path.join(os.path.dirname(__file__), "custom_commands.json")
+CONTEXT_FILES_FILE = os.path.join(os.path.dirname(__file__), "context_files.json")
+CONVERSATION_TAGS_FILE = os.path.join(os.path.dirname(__file__), "conversation_tags.json")
 vector_memory = {}
 memory_buffers = {}
 
@@ -812,6 +815,80 @@ def get_experimental_list():
     lines.append("  /experimental disable <name> — Disable feature")
     lines.append("  /experimental status — Quick status")
     return "\n".join(lines)
+
+custom_commands = {}
+def load_custom_commands():
+    global custom_commands
+    if os.path.exists(CUSTOM_COMMANDS_FILE):
+        try:
+            with open(CUSTOM_COMMANDS_FILE, encoding="utf-8") as f:
+                custom_commands = json.load(f)
+        except:
+            custom_commands = {}
+
+def save_custom_commands():
+    try:
+        with open(CUSTOM_COMMANDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(custom_commands, f, indent=2)
+    except:
+        pass
+
+context_files = {}
+def load_context_files():
+    global context_files
+    if os.path.exists(CONTEXT_FILES_FILE):
+        try:
+            with open(CONTEXT_FILES_FILE, encoding="utf-8") as f:
+                context_files = json.load(f)
+        except:
+            context_files = {}
+
+def save_context_files():
+    try:
+        with open(CONTEXT_FILES_FILE, "w", encoding="utf-8") as f:
+            json.dump(context_files, f, indent=2)
+    except:
+        pass
+
+conversation_tags = {}
+def load_conversation_tags():
+    global conversation_tags
+    if os.path.exists(CONVERSATION_TAGS_FILE):
+        try:
+            with open(CONVERSATION_TAGS_FILE, encoding="utf-8") as f:
+                conversation_tags = json.load(f)
+        except:
+            conversation_tags = {}
+
+def save_conversation_tags():
+    try:
+        with open(CONVERSATION_TAGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(conversation_tags, f, indent=2)
+    except:
+        pass
+
+def tag_keywords(text):
+    tags = {}
+    text_lower = text.lower()
+    rules = [
+        ("code", ["def ", "class ", "import ", "function", "const ", "var ", "return ", "async "]),
+        ("python", ["import ", "def ", "class ", "async def", "lambda", "print("]),
+        ("javascript", ["const ", "let ", "var ", "function(", "=>", "console."]),
+        ("ai-ml", ["neural", "llm", "model", "training", "dataset", "inference", "gpt", "token"]),
+        ("web", ["html", "css", "http", "api", "endpoint", "route", "server"]),
+        ("database", ["sql", "query", "table", "index", "select ", "insert", "database"]),
+        ("docker", ["docker", "container", "image", "compose", "kubernetes", "k8s"]),
+        ("git", ["commit", "push", "pull", "branch", "merge", "repo", "git "]),
+        ("telegram", ["bot", "message", "chat", "telegram", "update", "polling"]),
+        ("help", ["how", "what", "why", "when", "where", "help", "guide", "tutorial"]),
+        ("error", ["error", "bug", "crash", "fail", "exception", "issue", "problem"]),
+    ]
+    for tag, keywords in rules:
+        for kw in keywords:
+            if kw in text_lower:
+                tags[tag] = tags.get(tag, 0) + 1
+                break
+    return tags
 
 def track_tokens(model, tokens_used):
     token_usage["used"] += tokens_used
@@ -1569,6 +1646,9 @@ load_sessions()
 load_memory()
 load_routines()
 load_multi()
+load_custom_commands()
+load_context_files()
+load_conversation_tags()
 
 async def tg(method, data=None):
     c = await get_http()
@@ -3505,9 +3585,45 @@ async def main():
                         await send(chat, f"Query error: {e}")
 
                 elif cmd == "/context":
-                    await typing(chat)
-                    ctx = await bf.auto_context()
-                    await send(chat, f"Current context:\n{ctx}")
+                    if is_experimental_enabled("context-files") and len(parts) > 1:
+                        sub = parts[1].lower()
+                        chat_str = str(chat)
+                        if sub == "list":
+                            files = context_files.get(chat_str, [])
+                            if not files:
+                                await send(chat, "No attached files. Use /context add <name> <description>")
+                            else:
+                                lines = [f"Attached files ({len(files)}):"]
+                                for f in files:
+                                    cp = (f.get("content", "")[:100] + "…") if f.get("content") else "(empty)"
+                                    lines.append(f"  📄 {f.get('name', 'unnamed')}: {cp}")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "add" and len(parts) > 3:
+                            fname = parts[2]
+                            fcontent = " ".join(parts[3:])
+                            context_files.setdefault(chat_str, []).append({"name": fname, "content": fcontent, "added_at": time.time()})
+                            save_context_files()
+                            await send(chat, f"✅ Attached context file '{fname}'")
+                        elif sub == "remove" and len(parts) > 2:
+                            fname = parts[2]
+                            files = context_files.get(chat_str, [])
+                            new_files = [f for f in files if f.get("name") != fname]
+                            if len(new_files) < len(files):
+                                context_files[chat_str] = new_files
+                                save_context_files()
+                                await send(chat, f"Removed '{fname}'")
+                            else:
+                                await send(chat, f"No file named '{fname}'")
+                        elif sub == "clear":
+                            context_files.pop(chat_str, None)
+                            save_context_files()
+                            await send(chat, "All context files cleared.")
+                        else:
+                            await send(chat, "Usage: /context list | add <name> <content> | remove <name> | clear")
+                    else:
+                        await typing(chat)
+                        ctx = await bf.auto_context()
+                        await send(chat, f"Current context:\n{ctx}")
 
                 elif cmd == "/search":
                     if len(parts) < 2:
@@ -4249,7 +4365,78 @@ async def main():
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video"):
+                elif cmd == "/cmd" and is_experimental_enabled("custom-commands"):
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    uid_str = str(uid)
+                    user_cmds = custom_commands.setdefault(uid_str, {})
+                    if sub == "list":
+                        if not user_cmds:
+                            await send(chat, "No custom commands. Create one with:\n/cmd add <name> <response>")
+                        else:
+                            lines = [f"Your custom commands ({len(user_cmds)}):"]
+                            for cname, cresp in sorted(user_cmds.items()):
+                                lines.append(f"  /{cname} — {cresp[:60]}{'…' if len(cresp) > 60 else ''}")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "add" and len(parts) > 3:
+                        cname = parts[2].lower().replace("/", "")
+                        if not cname.isalnum() and not cname.replace("_", "").isalnum():
+                            await send(chat, "Command name must be alphanumeric.")
+                            continue
+                        if cname in ("start", "help", "cmd", "experimental", "admin", "version"):
+                            await send(chat, "Cannot override built-in commands.")
+                            continue
+                        cresp = " ".join(parts[3:])
+                        user_cmds[cname] = cresp
+                        save_custom_commands()
+                        await send(chat, f"✅ Created /{cname}")
+                    elif sub == "remove" and len(parts) > 2:
+                        cname = parts[2].lower().replace("/", "")
+                        if cname in user_cmds:
+                            del user_cmds[cname]
+                            save_custom_commands()
+                            await send(chat, f"Removed /{cname}")
+                        else:
+                            await send(chat, f"No custom command /{cname}")
+                    else:
+                        await send(chat, "Usage:\n  /cmd list — List your commands\n  /cmd add <name> <response> — Create a command\n  /cmd remove <name> — Delete a command")
+
+                elif cmd.startswith("/") and cmd[1:] in custom_commands.get(str(uid), {}) and is_experimental_enabled("custom-commands"):
+                    user_cmds = custom_commands.get(str(uid), {})
+                    reply = user_cmds.get(cmd[1:], "")
+                    await send(chat, reply)
+
+                elif cmd == "/tags" and is_experimental_enabled("auto-tagging"):
+                    chat_tags = conversation_tags.get(str(chat), {})
+                    if not chat_tags:
+                        await send(chat, "No tags for this chat yet. Start chatting to auto-generate tags!")
+                    else:
+                        sorted_tags = sorted(chat_tags.items(), key=lambda x: -x[1])
+                        lines = [f"Tags for this chat ({sum(chat_tags.values())} total):"]
+                        for t, c in sorted_tags:
+                            lines.append(f"  #{t} — {c}x")
+                        await send(chat, "\n".join(lines))
+
+                elif cmd == "/find" and is_experimental_enabled("auto-tagging"):
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /find <tag>\nExample: /find python")
+                        continue
+                    query = parts[1].lower()
+                    results = []
+                    for cid, tags in conversation_tags.items():
+                        for tag, count in tags.items():
+                            if query in tag:
+                                results.append((cid, tag, count))
+                                break
+                    if not results:
+                        await send(chat, f"No chats found with tag matching '{query}'")
+                    else:
+                        results.sort(key=lambda x: -x[2])
+                        lines = [f"Chats matching '{query}':"]
+                        for cid, tag, count in results[:10]:
+                            lines.append(f"  Chat {cid} — #{tag} ({count}x)")
+                        await send(chat, "\n".join(lines))
+
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
@@ -4341,8 +4528,15 @@ async def main():
                             if not sessions[uid]:
                                 try:
                                     ctx = await bf.auto_context()
-                                    if ctx:
-                                        sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}"})
+                                    extra = ""
+                                    if is_experimental_enabled("context-files"):
+                                        chat_files = context_files.get(str(chat), [])
+                                        if chat_files:
+                                            file_block = "\n\n".join(f"[{f['name']}]\n{f['content']}" for f in chat_files if f.get("content"))
+                                            if file_block:
+                                                extra = f"\n\n[Attached Context Files]\n{file_block}"
+                                    if ctx or extra:
+                                        sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}{extra}"})
                                     else:
                                         sessions[uid].append({"role": "system", "content": agent_prompt})
                                 except:
@@ -4355,6 +4549,13 @@ async def main():
                                 except:
                                     sessions[uid] = sessions[uid][-20:]
                             sessions[uid].append({"role": "user", "content": text})
+                            if is_experimental_enabled("auto-tagging") and text:
+                                tags = tag_keywords(text)
+                                if tags:
+                                    chat_tags = conversation_tags.setdefault(str(chat), {})
+                                    for t, count in tags.items():
+                                        chat_tags[t] = chat_tags.get(t, 0) + count
+                                    save_conversation_tags()
                             log(f"Calling {active_provider} for: {text[:50]}")
                             reply = await smart_call(sessions[uid][-20:], active_provider)
                             log(f"Reply: {reply[:80]}...")
