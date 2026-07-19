@@ -53,11 +53,48 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 ### Security Concern
 `providers.json` has ~15 hardcoded API keys. Move to env vars / `.env`.
 
+## What Was Done (Session 2026-07-19 — Part 2: Bugfix, Security, Features)
+
+### Runtime Bugfixes
+- ALL open() calls missing encoding=utf-8 fixed across opencode_bot.py (48), web_gateway.py (4), runner.py (1), bot_features.py (12)
+- web_gateway.py analyze_prompt NameError: 'and k' variable-as-iterable
+- tg() triple json.parse: cached in variable
+- send() dedup returning None instead of {ok: true}
+- announce_update first-install skip: handles empty old_ver
+- auto_version_checker: handles unknown current_ver
+- /restore zip slip path traversal: os.path.realpath prefix check
+- ProviderGateway.execute() .lower() crash: isinstance guard
+- runner.py subprocess encoding: utf-8 for git + netstat
+- json import missing at module level (_security_check crashed on import)
+
+### Security Hardening
+- /run restricted to owner/admin (5000 char limit)
+- /fetch restricted to owner/admin (http/https only)
+- /plugin load restricted to owner only
+- SSRF via fetch_url: _is_private_ip() blocks private ranges + redirect check
+- Python sandbox escape: type removed from builtins
+- Startup security scanner: warns on hardcoded API keys in setenv.sh/providers.json
+- Rate limiting: /announce (2/5min), /backup (2/hour), /restore (2/hour)
+
+### Conversation History System
+- conversations.json archive with auto-increment IDs per chat
+- /archive — manually archive current session
+- /history — list last 20 archived conversations
+- /view <id> — show last 30 messages of archived conversation
+- /change <id> /resume <id> — switch to archived conversation
+- Auto-archive on /clear, 30-min inactivity gap, /change
+
+### Video Creator Agent (OpenMontage)
+- video-creator agent with full OpenMontage reverse-engineered knowledge: 12 pipelines, 52+ tools, installation guide, agent orchestration contract, pipeline state machine, style playbooks, quality gates
+- /video [prompt] — shortcut to enter video-creator agent
+
+## Workflow Rule
+After every update, auto git commit + git push. (Set by user 2026-07-19)
+
 ## Next Steps
-1. Finish `/skills` marketplace integration (if any backend wiring is needed)
-2. Test-run: `python runner.py` or `python opencode_bot.py` (single instance)
-3. Move API keys to environment variables
-4. Repo catalog has 90 repos total — 9 reviewed & integrated, 35 pending review, 45 to ADD
+1. Restart runner.py so all fixes take effect
+2. Test new features: /history, /archive, /video
+3. Move API keys from setenv.sh/providers.json to env vars
 
 ## Key Commands
 Start bot: `python opencode_bot.py`
