@@ -335,34 +335,37 @@ class ProviderGateway:
                 else:
                     return 0
         return best if best < 9999 else 60
-    async def execute(self, messages, preferred):
-        chain = self.fallback_chain(preferred)
-        t0 = time.time()
-        errors = []
-        for provider in chain:
-            t1 = time.time()
-            try:
-                result = await asyncio.wait_for(call_provider(messages, provider), timeout=25)
-                elapsed = time.time() - t1
-                if isinstance(result, str) and "error" in result.lower()[:20]:
-                    self.record(provider, elapsed, False)
-                    errors.append(f"{provider}: {result[:80]}")
-                    continue
-                self.record(provider, elapsed, True)
-                log(f"gateway: {provider} in {time.time()-t0:.1f}s")
-                return result
-            except asyncio.TimeoutError:
-                self.record(provider, 25, False)
-                errors.append(f"{provider}: timeout")
-            except Exception as e:
-                self.record(provider, time.time()-t1, False)
-                errors.append(f"{provider}: {e}")
-        wait = self.next_available()
-        retry_in = max(wait, 5) if wait > 0 else 10
-        if retry_in < 60:
-            log(f"gateway: all failed, retrying in {retry_in:.0f}s")
-            await asyncio.sleep(retry_in)
-            return await self.execute(messages, preferred)
+    async def execute(self, messages, preferred, _retries=0):
+        max_retries = 5
+        while _retries < max_retries:
+            chain = self.fallback_chain(preferred)
+            t0 = time.time()
+            errors = []
+            for provider in chain:
+                t1 = time.time()
+                try:
+                    result = await asyncio.wait_for(call_provider(messages, provider), timeout=25)
+                    elapsed = time.time() - t1
+                    if isinstance(result, str) and "error" in result.lower()[:20]:
+                        self.record(provider, elapsed, False)
+                        errors.append(f"{provider}: {result[:80]}")
+                        continue
+                    self.record(provider, elapsed, True)
+                    log(f"gateway: {provider} in {time.time()-t0:.1f}s")
+                    return result
+                except asyncio.TimeoutError:
+                    self.record(provider, 25, False)
+                    errors.append(f"{provider}: timeout")
+                except Exception as e:
+                    self.record(provider, time.time()-t1, False)
+                    errors.append(f"{provider}: {e}")
+            _retries += 1
+            wait = self.next_available()
+            retry_in = max(wait, 5) if wait > 0 else 10
+            if _retries >= max_retries:
+                break
+            log(f"gateway: all failed, retrying in {retry_in:.0f}s (attempt {_retries}/{max_retries})")
+            await asyncio.sleep(min(retry_in, 30))
         return f"All providers failed.\n" + "\n".join(errors) + f"\nNext available in {wait:.0f}s."
     def get_route_health(self):
         global active_provider
@@ -2166,7 +2169,7 @@ async def call_provider(messages, provider, override=None):
         for m in msgs:
             role = "model" if m["role"] == "assistant" else "user"
             parts.append({"role": role, "parts": [{"text": m["content"]}]})
-        r = await c.post(f"{p['url']}?key={p['key']}", json={"contents": parts})
+        r = await c.post(p["url"], json={"contents": parts}, headers={"X-Goog-Api-Key": p["key"]})
         if r.status_code == 200:
             data = r.json()
             candidates = data.get("candidates", [])
