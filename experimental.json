@@ -111,6 +111,76 @@
       "version": "2.6.0",
       "enabled": false,
       "category": "ai"
+    },
+    "search-tags": {
+      "name": "Search by Tags",
+      "desc": "Enables /search tags <tag> to find chats by auto-generated tags",
+      "version": "2.8.0",
+      "category": "research",
+      "enabled": false
+    },
+    "search-files": {
+      "name": "Search Attached Files",
+      "desc": "Enables /search files <keyword> to search attached context files",
+      "version": "2.8.0",
+      "category": "research",
+      "enabled": false
+    },
+    "search-history": {
+      "name": "Search History",
+      "desc": "Enables /search history <keyword> to search current session messages",
+      "version": "2.8.0",
+      "category": "research",
+      "enabled": false
+    },
+    "custom-commands": {
+      "name": "Custom Commands",
+      "desc": "Users can create their own /commands with custom responses",
+      "version": "2.8.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "context-files": {
+      "name": "Context Files",
+      "desc": "Attach and detach files as permanent AI context in conversations",
+      "version": "2.8.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "auto-tagging": {
+      "name": "Auto-Tagging",
+      "desc": "Auto-categorize conversations with tags, searchable via /find",
+      "version": "2.8.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "enhanced-search": {
+      "name": "Enhanced Search",
+      "desc": "Enhanced /search with tags, files, and history modes",
+      "version": "2.8.0",
+      "category": "research",
+      "enabled": false
+    },
+    "web-dashboard": {
+      "name": "Web Dashboard",
+      "desc": "Web UI for managing agents, viewing logs, and toggling experimental features",
+      "version": "2.8.0",
+      "category": "admin",
+      "enabled": false
+    },
+    "plugin-system": {
+      "name": "Plugin System",
+      "desc": "Load custom functionality from plugins/ directory at startup",
+      "version": "2.8.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "bot-bridge": {
+      "name": "Bot Bridge",
+      "desc": "Bridge connection to other Telegram bots, Discord, or Slack",
+      "version": "2.8.0",
+      "category": "automation",
+      "enabled": false
     }
   }
 }

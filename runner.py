@@ -22,16 +22,16 @@ def _security_check():
                 if isinstance(pconf, dict) and "key" in pconf and pconf["key"] and pconf["key"] not in ("set-via-env-var", "skip-auth", ""):
                     issues.append(f"Hardcoded API key in providers.json for '{pname}'")
     if issues:
-        print("━━━ Security Scan ━━━")
+        print("--- Security Scan ---")
         for issue in issues:
-            msg = f"⚠ {issue}"
+            msg = f"! {issue}"
             print(f"  {msg}")
             logging.warning(f"SECURITY {msg}")
         if len(issues) > 2:
-            msg = f"⚠ {len(issues)} hardcoded API keys found. Use env vars or encrypted storage."
+            msg = f"! {len(issues)} hardcoded API keys found. Use env vars or encrypted storage."
             print(f"  {msg}")
             logging.warning(f"SECURITY {msg}")
-        print("━━━━━━━━━━━━━━━━━━")
+        print("----------------------")
 
 _security_check()
 

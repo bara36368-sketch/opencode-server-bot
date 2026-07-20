@@ -29,13 +29,15 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
     gemini_key = os.environ.get("GEMINI_KEY", "")
     openai_key = os.environ.get("OPENAI_KEY", "")
 
-    models = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
+    models = ["gemini-2.0-flash-001", "gemini-2.0-flash", "gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
+    last_err = None
     for model in models:
         if gemini_key and gemini_key not in ("", "set-via-env-var"):
             try:
                 return await _try_gemini_vision(model, data_uri, prompt)
             except Exception as e:
                 last_err = e
+                print(f"vision: {model} failed: {e}")
         else:
             last_err = Exception("no gemini key")
     if openai_key and openai_key not in ("", "set-via-env-var"):
@@ -43,7 +45,10 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
             return await _try_openai_vision(data_uri, prompt, openai_key)
         except Exception as e:
             last_err = e
-    return f"Vision error: {last_err}"
+            print(f"vision: openai failed: {e}")
+    reason = str(last_err) if last_err else "unknown error"
+    return (f"Could not analyze image. The bot needs a GEMINI_KEY or OPENAI_KEY "
+            f"in your .env file for vision features. (debug: {reason})")
 
 async def _try_gemini_vision(model, data_uri, prompt):
     c = await get_http()

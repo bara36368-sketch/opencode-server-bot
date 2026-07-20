@@ -1,6 +1,6 @@
 {
-  "version": "2.8.96",
-  "updated": "2026-07-19",
+  "version": "2.8.102",
+  "updated": "2026-07-20",
   "experimental": [
     "Deep Research v2 \u2014 multi-step research with source verification",
     "Voice Cloning \u2014 clone any voice from a short audio sample",
@@ -89,6 +89,22 @@
     ],
     "2.8.89": [],
     "2.8.90": [],
-    "2.8.96": []
+    "2.8.96": [],
+    "2.8.102": [
+      "Security hardening: RCE via exec() gated to OWNER_ID only with restricted builtins",
+      "Security hardening: SSRF via web-scrape blocked private IPs, loopback, cloud metadata",
+      "Security hardening: SSRF via web-search query now url-encoded",
+      "Security hardening: plugin path traversal blocked (plugins dir only)",
+      "Security hardening: web dashboard auth enforced (WEB_ADMIN_PASSWORD env var)",
+      "Security hardening: bridge plaintext token startup warning",
+      "Security hardening: bridge URL validation (http/https only)",
+      "Security hardening: bridge HTML output escaped before send",
+      "Security hardening: bare except:pass now logs errors",
+      "Security hardening: atomic file saves prevent JSON race conditions",
+      "Security hardening: content-type check in _parse_body",
+      "Security hardening: unused parameters removed from relay_to_bridge",
+      "Fixed: runner.py Unicode crash on Windows (━ chars in print)",
+      "Fixed: Gemini vision model list updated (gemini-2.0-flash added)"
+    ]
   }
 }

@@ -108,6 +108,30 @@ PROVIDER_ROLES = {
      "freetheai": {"role": "Free Spirit", "emoji": "\U0001F9F4", "color": "#eab308",
                    "desc": "60+ free models via FreeTheAi (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
                    "system_prompt": "You are a versatile, uncensored AI assistant routed through FreeTheAi. Be thorough and creative."},
+     "agnes": {"role": "Sage", "emoji": "\U0001F33F", "color": "#10b981",
+               "desc": "Singapore-based free AI — Agnes-2.0-Flash (256K ctx, top-10 ranked)",
+               "system_prompt": "You are Agnes, a powerful yet efficient AI assistant. Be precise and thorough."},
+     "cloudflare": {"role": "EdgeMind", "emoji": "\u2601\uFE0F", "color": "#f97316",
+                    "desc": "Cloudflare Workers AI — 39 models, 10K neurons/day free (Llama 4 Scout, GLM-4.7, Kimi K2)",
+                    "system_prompt": "You are an edge-AI assistant running on Cloudflare's global network. Be fast and accurate."},
+     "huggingface": {"role": "Community", "emoji": "\U0001F30D", "color": "#f59e0b",
+                     "desc": "Hugging Face Inference — Llama, Qwen, Gemma, DeepSeek via OpenAI-compatible router",
+                     "system_prompt": "You are a community-powered AI assistant. Be helpful, open, and thorough."},
+     "nvidia-glm5": {"role": "Chinese GLM", "emoji": "\U0001F310", "color": "#76b900",
+                     "desc": "Zhipu GLM-5.2 (753B MoE, 1M ctx) via NVIDIA NIM — top open-weight model",
+                     "system_prompt": "You are GLM-5.2, Zhipu AI's flagship model. Provide precise, well-reasoned responses."},
+     "nvidia-deepseek-v4": {"role": "DeepReason", "emoji": "\U0001F9EE", "color": "#76b900",
+                            "desc": "DeepSeek-V4-Pro (1.6T MoE, 1M ctx) via NVIDIA NIM — frontier reasoning",
+                            "system_prompt": "You are DeepSeek-V4-Pro. Think step-by-step and provide deep reasoning."},
+     "nvidia-qwen35": {"role": "Qwen Giant", "emoji": "\U0001F4A7", "color": "#76b900",
+                       "desc": "Qwen3.5-397B-A3B (397B MoE) via NVIDIA NIM — Alibaba's latest",
+                       "system_prompt": "You are Qwen3.5, Alibaba's latest large model. Be thorough and accurate."},
+     "nvidia-kimi-k26": {"role": "Kimi K2.6", "emoji": "\U0001F33F", "color": "#76b900",
+                         "desc": "Moonshot Kimi K2.6 (1T MoE, 262K ctx) via NVIDIA NIM",
+                         "system_prompt": "You are Kimi K2.6 by Moonshot AI. Be precise, logical, and thorough."},
+     "nvidia-nemotron": {"role": "NVIDIA Giant", "emoji": "\U0001F52A", "color": "#76b900",
+                         "desc": "Nemotron 3 Ultra 550B via NVIDIA NIM — NVIDIA's largest model",
+                         "system_prompt": "You are Nemotron 3 Ultra, NVIDIA's flagship model. Provide expert-level responses."},
  }
 
 # ---- MCP Server (Model Context Protocol) ----
@@ -472,6 +496,14 @@ _ENV_KEY_MAP = {
     "zyloo": "ZYLOO_KEY", "siliconflow": "SILICONFLOW_KEY",
     "omniroute": "OMNIROUTE_KEY",
     "freetheai": "FREETHEAI_KEY",
+    "agnes": "AGNES_KEY",
+    "cloudflare": "CLOUDFLARE_KEY",
+    "huggingface": "HUGGINGFACE_KEY",
+    "nvidia-glm5": "NVIDIA_KEY",
+    "nvidia-deepseek-v4": "NVIDIA_KEY",
+    "nvidia-qwen35": "NVIDIA_KEY",
+    "nvidia-kimi-k26": "NVIDIA_KEY",
+    "nvidia-nemotron": "NVIDIA_KEY",
 }
 
 def _resolve_key(provider_id, fallback):
@@ -500,6 +532,14 @@ def _load_providers():
     PROVIDERS.setdefault("hy3", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": _resolve_key("hy3", "not configured")})
     PROVIDERS.setdefault("hy3-preview", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": _resolve_key("hy3-preview", "not configured")})
     PROVIDERS.setdefault("freetokenfaucet", {"url": "https://freetokenfaucet.com/v1/chat/completions", "model": "gpt-4o-mini", "key": "tf_ae094ac3d7fd4a73b8d1f40bf5f2d5f4"})
+    PROVIDERS.setdefault("agnes", {"url": "https://apihub.agnes-ai.com/v1/chat/completions", "model": "agnes-2.0-flash", "key": _resolve_key("agnes", "set-via-env-var")})
+    PROVIDERS.setdefault("cloudflare", {"url": "set-via-env-var", "model": "@cf/meta/llama-4-scout-17b-16e-instruct", "key": _resolve_key("cloudflare", "set-via-env-var")})
+    PROVIDERS.setdefault("huggingface", {"url": "https://router.huggingface.co/v1/chat/completions", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": _resolve_key("huggingface", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-glm5", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "zhipuai/glm-5.2", "key": _resolve_key("nvidia-glm5", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-deepseek-v4", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "deepseek/deepseek-v4-pro", "key": _resolve_key("nvidia-deepseek-v4", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-qwen35", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "qwen/qwen3.5-397b-a3b", "key": _resolve_key("nvidia-qwen35", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-kimi-k26", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "moonshotai/kimi-k2.6", "key": _resolve_key("nvidia-kimi-k26", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-nemotron", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "nvidia/nemotron-3-ultra-550b", "key": _resolve_key("nvidia-nemotron", "set-via-env-var")})
     if "omniroute" in PROVIDERS:
         if os.environ.get("OMNIROUTE_URL"):
             PROVIDERS["omniroute"]["url"] = os.environ.get("OMNIROUTE_URL")

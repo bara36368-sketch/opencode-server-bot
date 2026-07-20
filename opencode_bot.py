@@ -1,4 +1,4 @@
-import sys, os, json, traceback as _tb, io as _io, re as _re
+import sys, os, json, signal, traceback as _tb, io as _io, re as _re
 from datetime import datetime
 
 def _security_check():
@@ -24,7 +24,7 @@ def _security_check():
                 f.write(f"Security warnings ({len(issues)}):\n")
                 for i in issues:
                     f.write(f"  - {i}\n")
-        except:
+        except Exception:
             pass
         print(f"[security] {len(issues)} hardcoded API keys detected (see security_warnings.txt)")
 
@@ -52,17 +52,19 @@ def _check_single_instance():
                         _ = open(f"/proc/{_old_pid}/status", encoding="utf-8")
                         _.close()
                         _alive = True
-                    except:
+                    except Exception:
                         pass
-                except:
+                except Exception:
                     pass
             if _alive:
                 sys.exit(0)
-    except: pass
+    except Exception:
+        pass
     try:
         with open(_LOCK_FILE, "w", encoding="utf-8") as _f:
             _f.write(str(os.getpid()))
-    except: pass
+    except Exception:
+        pass
 _check_single_instance()
 
 _M = object()
@@ -73,7 +75,7 @@ except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"stdlib import failed:\n{_tb.format_exc()}")
-    except:
+    except Exception:
         pass
     raise
 import logging
@@ -86,7 +88,7 @@ except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"httpx import failed (non-fatal):\n{_tb.format_exc()}")
-    except:
+    except Exception:
         pass
 
 try:
@@ -95,7 +97,7 @@ except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"pyrit import failed:\n{_tb.format_exc()}")
-    except:
+    except Exception:
         pass
     pyrit_attacks = None
 
@@ -176,7 +178,11 @@ async def get_http():
     if httpx is _M or not hasattr(httpx, "AsyncClient"):
         raise RuntimeError("httpx is not installed. Install with: pip install httpx")
     if _http is None or _http.is_closed:
-        _http = httpx.AsyncClient(timeout=120, limits=httpx.Limits(max_keepalive_connections=10, max_connections=20))
+        _http = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=60, write=30, pool=10),
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30),
+            http2=True,
+        )
     return _http
 
 AGENTS_FILE = os.path.join(os.path.dirname(__file__), "agents.json")
@@ -359,6 +365,7 @@ class ProviderGateway:
             return await self.execute(messages, preferred)
         return f"All providers failed.\n" + "\n".join(errors) + f"\nNext available in {wait:.0f}s."
     def get_route_health(self):
+        global active_provider
         lines = []
         for name in sorted(PROVIDERS.keys()):
             h = self.health[name]
@@ -387,6 +394,7 @@ class ProviderGateway:
         return "\n".join(lines)
     async def start_worker(self):
         self._worker = asyncio.create_task(self._queue_worker())
+        self._worker.add_done_callback(_task_done)
     async def enqueue(self, messages, preferred, chat_id, uid):
         await self._queue.put((messages, preferred, chat_id, uid))
     async def _queue_worker(self):
@@ -404,7 +412,19 @@ class ProviderGateway:
             await asyncio.sleep(0.5)
 
 gateway = ProviderGateway()
-_last_msg_times = {}
+
+_shutdown_event = asyncio.Event()
+
+def _task_done(t):
+    try:
+        e = t.exception()
+        if e:
+            log(f"Background task failed: {type(e).__name__}: {e}")
+    except (asyncio.CancelledError, RuntimeError):
+        pass
+def _handle_signal():
+    _shutdown_event.set()
+    log("Shutdown signal received, saving state...")
 
 try:
     with open(os.path.join(os.path.dirname(__file__), ".env"), encoding="utf-8") as _env_f:
@@ -413,7 +433,7 @@ try:
             if _env_line and not _env_line.startswith("#") and "=" in _env_line:
                 _k, _v = _env_line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
-except:
+except Exception:
     pass
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
@@ -580,9 +600,6 @@ def save_admins():
 def save_mods():
     _atomic_save(MODS_FILE, list(mods))
 
-def save_premade():
-    _atomic_save(PREMADE_SKILLS_FILE, PREMADE_SKILLS)
-
 def save_teams():
     _atomic_save(TEAMS_FILE, TEAMS)
 
@@ -609,7 +626,8 @@ def load_sessions():
                 lu = data.get("_last_update", 0)
                 if lu and not last_update:
                     last_update = lu
-        except: pass
+        except Exception:
+            pass
 
 routines = {}
 
@@ -620,16 +638,12 @@ def load_conversations():
         try:
             with open(CONVERSATIONS_FILE, encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             pass
     return {"counter": 0, "archives": {}}
 
 def save_conversations(data):
-    try:
-        with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-    except Exception as _e:
-        log(f"save_conversations failed: {_e}")
+    _atomic_save(CONVERSATIONS_FILE, data)
 
 def _summarize_conversation(messages):
     if not messages:
@@ -711,7 +725,28 @@ CONVERSATION_TAGS_FILE = os.path.join(os.path.dirname(__file__), "conversation_t
 BRIDGES_FILE = os.path.join(os.path.dirname(__file__), "bridges.json")
 bridges = {}
 vector_memory = {}
-memory_buffers = {}
+class _MemoryBuffer(dict):
+    MAX_ENTRIES_PER_UID = 100
+    MAX_UIDS = 200
+    def __setitem__(self, key, val):
+        if isinstance(val, list):
+            super().__setitem__(key, val[-self.MAX_ENTRIES_PER_UID:])
+        else:
+            super().__setitem__(key, val)
+        if len(self) > self.MAX_UIDS:
+            oldest = next(iter(self))
+            del self[oldest]
+    def append(self, key, item):
+        self.setdefault(key, [])
+        lst = self[key]
+        lst.append(item)
+        if len(lst) > self.MAX_ENTRIES_PER_UID:
+            self[key] = lst[-self.MAX_ENTRIES_PER_UID:]
+        if len(self) > self.MAX_UIDS:
+            oldest = next(iter(self))
+            del self[oldest]
+
+memory_buffers = _MemoryBuffer()
 
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
@@ -948,17 +983,6 @@ def tag_keywords(text):
                 break
     return tags
 
-def track_tokens(model, tokens_used):
-    token_usage["used"] += tokens_used
-    token_usage["history"].append({
-        "time": datetime.now().isoformat(),
-        "model": model,
-        "tokens": tokens_used
-    })
-    if len(token_usage["history"]) > 100:
-        token_usage["history"] = token_usage["history"][-100:]
-    save_token_usage()
-
 TOOLFK_TOKEN = os.environ.get("TOOLFK_TOKEN", "")
 
 # Integration API keys
@@ -1169,6 +1193,14 @@ async def execute_tool(name, args, uid=None):
             return "Error: only the bot owner can execute arbitrary Python code"
         code = args.get("code", "")
         try:
+            class _SandboxModule:
+                __slots__ = ('_m',)
+                def __init__(self, name):
+                    self._m = __import__(name)
+                def __getattr__(self, attr):
+                    if attr.startswith('_'):
+                        raise AttributeError(f'access denied: {attr}')
+                    return getattr(self._m, attr)
             restricted = {"__builtins__": {"abs": abs, "all": all, "any": any, "chr": chr, "dict": dict,
                 "dir": dir, "divmod": divmod, "enumerate": enumerate, "filter": filter, "float": float,
                 "format": format, "frozenset": frozenset, "hash": hash, "hex": hex, "id": id, "int": int,
@@ -1177,9 +1209,9 @@ async def execute_tool(name, args, uid=None):
                 "range": range, "repr": repr, "reversed": reversed, "round": round, "set": set,
                 "slice": slice, "sorted": sorted, "str": str, "sum": sum, "tuple": tuple, "type": type,
                 "zip": zip, "True": True, "False": False, "None": None, "print": print},
-                "math": __import__("math"), "json": __import__("json"), "re": __import__("re"),
-                "random": __import__("random"), "collections": __import__("collections"),
-                "datetime": __import__("datetime"), "itertools": __import__("itertools")}
+                "math": _SandboxModule("math"), "json": _SandboxModule("json"), "re": _SandboxModule("re"),
+                "random": _SandboxModule("random"), "collections": _SandboxModule("collections"),
+                "datetime": _SandboxModule("datetime"), "itertools": _SandboxModule("itertools")}
             local_vars = {}
             exec(code, restricted, local_vars)
             result = str(local_vars.get("result", "Code executed (no result variable)"))
@@ -1210,9 +1242,8 @@ async def execute_tool(name, args, uid=None):
         if not ep_path:
             return f"Unknown endpoint '{endpoint}'. Use /synoxcloud to list all."
         try:
-            url = f"https://api.synoxcloud.xyz{ep_path}"
-            for k, v in tool_params.items():
-                url += f"&{k}={v}" if "?" in url else f"?{k}={v}"
+            sep = "&" if "?" in ep_path else "?"
+            url = f"https://api.synoxcloud.xyz{ep_path}{sep}{urllib.parse.urlencode(tool_params)}"
             c = await get_http()
             r = await c.get(url, timeout=30)
             text = r.text[:5000]
@@ -1236,10 +1267,11 @@ async def save_checkpoint(uid, tag, data):
     if os.path.exists("checkpoints.json"):
         try:
             with open("checkpoints.json", encoding="utf-8") as f: all_ckpts = json.load(f)
-        except: pass
+        except Exception:
+            pass
     all_ckpts.setdefault(str(uid), []).append(cp)
     if len(all_ckpts[str(uid)]) > 20: all_ckpts[str(uid)] = all_ckpts[str(uid)][-20:]
-    with open("checkpoints.json", "w", encoding="utf-8") as f: json.dump(all_ckpts, f)
+    _atomic_save("checkpoints.json", all_ckpts)
 
 async def run_architecture(arch, agents_in_team, user_text, provider, uid=None, msg_log=None):
     if msg_log is None: msg_log = []
@@ -1372,7 +1404,7 @@ async def run_autonomous(goal, uid):
         return f"Planner failed to produce steps. Raw:\n{raw[:300]}"
     try:
         steps = json.loads(match.group())
-    except:
+    except Exception:
         return f"Planner JSON parse error. Raw:\n{raw[:300]}"
 
     log(f"Autonomous plan ({len(steps)} steps) for uid {uid}")
@@ -1381,14 +1413,14 @@ async def run_autonomous(goal, uid):
     for i, step in enumerate(steps):
         step_type = step.get("type", "reason")
         task = step.get("task", f"Step {i+1}")
-        memory_buffers[uid].append(f"[PLAN] Step {i+1}: {task}")
+        memory_buffers.append(uid, f"[PLAN] Step {i+1}: {task}")
 
         if step_type == "tool":
             tool_name = step.get("tool")
             tool_input = step.get("input", {})
             tool_result = await execute_tool(tool_name, tool_input, uid)
             results.append(f"Step {i+1} ({tool_name}): {tool_result[:500]}")
-            memory_buffers[uid].append(f"[TOOL] {tool_name}: {tool_result[:200]}")
+            memory_buffers.append(uid, f"[TOOL] {tool_name}: {tool_result[:200]}")
         else:
             reason_prompt = (
                 f"You are executing step {i+1} of an autonomous plan.\n"
@@ -1399,16 +1431,14 @@ async def run_autonomous(goal, uid):
             )
             reason_result = await smart_call([{"role": "user", "content": reason_prompt}], active_provider)
             results.append(f"Step {i+1} ({step_type}): {reason_result[:500]}")
-            memory_buffers[uid].append(f"[REASON] Step {i+1}: {reason_result[:200]}")
-
+            memory_buffers.append(uid, f"[REASON] Step {i+1}: {reason_result[:200]}")
         if uid: await save_checkpoint(uid, f"auto_step_{i+1}", {"step": step, "result": results[-1]})
-
     synthesis_prompt = (
         f"Synthesize the final answer for this goal based on all step results.\n"
         f"Goal: {goal}\n\nResults:\n" + "\n".join(results)
     )
     final = await smart_call([{"role": "user", "content": synthesis_prompt}], active_provider)
-    memory_buffers[uid].append(f"[FINAL] {final[:200]}")
+    memory_buffers.append(uid, f"[FINAL] {final[:200]}")
     save_memory()
     steps_summary = "\n".join(f"  {s.get('step',i+1)}. [{s.get('type','?')}] {s.get('task','')}" for i, s in enumerate(steps[:8]))
     return f"ðŸ¤– Autonomous Mode — Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
@@ -1646,7 +1676,49 @@ PROVIDERS = {
     "freetokenfaucet": {
         "url": "https://freetokenfaucet.com/v1/chat/completions",
         "model": "gpt-4o-mini",
-        "key": "tf_ae094ac3d7fd4a73b8d1f40bf5f2d5f4"
+        "key": os.environ.get("FREETOKENFAUCET_KEY", "set-via-env-var")
+    },
+
+    "agnes": {
+        "url": "https://apihub.agnes-ai.com/v1/chat/completions",
+        "model": "agnes-2.0-flash",
+        "key": os.environ.get("AGNES_KEY", "set-via-env-var"),
+    },
+    "cloudflare": {
+        "url": os.environ.get("CLOUDFLARE_URL", "https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1/chat/completions"),
+        "model": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "key": os.environ.get("CLOUDFLARE_KEY", "set-via-env-var"),
+    },
+    "huggingface": {
+        "url": "https://router.huggingface.co/v1/chat/completions",
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "key": os.environ.get("HUGGINGFACE_KEY", "set-via-env-var"),
+    },
+
+    "nvidia-glm5": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "zhipuai/glm-5.2",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
+    },
+    "nvidia-deepseek-v4": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "deepseek/deepseek-v4-pro",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
+    },
+    "nvidia-qwen35": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "qwen/qwen3.5-397b-a3b",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
+    },
+    "nvidia-kimi-k26": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "moonshotai/kimi-k2.6",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
+    },
+    "nvidia-nemotron": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model": "nvidia/nemotron-3-ultra-550b",
+        "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
 }
 
@@ -1705,23 +1777,288 @@ if os.path.exists(ADMINS_FILE):
     try:
         with open(ADMINS_FILE, encoding="utf-8") as f:
             admins.update(json.load(f))
-    except: pass
+    except Exception:
+        pass
 mods = set()
 if os.path.exists(MODS_FILE):
     try:
         with open(MODS_FILE, encoding="utf-8") as f:
             mods.update(json.load(f))
-    except: pass
+    except Exception:
+        pass
 _OFFSET_FILE = os.path.join(os.path.dirname(__file__), ".bot.offset")
 last_update = 0
 try:
     with open(_OFFSET_FILE, encoding="utf-8") as _f:
         last_update = int(_f.read().strip())
-except:
+except Exception:
     pass
 processed = set()
-last_user_msg = {}
-sessions = {}
+class _LRUDict(dict):
+    def __init__(self, maxsize=200):
+        self._maxsize = maxsize
+        super().__init__()
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+        if len(self) > self._maxsize:
+            oldest = next(iter(self))
+            del self[oldest]
+
+last_user_msg = _LRUDict(200)
+_last_msg_times = _LRUDict(200)
+from collections import OrderedDict
+MAX_SESSIONS = 200
+
+class LRUSessions(OrderedDict):
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+        self.move_to_end(key)
+        if len(self) > MAX_SESSIONS:
+            self.popitem(last=False)
+    def __getitem__(self, key):
+        val = super().__getitem__(key)
+        self.move_to_end(key)
+        return val
+
+sessions = LRUSessions()
+
+# ----- Per-User State System -----
+class LRUUserState(OrderedDict):
+    max_states = 300
+    def __missing__(self, key):
+        val = self[key] = {}
+        if len(self) > self.max_states:
+            self.popitem(last=False)
+        return val
+    def __getitem__(self, key):
+        val = super().__getitem__(key)
+        self.move_to_end(key)
+        return val
+
+_user_state = LRUUserState()
+def _get_state(chat_id):
+    return _user_state[chat_id]
+
+
+def set_user_pref(chat_id, key, value):
+    _get_state(chat_id)[key] = value
+
+def reset_user_state(chat_id):
+    _user_state.pop(chat_id, None)
+
+def resolve_state(chat_id):
+    global active_agent, active_provider, active_team, active_arch, active_mode, effort, thinking_mode
+    s = _get_state(chat_id)
+    if "active_agent" in s: active_agent = s["active_agent"]
+    if "active_provider" in s: active_provider = s["active_provider"]
+    if "active_team" in s: active_team = s["active_team"]
+    if "active_arch" in s: active_arch = s["active_arch"]
+    if "active_mode" in s: active_mode = s["active_mode"]
+    if "effort" in s: effort = s["effort"]
+    if "thinking_mode" in s: thinking_mode = s["thinking_mode"]
+
+# ----- Response Cache -----
+_response_cache = {}
+_RESPONSE_CACHE_TTL = 300  # 5 minutes
+_RESPONSE_CACHE_MAX = 500
+_cache_stats = {"hits": 0, "misses": 0, "stored": 0}
+
+def _cache_key(messages, provider):
+    import hashlib
+    raw = json.dumps([provider, messages], sort_keys=True, default=str)
+    return hashlib.md5(raw.encode()).hexdigest()
+
+def _get_cached(messages, provider):
+    key = _cache_key(messages, provider)
+    entry = _response_cache.get(key)
+    if entry and time.time() - entry["t"] < _RESPONSE_CACHE_TTL:
+        _cache_stats["hits"] += 1
+        return entry["text"]
+    _cache_stats["misses"] += 1
+    return None
+
+def _set_cached(messages, provider, text):
+    if len(_response_cache) >= _RESPONSE_CACHE_MAX:
+        oldest = min(_response_cache.keys(), key=lambda k: _response_cache[k]["t"])
+        del _response_cache[oldest]
+    key = _cache_key(messages, provider)
+    _response_cache[key] = {"t": time.time(), "text": text}
+    _cache_stats["stored"] += 1
+
+# ----- Smart Task-Based Provider Routing -----
+_TASK_PROVIDERS = {
+    "code": "deepseek",
+    "reasoning": "gemini",
+    "creative": "together",
+    "research": "groq",
+    "science": "nvidia",
+    "speed": "cerebras",
+    "writing": "mistral",
+    "general": "groq",
+}
+
+def detect_task_type(messages):
+    text = " ".join(m.get("content", "") for m in messages if isinstance(m.get("content"), str)).lower()
+    if any(w in text for w in ["code", "program", "function", "debug", "implement", "write a", "python", "javascript", "script"]):
+        return "code"
+    if any(w in text for w in ["why", "how", "explain", "reason", "think", "analyze", "compare"]):
+        return "reasoning"
+    if any(w in text for w in ["write a story", "poem", "creative", "imagine", "design"]):
+        return "creative"
+    if any(w in text for w in ["research", "find", "search", "summarize", "what is"]):
+        return "research"
+    if any(w in text for w in ["science", "physics", "chemistry", "biology", "math", "equation"]):
+        return "science"
+    return "general"
+
+def suggest_provider(messages, preferred=None):
+    if preferred and PROVIDERS.get(preferred, {}).get("key", "") not in ("set-via-env-var", "not configured", ""):
+        return preferred
+    task = detect_task_type(messages)
+    suggested = _TASK_PROVIDERS.get(task, "groq")
+    if PROVIDERS.get(suggested, {}).get("key", "") in ("set-via-env-var", "not configured", ""):
+        for fallback in ["groq", "gemini", "openrouter", "deepseek"]:
+            if PROVIDERS.get(fallback, {}).get("key", "") not in ("set-via-env-var", "not configured", ""):
+                return fallback
+    return suggested
+
+# ----- Per-User State Helpers -----
+def get_effort(chat_id=None):
+    s = _get_state(chat_id) if chat_id else {}
+    return s.get("effort", effort)
+
+# ----- Circuit Breaker System -----
+class CircuitBreaker:
+    def __init__(self, failure_threshold=3, recovery_timeout=30):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.state = {}  # provider -> {"failures": int, "last_fail": float, "state": str}
+
+    def _ensure(self, provider):
+        if provider not in self.state:
+            self.state[provider] = {"failures": 0, "last_fail": 0, "state": "closed"}
+
+    def allow(self, provider):
+        self._ensure(provider)
+        s = self.state[provider]
+        if s["state"] == "open":
+            if time.time() - s["last_fail"] > self.recovery_timeout:
+                s["state"] = "half-open"
+                log(f"CB {provider}: open -> half-open (probe)")
+                return True
+            return False
+        return True
+
+    def record_success(self, provider):
+        self._ensure(provider)
+        s = self.state[provider]
+        if s["state"] == "half-open":
+            log(f"CB {provider}: half-open -> closed (probe OK)")
+        s["state"] = "closed"
+        s["failures"] = 0
+
+    def record_failure(self, provider):
+        self._ensure(provider)
+        s = self.state[provider]
+        s["failures"] += 1
+        s["last_fail"] = time.time()
+        if s["failures"] >= self.failure_threshold:
+            s["state"] = "open"
+            log(f"CB {provider}: closed -> open ({s['failures']} failures)")
+
+    def status(self, provider):
+        self._ensure(provider)
+        return self.state[provider]["state"]
+
+circuit_breaker = CircuitBreaker()
+
+# ----- Provider Racing -----
+async def race_providers(messages, providers, timeout=15):
+    async def call_one(p):
+        try:
+            result = await asyncio.wait_for(call_provider(messages, p), timeout)
+            if result and not result[:20].lower().startswith("error"):
+                return p, result
+        except Exception:
+            pass
+        return p, None
+    tasks = [call_one(p) for p in providers if circuit_breaker.allow(p)]
+    if not tasks:
+        return None, None
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for t in pending:
+        t.cancel()
+    for t in done:
+        p, r = t.result()
+        if r:
+            return p, r
+    return None, None
+
+async def smart_call(messages, preferred):
+    cached = _get_cached(messages, preferred)
+    if cached:
+        log(f"Cache HIT for {preferred}")
+        return cached
+    ap = resolve_provider()
+    if ap:
+        result = await call_provider(messages, "__agent_provider__", override=ap)
+        if result and not result[:20].lower().startswith("error"):
+            _set_cached(messages, "__agent_provider__", result)
+            return result
+    effective = suggest_provider(messages, preferred)
+    if effective != preferred:
+        log(f"Smart route: {preferred} -> {effective} (task={detect_task_type(messages)})")
+    if not circuit_breaker.allow(effective):
+        log(f"CB {effective} OPEN, finding fallback for {preferred}")
+        for fb in ["groq", "gemini", "openrouter", "deepseek"]:
+            if fb != effective and circuit_breaker.allow(fb) and PROVIDERS.get(fb, {}).get("key", "") not in ("set-via-env-var", "not configured", ""):
+                effective = fb
+                log(f"CB fallback to {fb}")
+                break
+    text_len = len(" ".join(m.get("content", "") for m in messages if isinstance(m.get("content"), str)))
+    if text_len < 500 and effective == preferred:
+        candidates = [effective]
+        for fb in ["groq", "gemini", "cerebras", "deepseek"]:
+            if fb != effective and circuit_breaker.allow(fb) and PROVIDERS.get(fb, {}).get("key", "") not in ("set-via-env-var", "not configured", ""):
+                candidates.append(fb)
+                if len(candidates) >= 3:
+                    break
+        if len(candidates) > 1:
+            log(f"Racing providers: {candidates}")
+            winner, result = await race_providers(messages, candidates)
+            if result:
+                circuit_breaker.record_success(winner)
+                for c in candidates:
+                    if c != winner:
+                        circuit_breaker.record_failure(c)
+                return result
+    result = await gateway.execute(messages, effective)
+    if result and not result[:20].lower().startswith("error"):
+        circuit_breaker.record_success(effective)
+        _set_cached(messages, preferred, result)
+    else:
+        circuit_breaker.record_failure(effective)
+    return result
+
+# ----- Provider Health Dashboard -----
+def get_provider_health():
+    rows = []
+    for pid, p in sorted(PROVIDERS.items()):
+        key = p.get("key", "")
+        if key in ("skip-auth",) or p.get("url", "").startswith("http://127.0.0.1") or p.get("url", "").startswith("http://localhost"):
+            continue
+        configured = key not in ("set-via-env-var", "not configured", "", "free")
+        gh = gateway.health.get(pid, {"success":0,"failure":0,"cooldown_until":0,"avg_latency":0.0})
+        latency = gh.get("avg_latency", 0)
+        if latency:
+            latency_str = f"{latency*1000:.0f}ms"
+        else:
+            latency_str = "-"
+        status = "OK" if gh.get("success", 0) > 0 else ("FAIL" if gh.get("failure", 0) > 0 else "?")
+        if gh.get("cooldown_until", 0) > time.time():
+            status = "COOLDOWN"
+        rows.append((pid, status, latency_str, "key" if configured else "no-key"))
+    return rows
 team_sessions = {}
 load_sessions()
 load_memory()
@@ -1740,8 +2077,11 @@ async def tg(method, data=None):
     return resp
 
 _sent_cache = {}
-async def send(chat, text):
-    key = (chat, str(text)[:200])
+async def send(chat, text, parse_mode=None):
+    raw = str(text)
+    if not raw:
+        return {"ok": True, "empty": True}
+    key = (chat, raw[:200])
     now = time.time()
     if key in _sent_cache and now - _sent_cache[key] < 3:
         log(f"dedup: skipped duplicate send to {chat}")
@@ -1751,7 +2091,48 @@ async def send(chat, text):
         for k in list(_sent_cache.keys()):
             if now - _sent_cache[k] > 10:
                 del _sent_cache[k]
-    return await tg("sendMessage", {"chat_id": chat, "text": str(text)[:4000]})
+
+    # Auto-convert markdown-like syntax to HTML for rich formatting
+    if parse_mode is None and ("```" in raw or "**" in raw or "`" in raw):
+        import re as _re
+        html = raw
+        html = html.replace("&", "&amp;")
+        html = _re.sub(r"```(\w*)\n(.*?)```", lambda m: "<pre>" + m.group(2) + "</pre>", html, flags=_re.DOTALL)
+        html = _re.sub(r"```(.*?)```", lambda m: "<pre>" + m.group(1) + "</pre>", html, flags=_re.DOTALL)
+        html = _re.sub(r"`([^`]+)`", lambda m: "<code>" + m.group(1).replace("&amp;", "&") + "</code>", html)
+        html = _re.sub(r"\*\*(.+?)\*\*", lambda m: "<b>" + m.group(1).replace("&amp;", "&") + "</b>", html)
+        html = _re.sub(r"\*(.+?)\*", lambda m: "<i>" + m.group(1).replace("&amp;", "&") + "</i>", html)
+        raw = html
+        parse_mode = "HTML"
+
+    MAX_TG = 4096
+    if len(raw) <= MAX_TG:
+        params = {"chat_id": chat, "text": raw}
+        if parse_mode:
+            params["parse_mode"] = parse_mode
+        return await tg("sendMessage", params)
+
+    # Chunk long messages
+    chunks = []
+    while raw:
+        if len(raw) <= MAX_TG:
+            chunks.append(raw)
+            break
+        split_at = raw.rfind("\n", 0, MAX_TG)
+        if split_at < MAX_TG // 2:
+            split_at = raw.rfind(" ", 0, MAX_TG)
+        if split_at < MAX_TG // 2:
+            split_at = MAX_TG
+        chunks.append(raw[:split_at])
+        raw = raw[split_at:].lstrip()
+
+    results = []
+    for chunk in chunks:
+        params = {"chat_id": chat, "text": chunk}
+        r = await tg("sendMessage", params)
+        results.append(r)
+        await asyncio.sleep(0.3)
+    return results[-1] if results else {"ok": True}
 
 async def typing(chat):
     await tg("sendChatAction", {"chat_id": chat, "action": "typing"})
@@ -1847,15 +2228,6 @@ def resolve_provider(agent_name=None):
         return cfg
     return None
 
-def get_fallback_chain(preferred):
-    return gateway.fallback_chain(preferred)
-
-async def smart_call(messages, preferred):
-    ap = resolve_provider()
-    if ap:
-        return await call_provider(messages, "__agent_provider__", override=ap)
-    return await gateway.execute(messages, preferred)
-
 _empty_polls = 0
 
 async def poll():
@@ -1901,25 +2273,20 @@ def load_version():
     try:
         with open(VERSION_FILE, encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {"version": "unknown", "whats_new": {}}
 
 def load_version_state():
     try:
         with open(VERSION_STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {"last_version": "", "notified_chats": {}}
 
 def save_version_state(state):
-    try:
-        with open(VERSION_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2)
-    except:
-        pass
+    _atomic_save(VERSION_STATE_FILE, state)
 
 async def announce_update(old_v, new_v, changes, state):
-    state["last_version"] = new_v
     known_chats = set()
     try:
         for cid in sessions:
@@ -2002,10 +2369,12 @@ async def announce_update(old_v, new_v, changes, state):
                     state.setdefault("notified_chats", {}).setdefault(new_v, []).append(str(cid))
                     sent_count += 1
                 await asyncio.sleep(0.1)
-        except:
+        except Exception:
             pass
     log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (type={update_type}, features={total})")
-    save_version_state(state)
+    if sent_count > 0:
+        state["last_version"] = new_v
+        save_version_state(state)
     return state
 
 def get_git_commit():
@@ -2018,7 +2387,7 @@ def get_git_commit():
         )
         if r.returncode == 0:
             return r.stdout.strip()
-    except:
+    except Exception:
         pass
     return ""
 
@@ -2062,26 +2431,21 @@ def auto_bump_version():
             new_ver = f"{major}.{minor}.{build}"
         else:
             new_ver = f"{major}.{minor}.{int(time.time())}"
-    except:
+    except Exception:
         new_ver = f"{major}.{minor}.{int(time.time())}"
     v["version"] = new_ver
     v["updated"] = time.strftime("%Y-%m-%d")
     v["whats_new"] = v.get("whats_new", {})
     v["whats_new"][new_ver] = []
-    try:
-        with open(VERSION_FILE, "w", encoding="utf-8") as f:
-            json.dump(v, f, indent=2)
-    except:
-        pass
+    _atomic_save(VERSION_FILE, v)
     return new_ver, v["whats_new"][new_ver]
 
 def set_changelog(ver, changes):
     try:
         v = load_version()
         v.setdefault("whats_new", {})[ver] = changes
-        with open(VERSION_FILE, "w", encoding="utf-8") as f:
-            json.dump(v, f, indent=2)
-    except:
+        _atomic_save(VERSION_FILE, v)
+    except Exception:
         pass
 
 async def auto_version_checker():
@@ -2164,15 +2528,32 @@ async def main():
     except Exception as _e:
         log(f"poll loop error: {_e}")
         pass
+    try:
+        loop = asyncio.get_running_loop()
+        if os.name == "nt":
+            for sig in (2, 15):
+                try:
+                    loop.add_signal_handler(sig, _handle_signal)
+                except NotImplementedError:
+                    break
+        else:
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, _handle_signal)
+    except Exception:
+        log("Signal handler registration not supported on this platform")
     log("Bot started")
 
     await gateway.start_worker()
     if bf:
-        asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
-        asyncio.create_task(bf.run_reminder_loop(send))
+        _t1 = asyncio.create_task(bf.run_scheduler_loop(smart_call, send))
+        _t1.add_done_callback(_task_done)
+        _t2 = asyncio.create_task(bf.run_reminder_loop(send))
+        _t2.add_done_callback(_task_done)
         bf.init_plugins()
-    asyncio.create_task(auto_version_checker())
-    asyncio.create_task(run_startup_check())
+    _t3 = asyncio.create_task(auto_version_checker())
+    _t3.add_done_callback(_task_done)
+    _t4 = asyncio.create_task(run_startup_check())
+    _t4.add_done_callback(_task_done)
 
     if user_memory:
         log("AI Stack memory initialized")
@@ -2189,17 +2570,24 @@ async def main():
         bf.init_plugins_from_dir()
 
     while True:
+        if _shutdown_event.is_set():
+            log("Shutting down gracefully...")
+            break
         try:
             for u in (await poll()):
+                if _shutdown_event.is_set():
+                    break
                 msg = u.get("message")
                 if not msg: continue
                 mid, cid = msg.get("message_id"), msg["chat"]["id"]
                 if mid and (cid, mid) in processed: continue
                 if mid: processed.add((cid, mid))
-                if len(processed) > 1000: processed.clear()
+                if len(processed) > 1000:
+                    processed = set(list(processed)[-500:])
                 if msg.get("from", {}).get("is_bot"):
                     continue
                 chat, uid = msg["chat"]["id"], msg["from"]["id"]
+                resolve_state(chat)
                 text = msg.get("text", "")
                 now = time.time()
                 _prev = last_user_msg.get(uid, {})
@@ -2295,6 +2683,8 @@ async def main():
                         "  /thinking off|extended|adaptive — Thinking mode",
                         "  /help — Help",
                         "  /status — Current agent + provider",
+                        "  /providers — Provider health dashboard",
+                        "  /reset — Reset your personal settings",
                         "  /myrole — Your role",
                         "  /clear — Clear session",
                         "  /premadeskills — Pre-made skill teams",
@@ -2350,6 +2740,8 @@ async def main():
                             "/agent <name> — Switch agent",
                             "/agents — List agents",
                             "/repo — List / switch AI provider",
+                            "/providers — Provider health dashboard",
+                            "/reset — Reset your personal settings",
                             "/status — Current agent + provider",
                             "/multi start <p1> [p2] [rounds=2] — Talk to 2 AIs at once",
                             "/multi stop — End multi-AI session",
@@ -2482,12 +2874,13 @@ async def main():
                     if os.path.exists(SESSIONS_FILE):
                         try:
                             with open(SESSIONS_FILE, encoding="utf-8") as _f: _pd = json.load(_f)
-                        except: pass
+                        except Exception:
+                            pass
                     profiles = _pd.get("profiles", {})
                     if sub == "save":
                         profiles[str(uid)] = {"agent": active_agent, "provider": active_provider, "effort": effort, "thinking": thinking_mode, "arch": active_arch}
                         _pd["profiles"] = profiles
-                        with open(SESSIONS_FILE, "w", encoding="utf-8") as _f: json.dump(_pd, _f)
+                        _atomic_save(SESSIONS_FILE, _pd)
                         await send(chat, "Profile saved.")
                     elif sub == "load":
                         p = profiles.get(str(uid))
@@ -2503,7 +2896,7 @@ async def main():
                     elif sub == "reset":
                         profiles.pop(str(uid), None)
                         _pd["profiles"] = profiles
-                        with open(SESSIONS_FILE, "w", encoding="utf-8") as _f: json.dump(_pd, _f)
+                        _atomic_save(SESSIONS_FILE, _pd)
                         await send(chat, "Profile reset.")
                     else:
                         p = profiles.get(str(uid), {})
@@ -2527,7 +2920,7 @@ async def main():
                         else:
                             role = "user"
                         await send(chat, f"User {target}: {role}")
-                    except:
+                    except Exception:
                         await send(chat, "Invalid ID.")
 
                 elif cmd == "/agent":
@@ -2540,12 +2933,13 @@ async def main():
                         continue
                     a = AGENTS[name]
                     active_agent = name
+                    set_user_pref(chat, "active_agent", name)
                     sessions.pop(uid, None)
                     await send(chat, f"Agent: {name} — {a['desc']}\n\nPrompt: {a['prompt']}")
                     ap = AGENT_PROVIDERS.get(name)
                     if not ap or not _is_configured(ap.get("key", "")):
                         await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>\nExample: /agentprovider {name} https://api.example.com/v1/chat/completions sk-abc123 gpt-4o")
-                    await send(chat, f"Great choice! Do you wanna set token usage?\nUse /low /normal /medium /high /superhigh\nCurrent: {effort} ({EFFORT_LEVELS[effort]['desc']})")
+                    await send(chat, f"Great choice! Do you wanna set token usage?\nUse /low /normal /medium /high /superhigh\nCurrent: {get_effort(chat)} ({EFFORT_LEVELS[get_effort(chat)]['desc']})")
 
                 elif cmd == "/video":
                     name = "video-creator"
@@ -2554,6 +2948,7 @@ async def main():
                         continue
                     a = AGENTS[name]
                     active_agent = name
+                    set_user_pref(chat, "active_agent", name)
                     sessions.pop(uid, None)
                     msg = f"Agent: {name} — {a['desc']}\n\nSwitched to OpenMontage video creator."
                     rest = parts[1:] if len(parts) > 1 else []
@@ -2565,7 +2960,7 @@ async def main():
                     ap = AGENT_PROVIDERS.get(name)
                     if not ap or not _is_configured(ap.get("key", "")):
                         await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>")
-                    await send(chat, f"Token usage: /low /normal /medium /high /superhigh (current: {effort} - {EFFORT_LEVELS[effort]['desc']})")
+                    await send(chat, f"Token usage: /low /normal /medium /high /superhigh (current: {get_effort(chat)} - {EFFORT_LEVELS[get_effort(chat)]['desc']})")
                     await send(chat, "OpenMontage is not installed on this machine yet. I can walk you through installing it — start by saying 'install openmontage' or tell me what video you want to make and I'll guide you through the setup.")
 
                 elif cmd == "/repo":
@@ -2583,7 +2978,25 @@ async def main():
                         await send(chat, f"Unknown provider. Use: {', '.join(PROVIDERS.keys())}")
                         continue
                     active_provider = name
+                    set_user_pref(chat, "active_provider", name)
                     await send(chat, f"Switched to provider: {name} ({PROVIDERS[name]['model']})")
+
+                elif cmd == "/providers":
+                    rows = get_provider_health()
+                    s = _cache_stats
+                    h = s["hits"]
+                    m = s["misses"]
+                    total = h + m
+                    ratio = f"{h*100//max(total,1)}%" if total else "-"
+                    lines = [f"Provider Health ({len(rows)} configured) | Cache: {h}/{m} ({ratio})", ""]
+                    for pid, status, latency, cfg in rows:
+                        cb_state = circuit_breaker.status(pid)
+                        cb_mark = {"closed": "", "open": " [CB OPEN]", "half-open": " [CB PROBE]"}.get(cb_state, "")
+                        icon = {"OK": chr(9989), "FAIL": chr(10060), "COOLDOWN": chr(9200), "?": chr(10067)}.get(status, "?")
+                        lines.append(f"  {icon} {pid} — {status} ({latency}) [{cfg}]{cb_mark}")
+                    lines.append("")
+                    lines.append("Use /repo <name> to switch provider.")
+                    await send(chat, "\n".join(lines))
 
                 elif cmd == "/status":
                     mode_info = f"Mode: {active_mode} ({MODES[active_mode]['desc']})"
@@ -2601,6 +3014,12 @@ async def main():
                         f"Effort: {effort} ({EFFORT_LEVELS[effort]['desc']})\n"
                         f"Thinking: {thinking_mode}"
                     ))
+
+                elif cmd == "/reset":
+                    reset_user_state(chat)
+                    sessions.pop(uid, None)
+                    team_sessions.pop(uid, None)
+                    await send(chat, "Your state reset to defaults.")
 
                 elif cmd == "/clear":
                     _archive_current(uid, chat)
@@ -2723,6 +3142,7 @@ async def main():
                         await send(chat, f"Unknown arch. Options: {', '.join(ARCHITECTURES.keys())}")
                         continue
                     active_arch = name
+                    set_user_pref(chat, "active_arch", name)
                     await send(chat, f"Architecture: {name} — {ARCHITECTURES[name]['desc']}")
 
                 elif cmd == "/mode":
@@ -2738,6 +3158,7 @@ async def main():
                         await send(chat, f"Unknown mode. Options: {', '.join(MODES.keys())}")
                         continue
                     active_mode = name
+                    set_user_pref(chat, "active_mode", name)
                     await send(chat, f"Mode: {name} — {MODES[name]['desc']}")
 
                 elif cmd == "/effort":
@@ -2747,6 +3168,7 @@ async def main():
                     level = cmd[1:]
                     if level in EFFORT_LEVELS:
                         effort = level
+                        set_user_pref(chat, "effort", level)
                         await send(chat, f"Effort: {level} — {EFFORT_LEVELS[level]['desc']}")
 
                 elif cmd == "/thinking":
@@ -2758,6 +3180,7 @@ async def main():
                         await send(chat, "Options: off, extended, adaptive")
                         continue
                     thinking_mode = mode
+                    set_user_pref(chat, "thinking_mode", mode)
                     descs = {"off": "No extended thinking", "extended": "Step-by-step reasoning on every response", "adaptive": "Auto-decides when to use thinking"}
                     await send(chat, f"Thinking: {mode} — {descs[mode]}")
 
@@ -2842,12 +3265,14 @@ async def main():
                         await send(chat, f"Unknown team: {tname}. Use /teams to see all.")
                         continue
                     active_team = tname
+                    set_user_pref(chat, "active_team", tname)
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
                     await send(chat, f"Team activated: {tname} ({', '.join(TEAMS[tname]['agents'])})\nArch: {active_arch}")
 
                 elif cmd == "/stopteam":
                     active_team = None
+                    set_user_pref(chat, "active_team", None)
                     sessions.pop(uid, None)
                     team_sessions.pop(uid, None)
                     await send(chat, "Team mode deactivated. Back to single agent.")
@@ -2944,8 +3369,7 @@ async def main():
                         await send(chat, f"Unknown agent: {aname}")
                         continue
                     AGENT_PROVIDERS[aname] = {"url": purl, "key": pkey, "model": pmodel}
-                    with open(AGENT_PROVIDERS_FILE, "w", encoding="utf-8") as f:
-                        json.dump(AGENT_PROVIDERS, f, indent=2)
+                    _atomic_save(AGENT_PROVIDERS_FILE, AGENT_PROVIDERS)
                     await send(chat, f"Agent provider set for {aname}: {pmodel}")
 
                 elif cmd == "/createagent" and (is_owner or is_admin or is_mod):
@@ -4594,7 +5018,7 @@ async def main():
                                 lines.append(f"Web UI: http://localhost:{gw_port}")
                                 lines.append(f"API: POST http://localhost:{gw_port}/v1/chat/completions")
                                 lines.append(f"Models: GET http://localhost:{gw_port}/api/models")
-                    except:
+                    except Exception:
                         lines.append("Status: Not running (start separately: python web_gateway.py)")
                     await send(chat, "\n".join(lines))
 
@@ -4669,7 +5093,7 @@ async def main():
                             lines.append(f"  Chat {cid} — #{tag} ({count}x)")
                         await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
@@ -4731,7 +5155,7 @@ async def main():
                     try:
                         if active_mode == "autonomous":
                             memory_buffers.setdefault(uid, [])
-                            memory_buffers[uid].append(f"[USER] {text}")
+                            memory_buffers.append(uid, f"[USER] {text}")
                             reply = await run_autonomous(text, uid)
                             _safe_track_usage(uid, active_agent, active_provider)
                             await send(chat, reply)
@@ -4772,14 +5196,14 @@ async def main():
                                         sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}{extra}"})
                                     else:
                                         sessions[uid].append({"role": "system", "content": agent_prompt})
-                                except:
+                                except Exception:
                                     sessions[uid].append({"role": "system", "content": agent_prompt})
                             if len(sessions[uid]) > 30:
                                 try:
                                     summarized = await bf.summarize_conversation(sessions[uid], smart_call)
                                     if summarized:
                                         sessions[uid] = summarized
-                                except:
+                                except Exception:
                                     sessions[uid] = sessions[uid][-20:]
                             sessions[uid].append({"role": "user", "content": text})
                             if is_experimental_enabled("auto-tagging") and text:
@@ -4789,7 +5213,8 @@ async def main():
                                     for t, count in tags.items():
                                         chat_tags[t] = chat_tags.get(t, 0) + count
                                     save_conversation_tags()
-                            asyncio.create_task(relay_to_bridge(text, chat, uid, msg))
+                            _bridge = asyncio.create_task(relay_to_bridge(text, chat, uid, msg))
+                            _bridge.add_done_callback(_task_done)
                             log(f"Calling {active_provider} for: {text[:50]}")
                             reply = await smart_call(sessions[uid][-20:], active_provider)
                             log(f"Reply: {reply[:80]}...")
@@ -4805,6 +5230,18 @@ async def main():
             print(f"Poll error: {e}")
             await asyncio.sleep(1)
 
+    log("Saving state before shutdown...")
+    save_sessions()
+    save_memory()
+    save_token_usage()
+    save_routines()
+    log("State saved. Goodbye.")
+    if LOG:
+        try:
+            LOG.close()
+        except Exception:
+            pass
+
 
 if __name__ == "__main__":
     try:
@@ -4817,7 +5254,7 @@ if __name__ == "__main__":
         try:
             with open("bot_crash.txt", "w", encoding="utf-8") as _cf:
                 _cf.write(f"main crash:\n{_tb.format_exc()}")
-        except:
+        except Exception:
             pass
     finally:
         try:
@@ -4825,5 +5262,5 @@ if __name__ == "__main__":
                 with open(_LOCK_FILE, encoding="utf-8") as _f:
                     if _f.read().strip() == str(os.getpid()):
                         os.remove(_LOCK_FILE)
-        except:
+        except Exception:
             pass
