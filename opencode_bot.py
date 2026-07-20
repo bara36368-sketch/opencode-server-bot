@@ -632,7 +632,17 @@ def load_sessions():
         except Exception:
             pass
 
-routines = {}
+class _LRUDict(dict):
+    def __init__(self, maxsize=200):
+        self._maxsize = maxsize
+        super().__init__()
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+        if len(self) > self._maxsize:
+            oldest = next(iter(self))
+            del self[oldest]
+
+routines = _LRUDict(200)
 
 CONVERSATIONS_FILE = os.path.join(os.path.dirname(__file__), "conversations.json")
 
@@ -688,11 +698,13 @@ def load_routines():
     if os.path.exists(ROUTINES_FILE):
         try:
             with open(ROUTINES_FILE, encoding="utf-8") as f:
-                routines = json.load(f)
+                data = json.load(f)
+            routines.clear()
+            routines.update(data)
         except:
-            routines = {}
+            routines.clear()
 
-multi_sessions = {}
+multi_sessions = _LRUDict(200)
 def save_multi():
     _atomic_save(MULTI_FILE, multi_sessions)
 def load_multi():
@@ -700,9 +712,11 @@ def load_multi():
     if os.path.exists(MULTI_FILE):
         try:
             with open(MULTI_FILE, encoding="utf-8") as f:
-                multi_sessions = json.load(f)
+                data = json.load(f)
+            multi_sessions.clear()
+            multi_sessions.update(data)
         except:
-            multi_sessions = {}
+            multi_sessions.clear()
 
 ARCHITECTURES = {
     "single": {"desc": "Single agent mode (default, no team coordination)"},
@@ -950,15 +964,17 @@ def load_context_files():
 def save_context_files():
     _atomic_save(CONTEXT_FILES_FILE, context_files)
 
-conversation_tags = {}
+conversation_tags = _LRUDict(500)
 def load_conversation_tags():
     global conversation_tags
     if os.path.exists(CONVERSATION_TAGS_FILE):
         try:
             with open(CONVERSATION_TAGS_FILE, encoding="utf-8") as f:
-                conversation_tags = json.load(f)
+                data = json.load(f)
+            conversation_tags.clear()
+            conversation_tags.update(data)
         except:
-            conversation_tags = {}
+            conversation_tags.clear()
 
 def save_conversation_tags():
     _atomic_save(CONVERSATION_TAGS_FILE, conversation_tags)
@@ -1797,16 +1813,6 @@ try:
 except Exception:
     pass
 processed = set()
-class _LRUDict(dict):
-    def __init__(self, maxsize=200):
-        self._maxsize = maxsize
-        super().__init__()
-    def __setitem__(self, key, val):
-        super().__setitem__(key, val)
-        if len(self) > self._maxsize:
-            oldest = next(iter(self))
-            del self[oldest]
-
 last_user_msg = _LRUDict(200)
 _last_msg_times = _LRUDict(200)
 from collections import OrderedDict
@@ -1865,6 +1871,16 @@ _response_cache = {}
 _RESPONSE_CACHE_TTL = 300  # 5 minutes
 _RESPONSE_CACHE_MAX = 500
 _cache_stats = {"hits": 0, "misses": 0, "stored": 0}
+
+async def _cache_cleanup():
+    while True:
+        await asyncio.sleep(600)
+        now = time.time()
+        stale = [k for k, v in _response_cache.items() if now - v["t"] >= _RESPONSE_CACHE_TTL]
+        for k in stale:
+            del _response_cache[k]
+        if stale:
+            log(f"cache: purged {len(stale)} stale entries ({len(_response_cache)} remain)")
 
 def _cache_key(messages, provider):
     import hashlib
@@ -2062,7 +2078,7 @@ def get_provider_health():
             status = "COOLDOWN"
         rows.append((pid, status, latency_str, "key" if configured else "no-key"))
     return rows
-team_sessions = {}
+team_sessions = _LRUDict(200)
 load_sessions()
 load_memory()
 load_routines()
@@ -2557,6 +2573,8 @@ async def main():
     _t3.add_done_callback(_task_done)
     _t4 = asyncio.create_task(run_startup_check())
     _t4.add_done_callback(_task_done)
+    _t5 = asyncio.create_task(_cache_cleanup())
+    _t5.add_done_callback(_task_done)
 
     if user_memory:
         log("AI Stack memory initialized")
