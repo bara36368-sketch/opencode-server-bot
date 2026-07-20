@@ -861,9 +861,12 @@ async def load_plugin(url_or_path):
             if not name:
                 name = f"plugin_{hashlib.md5(url_or_path.encode()).hexdigest()[:8]}"
         else:
-            with open(url_or_path, encoding="utf-8") as f:
+            abs_path = os.path.abspath(url_or_path)
+            if not abs_path.startswith(os.path.abspath(PLUGINS_DIR)):
+                return f"Security: can only load plugins from '{PLUGINS_DIR}' directory"
+            with open(abs_path, encoding="utf-8") as f:
                 code = f.read()
-            name = os.path.splitext(os.path.basename(url_or_path))[0]
+            name = os.path.splitext(os.path.basename(abs_path))[0]
         spec = importlib.util.spec_from_loader(name, None)
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module

@@ -26,6 +26,9 @@ PROVIDERS = {}
 SYNOXCLOUD_AI_MODELS = {}
 _http = None
 
+ADMIN_PASSWORD = os.environ.get("WEB_ADMIN_PASSWORD", "")
+_require_admin_auth = bool(ADMIN_PASSWORD)
+
 PROVIDER_ROLES = {
     "zenmux": {"role": "Strategist", "emoji": "\u265F\uFE0F", "color": "#8b5cf6",
                "desc": "Strategic multi-step reasoning with Grok 4.5 Free",
@@ -922,7 +925,9 @@ async def _handle(reader, writer):
     if len(fl) < 2:
         writer.close()
         return
-    method, path = fl[0].upper(), _parse_path(fl[1])
+    method, raw_path = fl[0].upper(), fl[1]
+    path = _parse_path(raw_path)
+    params["_raw_path"] = raw_path
     headers = {}
     i = 1
     while i < len(lines) and lines[i].strip():
@@ -1250,7 +1255,9 @@ async def handle_provider_roles(method, path, headers, body, params):
 async def handle_list_workflows(method, path, headers, body, params):
     return json_response([{"id": k, "name": v.get("name", "Unnamed"), "node_count": len(v.get("nodes", [])), "edge_count": len(v.get("edges", []))} for k, v in WORKFLOWS.items()])
 
-def _parse_body(body):
+def _parse_body(body, content_type=""):
+    if content_type and "json" not in content_type.lower() and "form" not in content_type.lower():
+        return {"_parse_error": "unexpected content-type: " + content_type[:60]}
     try:
         return json.loads(body) if body and body.strip() else {}
     except json.JSONDecodeError as e:
@@ -1422,6 +1429,9 @@ table tr:hover td{background:#1c2128}
     <a href="/">Chat</a>
     <a href="/workflow">Workflows</a>
     <a href="/skills">Skills</a>
+    <a href="/admin?tab=agents">Agents</a>
+    <a href="/admin?tab=experimental">Features</a>
+    <a href="/admin?tab=logs">Logs</a>
   </div>
 </div>
 <div class="container">
@@ -1452,10 +1462,84 @@ table tr:hover td{background:#1c2128}
       <ul class="list" id="system-list"><li>Loading...</li></ul>
     </div>
   </div>
+  <div class="card">
+    <h3>System Info</h3>
+    <ul class="list" id="system-list"><li>Loading...</li></ul>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div style="display:flex;gap:8px;margin-bottom:16px">
+  <button class="btn tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="btn tab-btn" data-tab="agents" onclick="switchTab('agents')">Agents</button>
+  <button class="btn tab-btn" data-tab="experimental" onclick="switchTab('experimental')">Experimental</button>
+  <button class="btn tab-btn" data-tab="logs" onclick="switchTab('logs')">Logs</button>
+</div>
+
+<!-- Dashboard Tab -->
+<div id="tab-dashboard" class="tab-content">
+  <div class="grid">
+    <div class="card">
+      <h3>Providers <span class="refresh-btn" onclick="loadData()" title="Refresh">↻</span></h3>
+      <table><thead><tr><th>Provider</th><th>Model</th><th>Status</th><th>Requests</th></tr></thead>
+      <tbody id="provider-table"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <h3>Top Agents</h3>
+      <ul class="list" id="agent-list"><li>Loading...</li></ul>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3>Recent Activity</h3>
+      <ul class="list" id="activity-list"><li>Loading...</li></ul>
+    </div>
+    <div class="card">
+      <h3>System Info</h3>
+      <ul class="list" id="system-info-list"><li>Loading...</li></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Agents Tab -->
+<div id="tab-agents" class="tab-content" style="display:none">
+  <div class="section">
+    <h2>All Agents <span class="refresh-btn" onclick="loadAgents()" title="Refresh">↻</span></h2>
+    <input type="text" id="agent-search" placeholder="Search agents..." style="width:100%;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;margin-bottom:12px;font-size:13px" oninput="filterAgents()">
+    <div id="agent-count" style="font-size:12px;color:#8b949e;margin-bottom:8px"></div>
+    <table><thead><tr><th>Name</th><th>Description</th><th>Prompt Preview</th></tr></thead>
+    <tbody id="agent-table"><tr><td colspan="3"><div class="spinner"></div></td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- Experimental Tab -->
+<div id="tab-experimental" class="tab-content" style="display:none">
+  <div class="section">
+    <h2>Experimental Features <span class="refresh-btn" onclick="loadExperimental()" title="Refresh">↻</span></h2>
+    <div id="experimental-list"></div>
+  </div>
+</div>
+
+<!-- Logs Tab -->
+<div id="tab-logs" class="tab-content" style="display:none">
+  <div class="section">
+    <h2>Bot Logs <span class="refresh-btn" onclick="loadLogs()" title="Refresh">↻</span></h2>
+    <div style="margin-bottom:8px">
+      <button class="btn" onclick="loadLogs(20)">Last 20</button>
+      <button class="btn" onclick="loadLogs(50)">Last 50</button>
+      <button class="btn" onclick="loadLogs(100)">Last 100</button>
+    </div>
+    <div id="log-output" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-family:monospace;font-size:12px;max-height:500px;overflow:auto;white-space:pre-wrap"></div>
+  </div>
+</div>
+
 </div>
 <div class="toast" id="toast"></div>
 <script>
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+function switchTab(name){document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+name).style.display='block';document.querySelector('.tab-btn[data-tab="'+name+'"]').classList.add('active');if(name==='agents')loadAgents();if(name==='experimental')loadExperimental();if(name==='logs')loadLogs()}
+function filterAgents(){const q=document.getElementById('agent-search').value.toLowerCase();document.querySelectorAll('#agent-table tr').forEach(r=>{const n=r.cells?.[0]?.textContent?.toLowerCase()||'';const d=r.cells?.[1]?.textContent?.toLowerCase()||'';r.style.display=(!q||n.includes(q)||d.includes(q))?'':'none'})}
+
 async function loadData(){
   try{
     const[provRes,statusRes]=await Promise.all([fetch('/api/providers'),fetch('/api/bot/status')]);
@@ -1485,12 +1569,76 @@ async function loadData(){
     logs.forEach(l=>{const li=document.createElement('li');li.textContent=l;al.appendChild(li)});
   }catch(e){}
   try{
-    const sl=document.getElementById('system-list');
+    const sl=document.getElementById('system-info-list');
     sl.innerHTML='';
     const info=[['Version','v2.4.0'],['Uptime',new Date().toLocaleString()],['Memory',''+(performance.memory?Math.round(performance.memory.usedJSHeapSize/1048576)+'MB':'N/A')],['Platform',navigator.platform]];
     info.forEach(([k,v])=>{const li=document.createElement('li');li.innerHTML='<strong>'+k+':</strong> '+v;sl.appendChild(li)});
   }catch(e){}
 }
+
+async function loadAgents(){
+  const tb=document.getElementById('agent-table');
+  tb.innerHTML='<tr><td colspan="3"><div class="spinner"></div></td></tr>';
+  try{
+    const r=await fetch('/api/agents');
+    const agents=await r.json();
+    document.getElementById('agent-count').textContent=agents.length+' agents total';
+    tb.innerHTML='';
+    agents.forEach(a=>{
+      const tr=document.createElement('tr');
+      const promptPreview=(a.prompt||'').substring(0,120);
+      tr.innerHTML='<td style="font-weight:600;color:#58a6ff">'+a.id+'</td><td>'+a.desc+'</td><td style="font-size:11px;color:#8b949e">'+promptPreview+'...</td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){tb.innerHTML='<tr><td colspan="3">Error: '+e.message+'</td></tr>'}
+}
+
+async function loadExperimental(){
+  const el=document.getElementById('experimental-list');
+  el.innerHTML='<div class="spinner"></div>';
+  try{
+    const r=await fetch('/api/experimental');
+    const data=await r.json();
+    const features=data.features||{};
+    const ids=Object.keys(features);
+    if(!ids.length){el.innerHTML='<p style="color:#8b949e">No experimental features defined.</p>';return}
+    let html='<table><thead><tr><th>Feature</th><th>Description</th><th>Category</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+    ids.forEach(id=>{
+      const f=features[id];
+      const on=f.enabled?'ON':'OFF';
+      const badge=on?'badge-green':'badge-red';
+      html+='<tr><td style="font-weight:600">'+id+'</td><td>'+f.desc+'</td><td><span class="badge badge-blue">'+f.category+'</span></td><td><span class="badge '+badge+'">'+on+'</span></td>';
+      html+='<td><button class="btn '+(on?'btn-danger':'btn-success')+'" onclick="toggleFeature(\''+id+'\','+(!on)+')">'+(on?'Disable':'Enable')+'</button></td></tr>';
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<p>Error: '+e.message+'</p>'}
+}
+
+async function toggleFeature(id,enable){
+  try{
+    const r=await fetch('/api/experimental/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enable})});
+    const d=await r.json();
+    if(d.ok){toast(d.id+' '+(enable?'enabled':'disabled'));loadExperimental()}
+    else toast('Error: '+d.error);
+  }catch(e){toast('Error: '+e.message)}
+}
+
+async function loadLogs(count){
+  count=count||50;
+  const lo=document.getElementById('log-output');
+  lo.textContent='Loading...';
+  try{
+    const r=await fetch('/api/bot/logs?count='+count);
+    const d=await r.json();
+    const logs=d.logs||[];
+    lo.textContent=logs.length?logs.join('\n'):'(no logs)';
+  }catch(e){lo.textContent='Error: '+e.message}
+}
+
+// Init
+const tab=new URLSearchParams(location.search).get('tab');
+if(tab&&['dashboard','agents','experimental','logs'].includes(tab))switchTab(tab);
 loadData();
 setInterval(loadData,10000);
 </script>
@@ -1584,8 +1732,72 @@ async def handle_api_skills(method, path, headers, body, params):
     ]
     return json_response(skills)
 
+@route("GET", "/api/agents")
+async def handle_api_agents(method, path, headers, body, params):
+    agents_file = os.path.join(BASE_DIR, "agents.json")
+    if not os.path.exists(agents_file):
+        return json_response([])
+    try:
+        with open(agents_file, encoding="utf-8") as f:
+            agents = json.load(f)
+        result = [{"id": k, "desc": v.get("desc", ""), "prompt": v.get("prompt", "")} for k, v in agents.items()]
+        result.sort(key=lambda x: x["id"])
+        return json_response(result)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+
+@route("GET", "/api/experimental")
+async def handle_api_experimental(method, path, headers, body, params):
+    exp_file = os.path.join(BASE_DIR, "experimental.json")
+    if not os.path.exists(exp_file):
+        return json_response({"features": {}})
+    try:
+        with open(exp_file, encoding="utf-8") as f:
+            data = json.load(f)
+        return json_response(data)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+
+@route("POST", re.compile(r"^/api/experimental/(.+)$"))
+async def handle_api_experimental_toggle(method, path, headers, body, params):
+    match = re.match(r"^/api/experimental/(.+)$", path)
+    if not match:
+        return json_response({"error": "Invalid path"}, 400)
+    fid = match.group(1)
+    exp_file = os.path.join(BASE_DIR, "experimental.json")
+    try:
+        data = _parse_body(body)
+        enabled = data.get("enabled", False)
+        if os.path.exists(exp_file):
+            with open(exp_file, encoding="utf-8") as f:
+                cfg = json.load(f)
+        else:
+            cfg = {"features": {}}
+        if fid in cfg.get("features", {}):
+            cfg["features"][fid]["enabled"] = enabled
+            with open(exp_file, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+            return json_response({"ok": True, "id": fid, "enabled": enabled})
+        return json_response({"error": f"Feature '{fid}' not found"}, 404)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+
 @route("GET", "/admin")
+def _check_admin_auth(headers, body, params):
+    if not _require_admin_auth:
+        return None
+    auth = headers.get("authorization", "")
+    if auth.startswith("Bearer ") and auth[7:] == ADMIN_PASSWORD:
+        return None
+    qp = urllib.parse.parse_qs(urllib.parse.urlparse(params.get("_raw_path", "")).query)
+    if qp.get("token", [None])[0] == ADMIN_PASSWORD:
+        return None
+    return json_response({"error": "unauthorized"}, 401)
+
 async def handle_admin(method, path, headers, body, params):
+    auth_err = _check_admin_auth(headers, body, params)
+    if auth_err:
+        return auth_err
     return html_response(ADMIN_HTML)
 
 # ---- MCP Routes ----
@@ -1673,7 +1885,9 @@ async def _serve(host, port):
     async with server:
         await server.serve_forever()
 
-def run(port=4357, host="0.0.0.0"):
+def run(port=4357, host=None):
+    if host is None:
+        host = os.environ.get("WEB_GATEWAY_HOST", "127.0.0.1")
     print(f"OpenCode AI Gateway starting on {host}:{port}")
     configured = sum(1 for p in PROVIDERS.values() if _is_configured(p.get("key", "")))
     print(f"Providers: {len(PROVIDERS)} total, {configured} configured")
@@ -1682,7 +1896,9 @@ def run(port=4357, host="0.0.0.0"):
     except KeyboardInterrupt:
         print("Shutting down...")
 
-def start(port=4357, host="0.0.0.0"):
+def start(port=4357, host=None):
+    if host is None:
+        host = os.environ.get("WEB_GATEWAY_HOST", "127.0.0.1")
     t = threading.Thread(target=run, args=(port, host), daemon=True)
     t.start()
     return f"Gateway running on http://{host}:{port}"

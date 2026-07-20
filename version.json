@@ -24,7 +24,11 @@
       "Security hardening - /run, /fetch, /plugin locked to owner/admin, SSRF protection, sandbox escape prevention",
       "Startup security scanner - warns on hardcoded API keys in setenv.sh/providers.json",
       "Rate limiting on /announce, /backup, /restore to prevent spam",
-      "Fixed 8 runtime bugs: utf-8 encoding, NameError, triple json.parse, dedup None return, path traversal, .lower() crash, subprocess encoding, missing json import"
+      "Fixed 8 runtime bugs: utf-8 encoding, NameError, triple json.parse, dedup None return, path traversal, .lower() crash, subprocess encoding, missing json import",
+      "Plugin System (/plugin-system) - /plugin load|list, auto-load from plugins/ dir at startup",
+      "Bot Bridge (/bot-bridge) - /bridge list|add|remove|toggle, relay messages to Telegram/Discord/Slack",
+      "Web Dashboard (/web-dashboard) - /admin page with agents list, logs viewer, experimental feature toggles",
+      "Auto-loaded 175 new agents from opencode ecosystem - 364 total agents available"
     ],
     "2.7.1": [
       "Fixed urllib import crash \u2014 synox providers no longer fail with 'name urllib is not defined'",

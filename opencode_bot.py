@@ -68,7 +68,7 @@ _check_single_instance()
 _M = object()
 asyncio=_M; httpx=_M; json=_M; uuid=_M; time=_M; copy=_M; re=_M; random=_M; urllib=_M
 try:
-    import asyncio, json, uuid, time, copy, re, random, urllib.parse
+    import asyncio, json, uuid, time, copy, re, random, urllib.parse, html
 except Exception:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
@@ -153,8 +153,8 @@ def _safe_track_usage(uid, agent, provider):
     if bf:
         try:
             bf.track_usage(uid, agent, provider)
-        except:
-            pass
+        except Exception as _e:
+            log(f"track_usage failed: {_e}")
 
 _http = None
 _save_counter = 0
@@ -569,28 +569,22 @@ DEFAULT_AGENTS = {
 }
 
 def save_agents():
-    with open(AGENTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(AGENTS, f, indent=2)
+    _atomic_save(AGENTS_FILE, AGENTS)
 
 def save_providers():
-    with open(PROVIDERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(PROVIDERS, f, indent=2)
+    _atomic_save(PROVIDERS_FILE, PROVIDERS)
 
 def save_admins():
-    with open(ADMINS_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(admins), f)
+    _atomic_save(ADMINS_FILE, list(admins))
 
 def save_mods():
-    with open(MODS_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(mods), f)
+    _atomic_save(MODS_FILE, list(mods))
 
 def save_premade():
-    with open(PREMADE_SKILLS_FILE, "w", encoding="utf-8") as f:
-        json.dump(PREMADE_SKILLS, f, indent=2)
+    _atomic_save(PREMADE_SKILLS_FILE, PREMADE_SKILLS)
 
 def save_teams():
-    with open(TEAMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(TEAMS, f, indent=2)
+    _atomic_save(TEAMS_FILE, TEAMS)
 
 def save_sessions():
     global _save_counter
@@ -602,8 +596,7 @@ def save_sessions():
         "team_sessions": {str(k): v for k, v in team_sessions.items()},
         "_last_update": last_update,
     }
-    with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f)
+    _atomic_save(SESSIONS_FILE, data)
 
 def load_sessions():
     global last_update
@@ -635,8 +628,8 @@ def save_conversations(data):
     try:
         with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f)
-    except:
-        pass
+    except Exception as _e:
+        log(f"save_conversations failed: {_e}")
 
 def _summarize_conversation(messages):
     if not messages:
@@ -672,8 +665,7 @@ def _archive_current(uid, chat):
     save_conversations(convs)
 
 def save_routines():
-    with open(ROUTINES_FILE, "w", encoding="utf-8") as f:
-        json.dump(routines, f)
+    _atomic_save(ROUTINES_FILE, routines)
 def load_routines():
     global routines
     if os.path.exists(ROUTINES_FILE):
@@ -685,8 +677,7 @@ def load_routines():
 
 multi_sessions = {}
 def save_multi():
-    with open(MULTI_FILE, "w", encoding="utf-8") as f:
-        json.dump(multi_sessions, f)
+    _atomic_save(MULTI_FILE, multi_sessions)
 def load_multi():
     global multi_sessions
     if os.path.exists(MULTI_FILE):
@@ -717,6 +708,8 @@ EXPERIMENTAL_FILE = os.path.join(os.path.dirname(__file__), "experimental.json")
 CUSTOM_COMMANDS_FILE = os.path.join(os.path.dirname(__file__), "custom_commands.json")
 CONTEXT_FILES_FILE = os.path.join(os.path.dirname(__file__), "context_files.json")
 CONVERSATION_TAGS_FILE = os.path.join(os.path.dirname(__file__), "conversation_tags.json")
+BRIDGES_FILE = os.path.join(os.path.dirname(__file__), "bridges.json")
+bridges = {}
 vector_memory = {}
 memory_buffers = {}
 
@@ -734,12 +727,10 @@ except:
 
 def save_memory():
     data = {"vector": vector_memory, "buffers": {str(k): v for k, v in memory_buffers.items()}}
-    # Save MemoryStore if available
     if user_memory:
         data["memories"] = [{"id": m.id, "content": m.content, "user_id": m.user_id, "metadata": m.metadata} for m in user_memory.memories]
         data["blocks"] = {k: v.value for k, v in user_memory.blocks.items()}
-    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f)
+    _atomic_save(MEMORY_FILE, data)
 
 def load_memory():
     global vector_memory, memory_buffers
@@ -769,8 +760,7 @@ def load_token_usage():
         except: pass
 
 def save_token_usage():
-    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
-        json.dump(token_usage, f, indent=2)
+    _atomic_save(TOKEN_FILE, token_usage)
 
 experimental_features = {}
 def load_experimental():
@@ -783,10 +773,16 @@ def load_experimental():
         except:
             experimental_features = {}
     defaults = {
+        "search-tags": {"name": "Search by Tags", "desc": "Enables /search tags <tag> to find chats by auto-generated tags", "version": "2.8.0", "category": "research"},
+        "search-files": {"name": "Search Attached Files", "desc": "Enables /search files <keyword> to search attached context files", "version": "2.8.0", "category": "research"},
+        "search-history": {"name": "Search History", "desc": "Enables /search history <keyword> to search current session messages", "version": "2.8.0", "category": "research"},
         "custom-commands": {"name": "Custom Commands", "desc": "Users can create their own /commands with custom responses", "version": "2.8.0", "category": "automation"},
         "context-files": {"name": "Context Files", "desc": "Attach and detach files as permanent AI context in conversations", "version": "2.8.0", "category": "ai"},
         "auto-tagging": {"name": "Auto-Tagging", "desc": "Auto-categorize conversations with tags, searchable via /find", "version": "2.8.0", "category": "automation"},
-        "enhanced-search": {"name": "Enhanced Search", "desc": "Search through tags, attached files, and conversation history", "version": "2.8.0", "category": "research"},
+        "enhanced-search": {"name": "Enhanced Search", "desc": "Enhanced /search with tags, files, and history modes", "version": "2.8.0", "category": "research"},
+        "web-dashboard": {"name": "Web Dashboard", "desc": "Web UI for managing agents, viewing logs, and toggling experimental features", "version": "2.8.0", "category": "admin"},
+        "plugin-system": {"name": "Plugin System", "desc": "Load custom functionality from plugins/ directory at startup", "version": "2.8.0", "category": "automation"},
+        "bot-bridge": {"name": "Bot Bridge", "desc": "Bridge connection to other Telegram bots, Discord, or Slack", "version": "2.8.0", "category": "automation"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -797,9 +793,69 @@ def load_experimental():
     if changed:
         save_experimental()
 
+def _atomic_save(path, data):
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except Exception as _e:
+        log(f"atomic_save failed for {path}: {_e}")
+
 def save_experimental():
-    with open(EXPERIMENTAL_FILE, "w", encoding="utf-8") as f:
-        json.dump({"features": experimental_features}, f, indent=2)
+    _atomic_save(EXPERIMENTAL_FILE, {"features": experimental_features})
+
+def load_bridges():
+    global bridges
+    if os.path.exists(BRIDGES_FILE):
+        try:
+            with open(BRIDGES_FILE, encoding="utf-8") as f:
+                bridges = json.load(f)
+        except:
+            bridges = {}
+    else:
+        bridges = {}
+
+def save_bridges():
+    _atomic_save(BRIDGES_FILE, bridges)
+
+async def relay_to_bridge(text, _chat, _uid, _msg):
+    if not is_experimental_enabled("bot-bridge"):
+        return
+    for name, cfg in bridges.items():
+        if not cfg.get("enabled"):
+            continue
+        targets = cfg.get("targets", [])
+        for t in targets:
+            platform = t.get("platform")
+            url = t.get("webhook_url")
+            if platform == "telegram":
+                token = t.get("bot_token")
+                target_chat = t.get("chat_id")
+                if token and target_chat:
+                    try:
+                        c = await get_http()
+                        payload = {
+                            "chat_id": target_chat,
+                            "text": f"[Bridge {name}] {html.escape(text[:2000])}",
+                            "parse_mode": "HTML",
+                        }
+                        await c.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
+                    except:
+                        pass
+            elif platform in ("discord", "slack"):
+                if url:
+                    try:
+                        c = await get_http()
+                        safe_text = html.escape(text[:2000])
+                        payload = {"content": f"[Bridge {name}] {safe_text}"}
+                        if platform == "slack":
+                            payload = {"text": f"[Bridge {name}] {safe_text}"}
+                        await c.post(url, json=payload, timeout=10)
+                    except:
+                        pass
 
 def is_experimental_enabled(name):
     feat = experimental_features.get(name)
@@ -841,11 +897,7 @@ def load_custom_commands():
             custom_commands = {}
 
 def save_custom_commands():
-    try:
-        with open(CUSTOM_COMMANDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(custom_commands, f, indent=2)
-    except:
-        pass
+    _atomic_save(CUSTOM_COMMANDS_FILE, custom_commands)
 
 context_files = {}
 def load_context_files():
@@ -858,11 +910,7 @@ def load_context_files():
             context_files = {}
 
 def save_context_files():
-    try:
-        with open(CONTEXT_FILES_FILE, "w", encoding="utf-8") as f:
-            json.dump(context_files, f, indent=2)
-    except:
-        pass
+    _atomic_save(CONTEXT_FILES_FILE, context_files)
 
 conversation_tags = {}
 def load_conversation_tags():
@@ -875,11 +923,7 @@ def load_conversation_tags():
             conversation_tags = {}
 
 def save_conversation_tags():
-    try:
-        with open(CONVERSATION_TAGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(conversation_tags, f, indent=2)
-    except:
-        pass
+    _atomic_save(CONVERSATION_TAGS_FILE, conversation_tags)
 
 def tag_keywords(text):
     tags = {}
@@ -1098,23 +1142,46 @@ TOOLS = {
     "synoxcloud": {"desc": "Call a SynoxCloud API endpoint. Use /synoxcloud to list endpoints. Pass endpoint=X&param=Y."},
 }
 
-async def execute_tool(name, args):
+_DISALLOWED_HOSTS = ["169.254.", "127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
+    "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "0.0.0.0", "localhost",
+    "metadata.google.internal", "169.254.169.254", "100.100.100.200"]
+
+async def execute_tool(name, args, uid=None):
     c = await get_http()
     if name == "web-scrape":
         url = args.get("url", "")
+        host = urllib.parse.urlparse(url).hostname or ""
+        for blocked in _DISALLOWED_HOSTS:
+            if host.startswith(blocked) or host == blocked:
+                return f"Blocked: cannot access internal/private host '{host}'"
         r = await c.get(url, timeout=30)
         text = r.text[:5000]
         return f"Content from {url}:\n{text[:2000]}"
     if name == "web-search":
         q = args.get("query", "")
-        r = await c.get(f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1", timeout=15)
+        encoded_q = urllib.parse.quote(q)
+        r = await c.get(f"https://api.duckduckgo.com/?q={encoded_q}&format=json&no_html=1", timeout=15)
         data = r.json()
         return f"Results for '{q}': {str(data.get('AbstractText', 'No results'))[:2000]}"
     if name == "python-exec":
+        if uid != OWNER_ID:
+            return "Error: only the bot owner can execute arbitrary Python code"
         code = args.get("code", "")
         try:
+            restricted = {"__builtins__": {"abs": abs, "all": all, "any": any, "chr": chr, "dict": dict,
+                "dir": dir, "divmod": divmod, "enumerate": enumerate, "filter": filter, "float": float,
+                "format": format, "frozenset": frozenset, "hash": hash, "hex": hex, "id": id, "int": int,
+                "isinstance": isinstance, "issubclass": issubclass, "iter": iter, "len": len, "list": list,
+                "map": map, "max": max, "min": min, "next": next, "oct": oct, "ord": ord, "pow": pow,
+                "range": range, "repr": repr, "reversed": reversed, "round": round, "set": set,
+                "slice": slice, "sorted": sorted, "str": str, "sum": sum, "tuple": tuple, "type": type,
+                "zip": zip, "True": True, "False": False, "None": None, "print": print},
+                "math": __import__("math"), "json": __import__("json"), "re": __import__("re"),
+                "random": __import__("random"), "collections": __import__("collections"),
+                "datetime": __import__("datetime"), "itertools": __import__("itertools")}
             local_vars = {}
-            exec(code, {}, local_vars)
+            exec(code, restricted, local_vars)
             result = str(local_vars.get("result", "Code executed (no result variable)"))
             return f"Output: {result[:2000]}"
         except Exception as e:
@@ -1319,7 +1386,7 @@ async def run_autonomous(goal, uid):
         if step_type == "tool":
             tool_name = step.get("tool")
             tool_input = step.get("input", {})
-            tool_result = await execute_tool(tool_name, tool_input)
+            tool_result = await execute_tool(tool_name, tool_input, uid)
             results.append(f"Step {i+1} ({tool_name}): {tool_result[:500]}")
             memory_buffers[uid].append(f"[TOOL] {tool_name}: {tool_result[:200]}")
         else:
@@ -1807,7 +1874,8 @@ async def poll():
             try:
                 with open(_OFFSET_FILE, "w", encoding="utf-8") as _f:
                     _f.write(str(last_update))
-            except:
+            except Exception as _e:
+                log(f"poll loop error: {_e}")
                 pass
             result = r.get("result", [])
             if result:
@@ -2093,7 +2161,8 @@ async def main():
     try:
         c = await get_http()
         await c.post(f"{TG_API}/deleteWebhook", timeout=10)
-    except:
+    except Exception as _e:
+        log(f"poll loop error: {_e}")
         pass
     log("Bot started")
 
@@ -2110,6 +2179,14 @@ async def main():
         load_memory()
     load_token_usage()
     load_experimental()
+    load_bridges()
+
+    token_warn = sum(1 for cfg in bridges.values() for t in cfg.get("targets", []) if t.get("bot_token"))
+    if token_warn:
+        log(f"[security] WARNING: {token_warn} bridge bot token(s) stored in plaintext in bridges.json")
+
+    if is_experimental_enabled("plugin-system"):
+        bf.init_plugins_from_dir()
 
     while True:
         try:
@@ -3647,7 +3724,10 @@ async def main():
                             await send(chat, "Usage: /search <query>\nExample: /search latest AI news 2026")
                         continue
                     mode = parts[1].lower()
-                    if is_experimental_enabled("enhanced-search") and mode == "tags":
+                    if mode == "tags":
+                        if not is_experimental_enabled("search-tags"):
+                            await send(chat, "Feature 'search-tags' is not enabled. Use /experimental enable search-tags")
+                            continue
                         query = " ".join(parts[2:]) if len(parts) > 2 else ""
                         if not query:
                             await send(chat, "Usage: /search tags <tag>")
@@ -3661,7 +3741,10 @@ async def main():
                             for cid, tag, count in results[:15]:
                                 lines.append(f"  Chat {cid} - #{tag} ({count}x)")
                             await send(chat, "\n".join(lines))
-                    elif is_experimental_enabled("enhanced-search") and mode == "files":
+                    elif mode == "files":
+                        if not is_experimental_enabled("search-files"):
+                            await send(chat, "Feature 'search-files' is not enabled. Use /experimental enable search-files")
+                            continue
                         query = " ".join(parts[2:]).lower() if len(parts) > 2 else ""
                         if not query:
                             await send(chat, "Usage: /search files <keyword>")
@@ -3674,7 +3757,10 @@ async def main():
                             for cid, fname, preview in results[:10]:
                                 lines.append(f"  {fname} ({'this chat' if cid==str(chat) else 'Chat '+cid}): {preview}")
                             await send(chat, "\n".join(lines))
-                    elif is_experimental_enabled("enhanced-search") and mode == "history":
+                    elif mode == "history":
+                        if not is_experimental_enabled("search-history"):
+                            await send(chat, "Feature 'search-history' is not enabled. Use /experimental enable search-history")
+                            continue
                         query = " ".join(parts[2:]) if len(parts) > 2 else ""
                         if not query:
                             await send(chat, "Usage: /search history <keyword>")
@@ -4284,6 +4370,9 @@ async def main():
                         await send(chat, "Usage: /data query <question>  or  /data list")
 
                 elif cmd == "/plugin":
+                    if not is_experimental_enabled("plugin-system"):
+                        await send(chat, "Plugin system is not enabled. Use /experimental enable plugin-system")
+                        continue
                     if len(parts) < 2:
                         plugins = bf.list_plugins()
                         if plugins:
@@ -4308,6 +4397,90 @@ async def main():
                             await send(chat, "No plugins loaded.")
                     else:
                         await send(chat, "Usage: /plugin load <url_or_path>  or  /plugin list")
+
+                elif cmd == "/bridge":
+                    if not is_experimental_enabled("bot-bridge"):
+                        await send(chat, "Bot Bridge is not enabled. Use /experimental enable bot-bridge")
+                        continue
+                    if len(parts) < 2:
+                        if not bridges:
+                            await send(chat, "No bridges configured.\nUsage:\n  /bridge list\n  /bridge add <name> <platform> <webhook_url|bot_token> [chat_id]\n  /bridge remove <name>\n  /bridge toggle <name>")
+                        else:
+                            lines = ["Configured bridges:"]
+                            for name, cfg in bridges.items():
+                                status = "ON" if cfg.get("enabled") else "OFF"
+                                targets = cfg.get("targets", [])
+                                platforms = ", ".join(t.get("platform", "?") for t in targets)
+                                lines.append(f"  {name} ({status}) -> {platforms}")
+                            await send(chat, "\n".join(lines))
+                        continue
+                    sub = parts[1].lower()
+                    if sub == "list":
+                        if not bridges:
+                            await send(chat, "No bridges configured.")
+                        else:
+                            lines = ["Bridges:"]
+                            for name, cfg in bridges.items():
+                                status = "ON" if cfg.get("enabled") else "OFF"
+                                targets = cfg.get("targets", [])
+                                for t in targets:
+                                    plat = t.get("platform", "?")
+                                    url = t.get("webhook_url", t.get("bot_token", ""))[:40]
+                                    lines.append(f"  {name} [{status}] {plat} -> {url}...")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "add" and len(parts) >= 4:
+                        if not is_owner:
+                            await send(chat, "Only the owner can add bridges.")
+                            continue
+                        bname = parts[2]
+                        platform = parts[3].lower()
+                        if platform not in ("telegram", "discord", "slack"):
+                            await send(chat, "Platform must be 'telegram', 'discord', or 'slack'.")
+                            continue
+                        rest = " ".join(parts[4:])
+                        if platform == "telegram":
+                            args = rest.split(None, 1)
+                            token = args[0] if args else ""
+                            chat_id = args[1] if len(args) > 1 else ""
+                            if not token or not chat_id:
+                                await send(chat, "Usage: /bridge add <name> telegram <bot_token> <chat_id>")
+                                continue
+                            target = {"platform": "telegram", "bot_token": token, "chat_id": chat_id}
+                        else:
+                            webhook_url = rest
+                            if not webhook_url.lower().startswith(("http://", "https://")):
+                                await send(chat, "Webhook URL must start with http:// or https://")
+                                continue
+                            target = {"platform": platform, "webhook_url": webhook_url}
+                        bridges.setdefault(bname, {"enabled": True, "targets": []})
+                        bridges[bname]["targets"].append(target)
+                        save_bridges()
+                        await send(chat, f"Bridge '{bname}' added ({platform}). Use /bridge toggle {bname} to enable/disable.")
+                    elif sub == "remove" and len(parts) >= 3:
+                        if not is_owner:
+                            await send(chat, "Only the owner can remove bridges.")
+                            continue
+                        bname = parts[2]
+                        if bname in bridges:
+                            del bridges[bname]
+                            save_bridges()
+                            await send(chat, f"Bridge '{bname}' removed.")
+                        else:
+                            await send(chat, f"Bridge '{bname}' not found.")
+                    elif sub == "toggle" and len(parts) >= 3:
+                        if not is_owner:
+                            await send(chat, "Only the owner can toggle bridges.")
+                            continue
+                        bname = parts[2]
+                        if bname in bridges:
+                            bridges[bname]["enabled"] = not bridges[bname].get("enabled", True)
+                            save_bridges()
+                            s = "enabled" if bridges[bname]["enabled"] else "disabled"
+                            await send(chat, f"Bridge '{bname}' {s}.")
+                        else:
+                            await send(chat, f"Bridge '{bname}' not found.")
+                    else:
+                        await send(chat, "Usage: /bridge list | add <name> <platform> <...> | remove <name> | toggle <name>")
 
                 elif cmd == "/version":
                     ver_info = load_version()
@@ -4496,7 +4669,7 @@ async def main():
                             lines.append(f"  Chat {cid} — #{tag} ({count}x)")
                         await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
@@ -4616,6 +4789,7 @@ async def main():
                                     for t, count in tags.items():
                                         chat_tags[t] = chat_tags.get(t, 0) + count
                                     save_conversation_tags()
+                            asyncio.create_task(relay_to_bridge(text, chat, uid, msg))
                             log(f"Calling {active_provider} for: {text[:50]}")
                             reply = await smart_call(sessions[uid][-20:], active_provider)
                             log(f"Reply: {reply[:80]}...")
