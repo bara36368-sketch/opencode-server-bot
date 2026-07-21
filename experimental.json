@@ -181,6 +181,41 @@
       "version": "2.8.0",
       "category": "automation",
       "enabled": false
+    },
+    "knowledge-graph": {
+      "name": "Knowledge Graph",
+      "desc": "Build and query a personal knowledge graph from conversations and documents",
+      "version": "3.1.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "knowledge-vault": {
+      "name": "Knowledge Vault",
+      "desc": "Personal second brain: save facts, search notes, organize knowledge with AI",
+      "version": "3.1.0",
+      "enabled": false,
+      "category": "ai"
+    },
+    "agent-market": {
+      "name": "Agent Marketplace",
+      "desc": "Browse, install, and share community agents from a GitHub registry",
+      "version": "3.1.0",
+      "enabled": false,
+      "category": "automation"
+    },
+    "video-generator": {
+      "name": "Video Generator v2",
+      "desc": "Generate TikTok-style videos, memes, auto-captions with virality scoring",
+      "version": "3.1.0",
+      "enabled": false,
+      "category": "media"
+    },
+    "xphone-voice": {
+      "name": "X-Phone Voice v2",
+      "desc": "Voice-to-voice chat with emotion, conversation mode, and interruption",
+      "version": "3.1.0",
+      "enabled": false,
+      "category": "media"
     }
   }
 }

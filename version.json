@@ -1,22 +1,39 @@
 {
-  "version": "2.8.102",
-  "updated": "2026-07-20",
+  "version": "3.1.0",
+  "updated": "2026-07-21",
   "experimental": [
-    "Deep Research v2 \u2014 multi-step research with source verification",
-    "Voice Cloning \u2014 clone any voice from a short audio sample",
-    "AI Persona Engine \u2014 custom AI personalities with memory and mood",
-    "Smart Scheduler \u2014 AI learns your habits and suggests routines",
-    "Multi-Agent Chat \u2014 talk to multiple AIs simultaneously",
-    "Code Playground \u2014 interactive code execution with live output",
-    "AI Image Editor \u2014 edit images with natural language",
-    "Smart Search v2 \u2014 enhanced search with AI summarization",
-    "Knowledge Graph \u2014 build a personal knowledge graph",
-    "Realtime Collaboration \u2014 share sessions with other users",
-    "Streaming Responses \u2014 bot types word-by-word as AI generates",
-    "Economy System \u2014 virtual currency, work, shop, pay friends",
-    "Knowledge Vault \u2014 save, search, and organize facts like a second brain"
+    "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
+    "Scheduled Cron -- recurring AI prompts with /cron and web page change monitoring with /monitor",
+    "Social Search -- search Reddit (/reddit), Hacker News (/hn), or all at once (/social)",
+    "Document Analyzer -- enhanced PDF/text document analysis with multi-engine extraction",
+    "Smart Scheduler -- AI learns your habits and suggests routines",
+    "AI Persona Engine -- custom AI personalities with memory and mood",
+    "Code Playground -- interactive code execution with live output",
+    "Knowledge Graph v2 -- /kg — NetworkX-based graph, entity/relation extraction, graph querying, D3.js web visualization",
+    "Knowledge Vault -- /vault — save, search, and organize facts like a second brain",
+    "Supervisor Architecture -- /arch supervisor: AI plans, delegates to agents, reviews quality, iterates",
+    "Reflection Architecture -- /arch reflection: agent generates, self-critiques, and improves its output",
+    "Bot-to-Bot Auto-Reply -- /bridge auto-reply <name> on: AI auto-responds to incoming bot messages",
+    "Agent Marketplace -- /market — browse, install, and share community agents from GitHub registry",
+    "Video Generator v2 -- /video make, /video meme, /video virality — TikTok styles, meme templates, auto-captions, virality scoring",
+    "X-Phone Voice v2 -- /voice on — voice-to-voice chat with emotion, conversation mode, and interruption"
   ],
   "whats_new": {
+    "3.1.0": [
+      "Knowledge Graph v2 -- /kg add, /kg relate, /kg extract, /kg search, /kg query, /kg related, /kg stats, /kg webviz — NetworkX-based graph with entity/relation extraction via LLM, full CRUD, D3.js interactive visualization at /kg-viz",
+      "Knowledge Vault -- /vault save, /vault search, /vault list, /vault get, /vault delete — persistent personal second brain",
+      "Supervisor Multi-Agent Orchestration -- /arch supervisor: AI decomposes your request into sub-tasks, delegates to specialized agents, reviews each output for quality, and iterates if needed",
+      "Reflection Architecture -- /arch reflection: agent generates a response, a critic reviews it, and the agent improves it. Two rounds of self-reflection for higher quality",
+      "Bot-to-Bot Bridge v2 -- /bridge send <name> <msg> to relay messages to other bots via webhook",
+      "Bot-to-Bot Auto-Reply -- /bridge auto-reply <name> on: incoming bot messages are processed by AI and auto-responded",
+      "Bot-to-Bot Webhook endpoint -- POST /bot-bridge/<name> to send messages to OpenCode Bot from other bots",
+      "Bot-to-Bot Custom Prompts -- /bridge prompt <name> <text> to set AI personality for auto-replies",
+      "Telegram live drafts support (May 2026 update) -- streaming text as AI generates",
+      "New platform type 'bot' for /bridge add -- connect OpenCode Bot to any bot via webhook",
+      "Agent Marketplace -- /market list, /market search, /market featured, /market install, /market uninstall, /market installed, /market publish, /market refresh — browse/install/share agents from GitHub registry",
+      "Video Generator v2 -- /video make <title> | <caption> [style] — generate TikTok/YouTube/Instagram/Neon/Vintage/Minimal style frames with Pillow; /video meme <template> <text1> [text2] — generate memes (drake, distracted, captain, doge); /video virality <text> — score engagement potential; /video styles — list all styles",
+      "X-Phone Voice v2 -- /voice on — full voice-to-voice conversation mode: speak → whisper STT → LLM → OpenAI TTS → voice reply; /voice emotion <emotion> — 7 emotions (neutral, happy, sad, angry, excited, calm, whisper); voice interruption support — send another voice message to interrupt current reply; improved TTS with OpenAI fallback chain"
+    ],
     "2.8.0": [
       "Conversation History - /archive, /history, /view, /change to save and browse past chats",
       "Auto-archive on /clear or after 30 min inactivity",
@@ -31,47 +48,47 @@
       "Auto-loaded 175 new agents from opencode ecosystem - 364 total agents available"
     ],
     "2.7.1": [
-      "Fixed urllib import crash \u2014 synox providers no longer fail with 'name urllib is not defined'",
-      "Separated stdlib imports from httpx \u2014 bot starts even if httpx is missing",
+      "Fixed urllib import crash — synox providers no longer fail with 'name urllib is not defined'",
+      "Separated stdlib imports from httpx — bot starts even if httpx is missing",
       "Added httpx availability guard in get_http()"
     ],
     "2.7.0": [
-      "Self-Evolving Skills \u2014 bot auto-creates new tools when it encounters unknown tasks",
-      "Telegraph Articles \u2014 long AI responses published as clean Telegraph articles",
-      "Forum Topic Sessions \u2014 each Telegram forum topic gets its own independent AI session"
+      "Self-Evolving Skills — bot auto-creates new tools when it encounters unknown tasks",
+      "Telegraph Articles — long AI responses published as clean Telegraph articles",
+      "Forum Topic Sessions — each Telegram forum topic gets its own independent AI session"
     ],
     "2.6.0": [
-      "Streaming Responses \u2014 bot types response word-by-word as AI generates (like ChatGPT)",
-      "Economy System \u2014 /balance, /work, /shop, /pay @user virtual currency system",
-      "Knowledge Vault \u2014 /vault save, /vault search, /vault list \u2014 your personal second brain"
+      "Streaming Responses — bot types response word-by-word as AI generates (like ChatGPT)",
+      "Economy System — /balance, /work, /shop, /pay @user virtual currency system",
+      "Knowledge Vault — /vault save, /vault search, /vault list — your personal second brain"
     ],
     "2.5.0": [
-      "Mini Games Suite \u2014 /trivia, /wordle, /hangman, /slots, /riddle \u2014 play while you chat",
-      "Cross-Device Notes \u2014 /save, /notes, /find \u2014 synced notes accessible anywhere",
-      "Daily Briefing \u2014 auto-send morning summary with news, weather, tasks at configured time"
+      "Mini Games Suite — /trivia, /wordle, /hangman, /slots, /riddle — play while you chat",
+      "Cross-Device Notes — /save, /notes, /find — synced notes accessible anywhere",
+      "Daily Briefing — auto-send morning summary with news, weather, tasks at configured time"
     ],
     "2.4.0": [
-      "Web Admin Dashboard \u2014 real-time stats, provider status, bot control at /admin",
-      "/weather <city> \u2014 weather forecast via wttr.in (free, no API key needed)",
-      "/backup \u2014 backup all bot data to ZIP file (admin only)",
-      "/restore \u2014 restore from backup ZIP file (admin only)",
-      "/dailydigest \u2014 daily summary with stats, weather, headlines, token balance",
-      "Auto version checker \u2014 detects new updates every 5 minutes and notifies all users",
-      "Richer update notifications \u2014 detailed feature list sent to all users on new versions"
+      "Web Admin Dashboard — real-time stats, provider status, bot control at /admin",
+      "/weather <city> — weather forecast via wttr.in (free, no API key needed)",
+      "/backup — backup all bot data to ZIP file (admin only)",
+      "/restore — restore from backup ZIP file (admin only)",
+      "/dailydigest — daily summary with stats, weather, headlines, token balance",
+      "Auto version checker — detects new updates every 5 minutes and notifies all users",
+      "Richer update notifications — detailed feature list sent to all users on new versions"
     ],
     "2.3.0": [
-      "New /stackstatus command \u2014 live status of all 10 AI stack layers",
-      "ai_stack_combined.py \u2014 single runnable script with all 10 layers integrated",
+      "New /stackstatus command — live status of all 10 AI stack layers",
+      "ai_stack_combined.py — single runnable script with all 10 layers integrated",
       "Layers: Agent, Workflow, Memory, Multimodal, Serving, MCP, Observability, Security, HITL, Edge"
     ],
     "2.2.0": [
-      "New /stack command \u2014 2026 AI Infrastructure Reference (10 layers with code)",
+      "New /stack command — 2026 AI Infrastructure Reference (10 layers with code)",
       "Topics: Agents, Memory, Multimodal, Serving, MCP, Observability, Security, HITL, Edge AI",
       "Use /stack <number> or /stack <topic> to explore any layer"
     ],
     "2.1.0": [
-      "Added FreeTheAi provider \u2014 60+ free models (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
-      "Version tracking system \u2014 you'll see this announcement on updates!",
+      "Added FreeTheAi provider — 60+ free models (GLM-5.1, Kimi K2, Qwen, DeepSeek)",
+      "Version tracking system — you'll see this announcement on updates!",
       "Type /version to check current version and changelog"
     ],
     "2.0.0": [
@@ -90,6 +107,22 @@
     "2.8.89": [],
     "2.8.90": [],
     "2.8.96": [],
+    "3.0.0": [
+      "BIG UPDATE: The bot can now search YouTube, TikTok, Reddit, Hacker News, GitHub -- all without API keys",
+      "Persistent Long-Term Memory -- every user's conversation auto-logged. /memory stats, /memory search, auto-injected as context",
+      "Scheduled Cron Tasks -- /cron add <seconds> <prompt> for recurring AI prompts running in the background",
+      "Web Page Change Monitoring -- /monitor add <url> to watch pages for changes, get alerts when content updates",
+      "Reddit Search -- /reddit <query> searches Reddit discussions. No API key needed.",
+      "Hacker News Search -- /hn <query> searches Hacker News via Algolia. Returns points, author, comments.",
+      "Multi-Platform Social Search -- /social <query> searches Reddit + HN + Medium in one command",
+      "Enhanced Document Analysis -- PDF/text extraction with multi-engine fallback (PyPDF2, pdfplumber, pdfminer)",
+      "LIVE SEARCH DEMO: Bot searched for 'AI' across all platforms and found:",
+      "  YouTube: 'AI Tools You'll ACTUALLY Use in 2026' (106K views), 'AI Has Changed Completely' (68K views)",
+      "  GitHub: superpowers (258K stars), hermes-agent (218K stars), langflow (152K stars), dify (149K stars)",
+      "  TikTok: 'Best AI tools in 2026' (3.1M plays), 'AI tools stack saves 50+ hours' (260K plays)",
+      "All new features gated behind /experimental toggles for safe rollout",
+      "MCP tools added: reddit_search, hn_search, social_search, memory_search, doc_analyze, cron_add/list/remove, monitor_add/list"
+    ],
     "2.8.102": [
       "Security hardening: RCE via exec() gated to OWNER_ID only with restricted builtins",
       "Security hardening: SSRF via web-scrape blocked private IPs, loopback, cloud metadata",

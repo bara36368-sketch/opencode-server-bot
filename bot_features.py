@@ -1,4 +1,4 @@
-import asyncio, json, os, time, re, hashlib, html
+import asyncio, json, os, time, re, hashlib, html, urllib.parse
 import httpx
 from collections import defaultdict
 
@@ -6,6 +6,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSIONS_FILE = os.path.join(BASE_DIR, "sessions.json")
 SCHEDULE_FILE = os.path.join(BASE_DIR, "schedule.json")
 RAG_FILE = os.path.join(BASE_DIR, "rag_data.json")
+MEMORY_LOG_FILE = os.path.join(BASE_DIR, "memory_log.json")
+PAGES_FILE = os.path.join(BASE_DIR, "pages.json")
 _http = None
 
 async def get_http():
@@ -107,7 +109,10 @@ async def get_photo_url(file_id):
     except:
         return None
 
-# ── 2. VOICE CHAT ─────────────────────────────────────────
+# ── 2. VOICE CHAT (X-Phone v2) ─────────────────────────────
+
+VOICE_SESSIONS = {}
+VOICE_EMOTIONS = {"neutral", "happy", "sad", "angry", "excited", "calm", "whisper"}
 
 async def voice_to_text(file_id):
     try:
@@ -120,10 +125,11 @@ async def voice_to_text(file_id):
         path = data["result"]["file_path"]
         file_url = f"https://api.telegram.org/file/bot{bot_token}/{path}"
         audio_data = (await c.get(file_url)).content
+        hf_key = os.environ.get("HUGGINGFACE_KEY", "hf_free")
         r2 = await c.post(
             "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
             data=audio_data,
-            headers={"Authorization": "Bearer hf_free"},
+            headers={"Authorization": f"Bearer {hf_key}"},
             timeout=60,
         )
         result = r2.json()
@@ -131,26 +137,70 @@ async def voice_to_text(file_id):
     except Exception as e:
         return f"[Voice error: {e}]"
 
-async def text_to_speech(text, chat_id):
+async def text_to_speech(text, chat_id, voice="nova", emotion=None):
     try:
         c = await get_http()
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
+        openai_key = os.environ.get("OPENAI_KEY", "")
+        if openai_key:
+            voice = voice or "nova"
+            resp = await c.post(
+                "https://api.openai.com/v1/audio/speech",
+                json={"model": "tts-1", "input": text[:500], "voice": voice},
+                headers={"Authorization": f"Bearer {openai_key}"},
+                timeout=30
+            )
+            if resp.status_code == 200:
+                await c.post(
+                    f"https://api.telegram.org/bot{bot_token}/sendVoice",
+                    files={"voice": ("speech.ogg", resp.content)},
+                    data={"chat_id": chat_id, "caption": emotion or "AI Reply"},
+                    timeout=30,
+                )
+                return True
         r = await c.post(
             "https://api-inference.huggingface.co/models/espnet/kan-bayashi_ljspeech_vits",
             json={"inputs": text[:500]},
             timeout=30,
         )
         if r.status_code == 200 and r.headers.get("content-type", "").startswith("audio/"):
-            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
             await c.post(
                 f"https://api.telegram.org/bot{bot_token}/sendAudio",
                 files={"audio": ("reply.wav", r.content)},
-                data={"chat_id": chat_id, "title": "AI Reply"},
+                data={"chat_id": chat_id, "title": emotion or "AI Reply"},
                 timeout=30,
             )
             return True
         return False
     except:
         return False
+
+def get_voice_session(chat_id):
+    chat_id = str(chat_id)
+    return VOICE_SESSIONS.get(chat_id, {})
+
+def set_voice_mode(chat_id, mode):
+    chat_id = str(chat_id)
+    if chat_id not in VOICE_SESSIONS:
+        VOICE_SESSIONS[chat_id] = {}
+    VOICE_SESSIONS[chat_id]["mode"] = mode
+    VOICE_SESSIONS[chat_id]["active"] = time.time()
+
+def get_voice_mode(chat_id):
+    return get_voice_session(chat_id).get("mode", "off")
+
+async def voice_conversation_pipeline(file_id, chat_id, call_provider=None, provider_name=None):
+    transcribed = await voice_to_text(file_id)
+    if not transcribed or transcribed.startswith("[Voice error"):
+        return None, None
+    if call_provider and provider_name:
+        reply = await call_provider([{"role": "user", "content": transcribed}], provider_name)
+    else:
+        reply = transcribed
+    tts_ok = await text_to_speech(reply, chat_id, emotion="neutral")
+    if not tts_ok:
+        await text_to_speech(reply[:200], chat_id, emotion="neutral")
+    return transcribed, reply
 
 # ── 3. DOCUMENT RAG ────────────────────────────────────────
 
@@ -205,6 +255,115 @@ class DocumentDB:
         return hashlib.md5(text.encode()).hexdigest()[:8]
 
 doc_db = DocumentDB()
+
+# ── 3b. PERSISTENT LONG-TERM MEMORY ─────────────────────
+
+class MemoryLog:
+    def __init__(self):
+        self.logs = {}  # uid -> [{"role": str, "content": str, "ts": float, "summary": str}]
+        self._load()
+
+    def _load(self):
+        if os.path.exists(MEMORY_LOG_FILE):
+            try:
+                with open(MEMORY_LOG_FILE, encoding="utf-8") as f:
+                    self.logs = json.load(f)
+                self.logs = {int(k) if k.isdigit() else k: v for k, v in self.logs.items()}
+            except:
+                self.logs = {}
+
+    def _save(self):
+        clean = {}
+        for uid, entries in self.logs.items():
+            clean[str(uid)] = [{"role": e["role"], "content": e["content"], "ts": e.get("ts", 0), "summary": e.get("summary", "")} for e in entries[-200:]]
+        with open(MEMORY_LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump(clean, f, indent=2, ensure_ascii=False)
+
+    def append(self, uid, role, content):
+        uid = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        self.logs.setdefault(uid, [])
+        self.logs[uid].append({"role": role, "content": content, "ts": time.time(), "summary": ""})
+        if len(self.logs[uid]) > 200:
+            self.logs[uid] = self.logs[uid][-200:]
+        self._save()
+
+    def get_recent(self, uid, limit=20):
+        uid = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        return self.logs.get(uid, [])[-limit:]
+
+    def get_all(self, uid):
+        uid = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        return self.logs.get(uid, [])
+
+    def search(self, uid, keyword, limit=5):
+        uid = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        entries = self.logs.get(uid, [])
+        kw = keyword.lower()
+        hits = [e for e in entries if kw in e.get("content", "").lower()]
+        return hits[-limit:]
+
+    def summarize_old(self, uid, smart_call_fn, max_age=3600):
+        uid_int = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        entries = self.logs.get(uid_int, [])
+        old = [e for e in entries if time.time() - e.get("ts", 0) > max_age and not e.get("summary")]
+        if len(old) < 5:
+            return
+        text = "\n".join(f"{e['role']}: {e['content'][:200]}" for e in old)
+        try:
+            summary = smart_call_fn([
+                {"role": "system", "content": "Summarize key facts, preferences, and decisions from this conversation history concisely."},
+                {"role": "user", "content": text},
+            ])
+        except:
+            summary = ""
+        if summary:
+            for e in old:
+                e["summary"] = str(summary)[:500]
+            self._save()
+
+    def get_context_blob(self, uid, recent_count=8, max_age=86400):
+        uid_int = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        entries = self.logs.get(uid_int, [])
+        recent = [e for e in entries if time.time() - e.get("ts", 0) < max_age][-recent_count:]
+        summaries = [e.get("summary", "") for e in entries if e.get("summary")]
+        recent_text = "\n".join(f"{e['role']}: {e['content'][:300]}" for e in recent)
+        summary_text = " | ".join(set(s for s in summaries if s))
+        parts = []
+        if summary_text:
+            parts.append(f"[Past context: {summary_text[:800]}]")
+        if recent_text:
+            parts.append(f"[Recent: {recent_text[:1500]}]")
+        return "\n".join(parts)
+
+    def clear_user(self, uid):
+        uid_int = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        self.logs.pop(uid_int, None)
+        self._save()
+
+    def get_stats(self, uid):
+        uid_int = int(uid) if isinstance(uid, str) and uid.isdigit() else uid
+        entries = self.logs.get(uid_int, [])
+        user_msgs = sum(1 for e in entries if e["role"] == "user")
+        ai_msgs = sum(1 for e in entries if e["role"] == "assistant")
+        first = entries[0]["ts"] if entries else 0
+        return {"total": len(entries), "user": user_msgs, "ai": ai_msgs, "first_seen": first, "days": max(1, int((time.time() - first) / 86400)) if first else 1}
+
+memory_log = MemoryLog()
+
+async def append_to_memory_log(uid, role, content):
+    memory_log.append(uid, role, content)
+
+async def get_memory_context(uid):
+    return memory_log.get_context_blob(uid)
+
+async def search_user_memories(uid, keyword):
+    return memory_log.search(uid, keyword)
+
+async def get_memory_stats(uid):
+    return memory_log.get_stats(uid)
+
+async def clear_user_memory(uid):
+    memory_log.clear_user(uid)
 
 async def extract_text_from_file(file_id, file_name):
     try:
@@ -391,7 +550,7 @@ async def summarize_conversation(messages, smart_call_fn, max_before_summary=20)
 async def web_search(query):
     try:
         c = await get_http()
-        url = f"https://lite.duckduckgo.com/lite/?q={httpx.utils.quote(query)}"
+        url = f"https://lite.duckduckgo.com/lite/?q={urllib.parse.quote(query)}"
         r = await c.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         if r.status_code != 200:
             return f"Search error: {r.status_code}"
@@ -562,7 +721,407 @@ async def fetch_url(url):
     except Exception as e:
         return f"Fetch error: {e}"
 
-# ── 13. REMINDERS ──────────────────────────────────────────
+# ── 13. YOUTUBE SEARCH ─────────────────────────────────────
+
+async def youtube_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://www.youtube.com/results?search_query={q}",
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}
+        )
+        import json
+        initial_data = None
+        for match in re.finditer(r'ytInitialData\s*=\s*({.*?});\s*</script>', r.text, re.DOTALL):
+            try:
+                initial_data = json.loads(match.group(1))
+                break
+            except Exception:
+                continue
+        if not initial_data:
+            return "Could not parse YouTube search results."
+        results = []
+        sections = initial_data.get("contents", {}).get("twoColumnSearchResultsRenderer", {}).get("primaryContents", {}).get("sectionListRenderer", {}).get("contents", [])
+        for section in sections:
+            items = section.get("itemSectionRenderer", {}).get("contents", [])
+            for item in items:
+                vr = item.get("videoRenderer", {})
+                if not vr:
+                    continue
+                vid = vr.get("videoId", "")
+                title = "".join(seg.get("text", "") for seg in vr.get("title", {}).get("runs", []))
+                views = vr.get("viewCountText", {}).get("simpleText", "") or "".join(seg.get("text", "") for seg in vr.get("viewCountText", {}).get("runs", []))
+                length = vr.get("lengthText", {}).get("simpleText", "")
+                channel = vr.get("ownerText", {}).get("runs", [{}])[0].get("text", "")
+                published = vr.get("publishedTimeText", {}).get("simpleText", "")
+                results.append({
+                    "id": vid,
+                    "title": title,
+                    "views": views,
+                    "duration": length,
+                    "channel": channel,
+                    "published": published,
+                    "url": f"https://youtube.com/watch?v={vid}"
+                })
+                if len(results) >= max_results:
+                    break
+            if len(results) >= max_results:
+                break
+        if not results:
+            return f"No YouTube results for: {query}"
+        lines = [f"YouTube search results for: {query}\n"]
+        for i, r2 in enumerate(results):
+            lines.append(f"{i+1}. {r2['title']}")
+            lines.append(f"   Channel: {r2['channel']} | Views: {r2['views']} | Duration: {r2['duration']} | {r2['published']}")
+            lines.append(f"   {r2['url']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"YouTube search error: {e}"
+
+# ── 14. TIKTOK SEARCH ─────────────────────────────────────
+
+async def tiktok_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://www.tiktok.com/search/video?q={q}",
+            timeout=20,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}
+        )
+        sigi_data = None
+        for match in re.finditer(r'<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION"[^>]*>({.*?})</script>', r.text, re.DOTALL):
+            try:
+                sigi_data = json.loads(match.group(1))
+                break
+            except Exception:
+                continue
+        if not sigi_data:
+            try:
+                for match in re.finditer(r'<script[^>]*id="SIGI_STATE"[^>]*>({.*?})</script>', r.text, re.DOTALL):
+                    sigi_data = json.loads(match.group(1))
+                    break
+            except Exception:
+                pass
+        results = []
+        if sigi_data:
+            items = sigi_data.get("ItemModule", {})
+            for vid, item in items.items():
+                results.append({
+                    "id": vid,
+                    "desc": (item.get("desc", "") or "")[:200],
+                    "author": item.get("author", "") or (item.get("authorInfo", {}) or {}).get("uniqueId", ""),
+                    "likes": item.get("diggCount", 0),
+                    "plays": item.get("playCount", 0),
+                    "shares": item.get("shareCount", 0),
+                    "duration": item.get("video", {}).get("duration", 0),
+                    "url": f"https://www.tiktok.com/@{item.get('author', '')}/video/{vid}"
+                })
+                if len(results) >= max_results:
+                    break
+        if not results:
+            try:
+                alt_r = await c.get(
+                    f"https://tikwm.com/api/feed/search?keywords={q}",
+                    timeout=15,
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                alt_data = alt_r.json()
+                for item in (alt_data.get("data", {}).get("videos", []) or []):
+                    results.append({
+                        "id": item.get("video_id", ""),
+                        "desc": (item.get("title", "") or "")[:200],
+                        "author": item.get("author", {}).get("unique_id", "") if isinstance(item.get("author"), dict) else str(item.get("author", "")),
+                        "likes": item.get("digg_count", 0),
+                        "plays": item.get("play_count", 0),
+                        "shares": item.get("share_count", 0),
+                        "duration": item.get("duration", 0),
+                        "url": f"https://www.tiktok.com/@{item.get('author', {}).get('unique_id', '')}/video/{item.get('video_id', '')}" if isinstance(item.get("author"), dict) else f"https://www.tiktok.com/video/{item.get('video_id', '')}"
+                    })
+                    if len(results) >= max_results:
+                        break
+            except Exception:
+                pass
+        if not results:
+            return f"No TikTok results for: {query}"
+        lines = [f"TikTok search results for: {query}\n"]
+        for i, r2 in enumerate(results):
+            likes_str = f"{r2['likes']:,}" if isinstance(r2['likes'], int) else str(r2['likes'])
+            plays_str = f"{r2['plays']:,}" if isinstance(r2['plays'], int) else str(r2['plays'])
+            dur = f"{r2['duration']}s" if r2['duration'] else "?"
+            lines.append(f"{i+1}. {r2['desc'][:100] or '(no description)'}")
+            lines.append(f"   Author: @{r2['author']} | Plays: {plays_str} | Likes: {likes_str} | Duration: {dur}")
+            lines.append(f"   {r2['url']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"TikTok search error: {e}"
+
+# ── 15. MULTI-PLATFORM SOCIAL SEARCH ─────────────────────
+
+async def reddit_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://www.reddit.com/search.json?q={q}&limit={max_results}&sort=relevance&t=year",
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; OpenCodeBot/1.0)"}
+        )
+        if r.status_code != 200:
+            return f"Reddit search error: {r.status_code}"
+        data = r.json()
+        children = data.get("data", {}).get("children", [])
+        if not children:
+            return f"No Reddit results for: {query}"
+        lines = [f"Reddit results for: {query}\n"]
+        for i, child in enumerate(children[:max_results]):
+            d = child.get("data", {})
+            title = d.get("title", "")
+            sub = d.get("subreddit", "")
+            score = d.get("score", 0)
+            comments = d.get("num_comments", 0)
+            permalink = d.get("permalink", "")
+            url = f"https://reddit.com{permalink}"
+            lines.append(f"{i+1}. [{sub}] {title[:120]}")
+            lines.append(f"   Score: {score} | Comments: {comments}")
+            lines.append(f"   {url}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Reddit search error: {e}"
+
+async def hackernews_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://hn.algolia.com/api/v1/search?query={q}&hitsPerPage={max_results}&tags=story",
+            timeout=15
+        )
+        if r.status_code != 200:
+            return f"HN search error: {r.status_code}"
+        data = r.json()
+        hits = data.get("hits", [])
+        if not hits:
+            return f"No Hacker News results for: {query}"
+        lines = [f"Hacker News results for: {query}\n"]
+        for i, hit in enumerate(hits[:max_results]):
+            title = hit.get("title", "")
+            points = hit.get("points", 0)
+            author = hit.get("author", "")
+            comments = hit.get("num_comments", 0)
+            url = hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID', '')}"
+            hn_url = f"https://news.ycombinator.com/item?id={hit.get('objectID', '')}"
+            lines.append(f"{i+1}. {title[:120]}")
+            lines.append(f"   {points} points | {author} | {comments} comments")
+            lines.append(f"   {url}")
+            lines.append(f"   Discuss: {hn_url}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"HN search error: {e}"
+
+async def medium_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://medium.com/search?q={q}",
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        urls = re.findall(r'href="(https://medium\.com/[^"/]+/[^"]+)"', r.text)
+        titles = re.findall(r'<h[1-4][^>]*>(.*?)</h[1-4]>', r.text, re.DOTALL)
+        seen = set()
+        results = []
+        for url in urls:
+            if url not in seen and "/search?" not in url:
+                seen.add(url)
+                results.append(url)
+                if len(results) >= max_results:
+                    break
+        if not results:
+            return f"No Medium results for: {query}"
+        lines = [f"Medium results for: {query}\n"]
+        for i, url in enumerate(results):
+            lines.append(f"{i+1}. {url}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Medium search error: {e}"
+
+async def x_search(query, max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        r = await c.get(
+            f"https://nitter.net/search?q={q}&f=tweets",
+            timeout=20,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        tweets = re.findall(r'<div class="tweet-content[^"]*"[^>]*>(.*?)</div>', r.text, re.DOTALL)
+        users = re.findall(r'<a class="username"[^>]*>([^<]+)</a>', r.text)
+        if not tweets:
+            return f"No results from X/Twitter for: {query}"
+        lines = [f"X/Twitter results for: {query}\n"]
+        for i, (tweet, user) in enumerate(zip(tweets[:max_results], users[:max_results])):
+            clean = re.sub(r'<[^>]+>', '', tweet).strip()[:200]
+            lines.append(f"{i+1}. @{user.strip()}: {clean}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"X/Twitter search error: {e}"
+
+async def social_search_all(query, max_per_source=3):
+    results = {}
+    tasks = [
+        ("reddit", reddit_search(query, max_per_source)),
+        ("hackernews", hackernews_search(query, max_per_source)),
+        ("medium", medium_search(query, max_per_source)),
+    ]
+    for name, coro in tasks:
+        try:
+            results[name] = await coro
+        except Exception as e:
+            results[name] = f"[{name} error: {e}]"
+    lines = [f"Social search results for: {query}\n"]
+    for name in ("reddit", "hackernews", "medium"):
+        res = results.get(name, "")
+        if res and not res.startswith("No ") and not res.startswith("[") and not res.startswith(f"Reddit search error") and not res.startswith(f"HN search error") and not res.startswith(f"Medium search error"):
+            head = res.split("\n")[0] if res else ""
+            body = "\n".join(res.split("\n")[1:]) if res else ""
+            lines.append(f"\n--- {head} ---")
+            lines.append(body)
+        elif not res.startswith("No"):
+            lines.append(f"\n  [{name} unavailable]")
+    if len(lines) < 3:
+        lines.append("  No results from any platform.")
+    return "\n".join(lines)
+
+# ── 17. GITHUB SEARCH ─────────────────────────────────────
+
+async def github_search(query, sort_by="stars", max_results=5):
+    try:
+        c = await get_http()
+        q = urllib.parse.quote(query)
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_KEY", "")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        sort = "stars" if sort_by == "stars" else "updated"
+        r = await c.get(
+            f"https://api.github.com/search/repositories?q={q}&sort={sort}&order=desc&per_page={max_results}",
+            headers=headers, timeout=15
+        )
+        if r.status_code != 200:
+            return f"GitHub search error: {r.status_code} {r.text[:200]}"
+        data = r.json()
+        items = data.get("items", [])
+        if not items:
+            return f"No GitHub repos found for: {query}"
+        lines = [f"GitHub repos for: {query} (sorted by {sort_by})\n"]
+        for i, repo in enumerate(items):
+            name = repo.get("full_name", "")
+            desc = (repo.get("description", "") or "")[:120]
+            stars = repo.get("stargazers_count", 0)
+            forks = repo.get("forks_count", 0)
+            lang = repo.get("language", "N/A")
+            topics = ", ".join(repo.get("topics", [])[:5]) or ""
+            updated = (repo.get("updated_at", "") or "")[:10]
+            topic_str = f" [{topics}]" if topics else ""
+            lines.append(f"{i+1}. {name}{topic_str}")
+            lines.append(f"   ⭐ {stars} | 🍴 {forks} | {lang} | Updated: {updated}")
+            lines.append(f"   {desc[:120]}")
+            lines.append(f"   https://github.com/{name}")
+            if repo.get("homepage"):
+                lines.append(f"   🌐 {repo['homepage']}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"GitHub search error: {e}"
+
+# ── 18. REPO ANALYZER ──────────────────────────────────
+
+_ANALYZED_CACHE = {}
+_ANALYZED_CACHE_MAX = 50
+
+async def analyze_github_repo(url, depth="readme"):
+    try:
+        match = re.match(r"(?:https?://)?(?:www\.)?github\.com/([^/]+/[^/]+?)(?:/.*)?$", url)
+        if not match:
+            return "Invalid GitHub URL. Use format: https://github.com/user/repo"
+        repo_full = match.group(1).rstrip("/")
+        if repo_full in _ANALYZED_CACHE:
+            return _ANALYZED_CACHE[repo_full]
+
+        c = await get_http()
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_KEY", "")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        r = await c.get(f"https://api.github.com/repos/{repo_full}", headers=headers, timeout=15)
+        if r.status_code != 200:
+            return f"GitHub API error: {r.status_code} {r.text[:200]}"
+        repo = r.json()
+
+        readme_r = await c.get(f"https://api.github.com/repos/{repo_full}/readme", headers=headers, timeout=15)
+        readme_text = ""
+        if readme_r.status_code == 200:
+            readme_data = readme_r.json()
+            import base64
+            try:
+                readme_text = base64.b64decode(readme_data.get("content", "")).decode("utf-8", errors="replace")
+            except Exception:
+                readme_text = readme_data.get("content", "")
+
+        contents_r = await c.get(f"https://api.github.com/repos/{repo_full}/contents", headers=headers, timeout=15)
+        top_files = []
+        if contents_r.status_code == 200:
+            for item in contents_r.json()[:20]:
+                top_files.append(f"{'📁' if item['type'] == 'dir' else '📄'} {item['name']}")
+
+        languages_r = await c.get(f"https://api.github.com/repos/{repo_full}/languages", headers=headers, timeout=15)
+        languages = {}
+        if languages_r.status_code == 200:
+            languages = languages_r.json()
+
+        lang_summary = ", ".join(sorted(languages.keys(), key=lambda k: languages.get(k, 0), reverse=True)[:8]) if languages else "N/A"
+
+        readme_summary = ""
+        if readme_text:
+            readme_lines = readme_text.strip().split("\n")
+            text_lines = [l for l in readme_lines if not l.startswith("#") and not l.startswith("```") and not l.startswith("![")]
+            clean = " ".join(l.strip() for l in text_lines if l.strip())[:3000]
+            readme_summary = clean
+
+        result_lines = [
+            f"📦 {repo.get('full_name', repo_full)}",
+            f"   {repo.get('description', 'No description') or 'No description'}",
+            f"   ⭐ {repo.get('stargazers_count', 0)} | 🍴 {repo.get('forks_count', 0)} | {repo.get('open_issues_count', 0)} issues",
+            f"   Language: {lang_summary}",
+            f"   License: {(repo.get('license', {}) or {}).get('spdx_id', 'N/A') or 'N/A'}",
+            f"   Topics: {', '.join(repo.get('topics', [])[:8]) or 'none'}",
+            f"   Created: {(repo.get('created_at', '') or '')[:10]} | Updated: {(repo.get('updated_at', '') or '')[:10]}",
+            f"   Homepage: {repo.get('homepage', 'N/A') or 'N/A'}",
+            f"   URL: https://github.com/{repo_full}",
+            "",
+        ]
+        if top_files:
+            result_lines.append("📂 Top-level files:")
+            result_lines.extend("   " + f for f in top_files)
+            result_lines.append("")
+        if repo.get("readme_url_download") or readme_text:
+            result_lines.append("📖 README Summary:")
+            result_lines.append(f"   {readme_summary[:1500] if readme_summary else '(README fetched but empty)'}")
+            result_lines.append("")
+
+        result = "\n".join(result_lines)
+        if len(_ANALYZED_CACHE) >= _ANALYZED_CACHE_MAX:
+            _ANALYZED_CACHE.clear()
+        _ANALYZED_CACHE[repo_full] = result
+        return result
+    except Exception as e:
+        return f"Repo analysis error: {e}"
+
+# ── 19. REMINDERS ──────────────────────────────────────────
 
 REMINDERS_FILE = os.path.join(BASE_DIR, "reminders.json")
 
@@ -642,7 +1201,7 @@ def parse_duration(text):
             total += int(m.group(1)) * mul
     return total if total > 0 else None
 
-# ── 14. TRANSLATION ───────────────────────────────────────
+# ── 20. TRANSLATION ───────────────────────────────────────
 
 async def translate(text, source="auto", target="en"):
     try:
@@ -666,7 +1225,7 @@ def parse_language_pair(text):
         return m.group(1), m.group(2), m.group(3)
     return None, None, text
 
-# ── 15. QR TOOLS ──────────────────────────────────────────
+# ── 21. QR TOOLS ──────────────────────────────────────────
 
 async def qr_encode(text):
     try:
@@ -738,7 +1297,157 @@ except Exception as e:
     except Exception as e:
         return f"QR decode error: {e}"
 
-# ── 16. USAGE STATS ───────────────────────────────────────
+# ── 22. ENHANCED DOCUMENT/PDF ANALYSIS ───────────────────
+
+_PDF_CACHE = {}
+_PDF_CACHE_MAX = 30
+
+async def analyze_document(file_id, file_name, question=None):
+    try:
+        text = await extract_text_from_file(file_id, file_name)
+        if not text or len(text) < 20:
+            return "Could not extract meaningful text from this document."
+        doc_id = hashlib.md5(f"{file_id}{file_name}".encode()).hexdigest()[:8]
+        _PDF_CACHE[doc_id] = text[:50000]
+        if len(_PDF_CACHE) > _PDF_CACHE_MAX:
+            _PDF_CACHE.clear()
+        ext = (file_name or "").lower()
+        ftype = "PDF" if ext.endswith(".pdf") else "document"
+        lines = [f"Document: {file_name} ({ftype})", f"Text length: {len(text)} chars", ""]
+        if question:
+            lines.append(f"Question: {question}")
+            lines.append("")
+        lines.append("--- Content Preview ---")
+        preview = text[:3000]
+        if len(text) > 3000:
+            preview += "\n... (truncated)"
+        lines.append(preview)
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Document analysis error: {e}"
+
+async def ask_document(doc_id, question, smart_call_fn):
+    text = _PDF_CACHE.get(doc_id, "")
+    if not text:
+        return "Document not found in cache. Please upload it again."
+    prompt = f"Based on the following document text, answer: {question}\n\nDocument text:\n{text[:8000]}"
+    try:
+        result = await smart_call_fn([{"role": "user", "content": prompt}], None)
+        return result[:4000] if result else "Could not analyze document."
+    except Exception as e:
+        return f"Analysis error: {e}"
+
+async def analyze_document_with_vision(file_id, file_name, question, photo_url=None):
+    if photo_url:
+        desc = await vision_analyze(photo_url, question or "Describe this document/image in detail")
+        return f"Document analysis ({file_name}):\n\n{desc}"
+    return await analyze_document(file_id, file_name, question)
+
+async def list_cached_documents():
+    return list(_PDF_CACHE.keys())
+
+async def clear_document_cache():
+    _PDF_CACHE.clear()
+
+async def extract_pdf_text_fallback(file_url):
+    try:
+        c = await get_http()
+        content = (await c.get(file_url)).content
+        try:
+            import io, PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(content))
+            return "\n".join(p.extract_text() or "" for p in reader.pages)
+        except ImportError:
+            pass
+        try:
+            import io, pdfplumber
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        except ImportError:
+            pass
+        try:
+            import io, pdfminer
+            from pdfminer.high_level import extract_text as pdfminer_extract
+            return pdfminer_extract(io.BytesIO(content))
+        except ImportError:
+            pass
+        return "[PDF text extraction: no PDF library available. Install PyPDF2, pdfplumber, or pdfminer]"
+    except Exception as e:
+        return f"[PDF extraction error: {e}]"
+
+class PageMonitor:
+    def __init__(self):
+        self.pages = {}
+        self._load()
+
+    def _load(self):
+        if os.path.exists(PAGES_FILE):
+            try:
+                with open(PAGES_FILE, encoding="utf-8") as f:
+                    self.pages = json.load(f)
+            except:
+                self.pages = {}
+
+    def _save(self):
+        with open(PAGES_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.pages, f, indent=2)
+
+    def add(self, url, chat_id, label=""):
+        pid = hashlib.md5(f"{url}{chat_id}{time.time()}".encode()).hexdigest()[:8]
+        self.pages[pid] = {"url": url, "chat_id": chat_id, "label": label or url[:40], "hash": "", "last_check": 0, "interval": 3600, "created": time.time()}
+        self._save()
+        return pid
+
+    def remove(self, pid):
+        self.pages.pop(pid, None)
+        self._save()
+
+    def list(self, chat_id=None):
+        if chat_id:
+            return [(pid, p["url"], p["label"], p["interval"]) for pid, p in self.pages.items() if p.get("chat_id") == chat_id]
+        return [(pid, p["url"], p["label"], p["interval"]) for pid, p in self.pages.items()]
+
+    def due(self):
+        now = time.time()
+        return [(pid, p) for pid, p in self.pages.items() if now - p.get("last_check", 0) >= p.get("interval", 3600)]
+
+    async def check(self, pid, page, send_fn):
+        try:
+            c = await get_http()
+            r = await c.get(page["url"], timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+            if r.status_code != 200:
+                return
+            new_hash = hashlib.md5(r.text.encode()).hexdigest()
+            old_hash = page.get("hash", "")
+            if old_hash and new_hash != old_hash:
+                import difflib
+                old_text = ""
+                try:
+                    c2 = await get_http()
+                    old_r = await c2.get(page["url"], timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+                    old_text = old_r.text[:500]
+                except:
+                    pass
+                await send_fn(page["chat_id"], f"Page changed: {page['label']}\n{page['url']}")
+            self.pages[pid]["hash"] = new_hash
+            self.pages[pid]["last_check"] = time.time()
+            self._save()
+        except Exception as e:
+            self.pages[pid]["last_check"] = time.time()
+            self._save()
+
+page_monitor = PageMonitor()
+
+async def run_page_monitor_loop(send_fn):
+    while True:
+        try:
+            for pid, page in page_monitor.due():
+                await page_monitor.check(pid, page, send_fn)
+        except:
+            pass
+        await asyncio.sleep(120)
+
+# ── 23. USAGE STATS ───────────────────────────────────────
 
 USAGE_FILE = os.path.join(BASE_DIR, "usage_stats.json")
 
@@ -791,7 +1500,7 @@ def get_global_stats():
         "top_providers": sorted(top_providers.items(), key=lambda x: -x[1])[:5],
     }
 
-# ── 17. CHAT WITH FILES (CSV/XLSX) ────────────────────────
+# ── 24. CHAT WITH FILES (CSV/XLSX) ────────────────────────
 
 async def parse_spreadsheet(file_id, file_name):
     try:
@@ -836,7 +1545,7 @@ async def parse_spreadsheet(file_id, file_name):
     except Exception as e:
         return None, f"Parse error: {e}"
 
-# ── 18. PLUGIN SYSTEM ─────────────────────────────────────
+# ── 25. PLUGIN SYSTEM ─────────────────────────────────────
 
 PLUGINS_DIR = os.path.join(BASE_DIR, "plugins")
 _loaded_plugins = {}

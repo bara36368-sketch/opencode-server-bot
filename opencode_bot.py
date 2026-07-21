@@ -122,7 +122,7 @@ class _BfStub:
     def __getattr__(self, name):
         async def _a(*a, **k): return None
         def _s(*a, **k): return None
-        return _a if name.startswith(("run_", "voice_", "text_to_", "vision_", "image_", "translate", "web_search", "youtube_", "run_code", "fetch_url", "qr_", "auto_context", "summarize_", "get_photo_url", "extract_", "parse_spread")) else _s
+        return _a if name.startswith(("run_", "voice_", "text_to_", "vision_", "image_", "translate", "web_search", "youtube_", "run_code", "fetch_url", "qr_", "auto_context", "summarize_", "get_photo_url", "extract_", "parse_spread", "youtube_search", "tiktok_search", "github_search", "analyze_github_repo", "append_to_memory_log", "get_memory_context", "search_user_memories", "get_memory_stats", "clear_user_memory", "reddit_search", "hackernews_search", "medium_search", "x_search", "social_search_all", "analyze_document", "ask_document", "analyze_document_with_vision", "list_cached_documents", "clear_document_cache", "extract_pdf_text_fallback", "run_page_monitor_loop")) else _s
 
 try:
     import bot_features as bf
@@ -144,6 +144,21 @@ try:
     import ai_stack_combined as ai_stack
 except Exception:
     ai_stack = None
+
+try:
+    import knowledge_graph as kg_mod
+except Exception:
+    kg_mod = None
+
+try:
+    import agent_marketplace as market_mod
+except Exception:
+    market_mod = None
+
+try:
+    import video_generator as vid_mod
+except Exception:
+    vid_mod = None
 
 try:
     import aiohttp
@@ -725,6 +740,8 @@ ARCHITECTURES = {
     "hierarchical": {"desc": "Orchestrator delegates to sub-agents, collects reports"},
     "mesh": {"desc": "All agents collaborate freely with shared context"},
     "voting": {"desc": "Each agent answers independently, best answer selected"},
+    "supervisor": {"desc": "Supervisor plans, delegates, reviews agent outputs, and iterates for quality"},
+    "reflection": {"desc": "Agent generates output, then reflects and improves it before returning"},
 }
 
 MODES = {
@@ -835,6 +852,10 @@ def load_experimental():
         "web-dashboard": {"name": "Web Dashboard", "desc": "Web UI for managing agents, viewing logs, and toggling experimental features", "version": "2.8.0", "category": "admin"},
         "plugin-system": {"name": "Plugin System", "desc": "Load custom functionality from plugins/ directory at startup", "version": "2.8.0", "category": "automation"},
         "bot-bridge": {"name": "Bot Bridge", "desc": "Bridge connection to other Telegram bots, Discord, or Slack", "version": "2.8.0", "category": "automation"},
+        "persistent-memory": {"name": "Persistent Memory", "desc": "Long-term memory log per user with search, stats, and auto-context injection", "version": "3.0.0", "category": "ai"},
+        "scheduled-cron": {"name": "Scheduled Cron", "desc": "Recurring AI prompt scheduling with /cron and web page monitoring with /monitor", "version": "3.0.0", "category": "automation"},
+        "social-search": {"name": "Social Search", "desc": "Multi-platform search across Reddit, Hacker News, and Medium via /reddit, /hn, /social", "version": "3.0.0", "category": "research"},
+        "doc-analyzer": {"name": "Document Analyzer", "desc": "Enhanced PDF/document analysis with AI-powered Q&A and multi-engine text extraction", "version": "3.0.0", "category": "ai"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -895,6 +916,17 @@ async def relay_to_bridge(text, _chat, _uid, _msg):
                             "parse_mode": "HTML",
                         }
                         await c.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
+                    except Exception:
+                        pass
+            elif platform == "bot":
+                if url:
+                    try:
+                        c = await get_http()
+                        sender_name = bridges.get(name, {}).get("sender_name", "opencode-bot")
+                        payload = {"text": text[:2000], "sender": sender_name, "from": "opencode-bot"}
+                        if t.get("expect_reply"):
+                            payload["reply_url"] = t.get("my_webhook_url", "")
+                        await c.post(url, json=payload, timeout=15)
                     except Exception:
                         pass
             elif platform in ("discord", "slack"):
@@ -1183,6 +1215,21 @@ TOOLS = {
     "python-exec": {"desc": "Execute Python code and return output"},
     "toolfk": {"desc": f"Call a ToolFK.com API ({len(TOOLFK_ENDPOINTS)} endpoints). Use /toolfk to list them. Pass endpoint=X&param=Y."},
     "synoxcloud": {"desc": "Call a SynoxCloud API endpoint. Use /synoxcloud to list endpoints. Pass endpoint=X&param=Y."},
+    "youtube-search": {"desc": "Search YouTube for videos by keyword (no transcript). Returns titles, views, channels."},
+    "tiktok-search": {"desc": "Search TikTok for trending videos by keyword. Returns plays, likes, author, description."},
+    "github-search": {"desc": "Search GitHub repositories by keyword, sorted by stars. Returns repo info, stars, description, language, topics."},
+    "github-analyze": {"desc": "Deep analyze a GitHub repo: fetch README, languages, file structure, metadata. Pass a full GitHub URL."},
+    "reddit-search": {"desc": "Search Reddit for discussions and posts by keyword. Returns subreddit, score, comments."},
+    "hn-search": {"desc": "Search Hacker News for popular stories and discussions. Returns points, author, comments."},
+    "social-search": {"desc": "Multi-platform search across Reddit, Hacker News, and Medium simultaneously."},
+    "memory-search": {"desc": "Search the user's persistent long-term memory log by keyword."},
+    "memory-stats": {"desc": "Get stats about the user's persistent memory usage (total messages, days active)."},
+    "doc-analyze": {"desc": "Analyze an uploaded document or PDF. Pass file_id, file_name, and optional question."},
+    "cron-add": {"desc": "Schedule a recurring AI prompt task. Pass interval_seconds (int) and prompt (str)."},
+    "cron-list": {"desc": "List all scheduled cron tasks."},
+    "cron-remove": {"desc": "Remove a scheduled cron task by its ID."},
+    "monitor-add": {"desc": "Start monitoring a web page for changes. Pass url and optional label."},
+    "monitor-list": {"desc": "List all monitored web pages."},
 }
 
 _DISALLOWED_HOSTS = ["169.254.", "127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
@@ -1269,6 +1316,80 @@ async def execute_tool(name, args, uid=None):
             return f"[synoxcloud/{endpoint}] Result:\n{text[:2000]}"
         except Exception as e:
             return f"[synoxcloud/{endpoint}] Error: {e}"
+    if name == "youtube-search":
+        q = args.get("query", "")
+        if not q:
+            return "Pass a query parameter."
+        return await bf.youtube_search(q, int(args.get("max_results", 5)))
+    if name == "tiktok-search":
+        q = args.get("query", "")
+        if not q:
+            return "Pass a query parameter."
+        return await bf.tiktok_search(q, int(args.get("max_results", 5)))
+    if name == "github-search":
+        q = args.get("query", "")
+        if not q:
+            return "Pass a query parameter."
+        return await bf.github_search(q, args.get("sort_by", "stars"), int(args.get("max_results", 5)))
+    if name == "github-analyze":
+        url = args.get("url", "")
+        if not url:
+            return "Pass a url parameter (full GitHub repo URL)."
+        return await bf.analyze_github_repo(url, args.get("depth", "readme"))
+    if name == "reddit-search":
+        q = args.get("query", "")
+        if not q: return "Pass a query parameter."
+        return await bf.reddit_search(q)
+    if name == "hn-search":
+        q = args.get("query", "")
+        if not q: return "Pass a query parameter."
+        return await bf.hackernews_search(q)
+    if name == "social-search":
+        q = args.get("query", "")
+        if not q: return "Pass a query parameter."
+        return await bf.social_search_all(q)
+    if name == "memory-search":
+        q = args.get("query", "")
+        uid = args.get("uid") or uid
+        if not q: return "Pass a query parameter."
+        results = await bf.search_user_memories(uid, q)
+        return "\n".join(f"[{e['role']}] {e['content'][:200]}" for e in (results or [])) or "No memories found."
+    if name == "memory-stats":
+        stats = await bf.get_memory_stats(uid)
+        if stats:
+            return f"Total: {stats['total']} | User: {stats['user']} | AI: {stats['ai']} | Days: {stats['days']}"
+        return "No memory data."
+    if name == "doc-analyze":
+        file_id = args.get("file_id", "")
+        file_name = args.get("file_name", "document.bin")
+        question = args.get("question", "")
+        return await bf.analyze_document(file_id, file_name, question)
+    if name == "cron-add":
+        try:
+            interval = int(args.get("interval_seconds", 0))
+        except:
+            return "interval_seconds must be an integer."
+        prompt = args.get("prompt", "")
+        if not prompt: return "Pass a prompt parameter."
+        tid = bf.scheduler.add(interval, prompt, args.get("chat_id", 0))
+        return f"Cron task added: [{tid}] every {interval}s"
+    if name == "cron-list":
+        tasks = bf.scheduler.list()
+        return "\n".join(f"[{t[0]}] {t[1]} (every {t[2]}s)" for t in tasks) or "No cron tasks."
+    if name == "cron-remove":
+        tid = args.get("id", "")
+        if not tid: return "Pass an id parameter."
+        bf.scheduler.remove(tid)
+        return f"Task {tid} removed."
+    if name == "monitor-add":
+        url = args.get("url", "")
+        if not url: return "Pass a url parameter."
+        label = args.get("label", url[:40])
+        pid = bf.page_monitor.add(url, args.get("chat_id", 0), label)
+        return f"Monitoring added: [{pid}] {label}"
+    if name == "monitor-list":
+        pages = bf.page_monitor.list()
+        return "\n".join(f"[{p[0]}] {p[1]} ({p[2]})" for p in pages) or "No monitors."
     return f"Unknown tool: {name}"
 
 def format_agent_messages(log):
@@ -1295,8 +1416,65 @@ async def save_checkpoint(uid, tag, data):
 async def run_architecture(arch, agents_in_team, user_text, provider, uid=None, msg_log=None):
     if msg_log is None: msg_log = []
 
-    if arch == "single":
-        return await smart_call([{"role": "user", "content": user_text}], provider)
+    if arch == "supervisor":
+        orc_prompt = AGENTS.get("orchestrator", {}).get("prompt", "You are a coordinator.")
+        sub_agents = [a for a in agents_in_team if a in AGENTS and a != "orchestrator"][:5]
+        if not sub_agents:
+            sub_agents = [a for a in AGENTS if a != "orchestrator"][:5]
+        chat_log = format_agent_messages(msg_log)
+
+        decompose = await smart_call([{"role": "system", "content": f"{orc_prompt}\n\nDecompose this request into up to 4 clear sub-tasks. For each sub-task, assign the best agent from: {', '.join(sub_agents)}. Output as JSON:\n[\n  {{\"agent\": \"agent_name\", \"task\": \"sub-task description\", \"criteria\": \"quality check\"}},\n  ...\n]\n\nRequest: {user_text}"}], provider)
+        msg_log.append({"sender": "supervisor", "receiver": "coordinator", "type": "plan", "content": decompose[:500]})
+        try:
+            plan_steps = json.loads(decompose.strip().removeprefix("```json").removesuffix("```").strip())
+        except:
+            plan_steps = [{"agent": a, "task": user_text, "criteria": "correct and complete"} for a in sub_agents[:3]]
+
+        reports = []
+        for step in plan_steps[:4]:
+            agent_name = step.get("agent", sub_agents[0] if sub_agents else "orchestrator")
+            if agent_name not in AGENTS:
+                agent_name = sub_agents[0] if sub_agents else "orchestrator"
+            task_desc = step.get("task", "Process the request")
+            quality_criteria = step.get("criteria", "correct and complete")
+            prompt = AGENTS[agent_name]["prompt"]
+            context = f"Task: {task_desc}\n\nOriginal request: {user_text}\n\nPrevious reports:\n" + "\n".join(reports[-3:])
+            result = await smart_call([{"role": "system", "content": f"{prompt}\n\nQuality criteria: {quality_criteria}"}, {"role": "user", "content": context}], provider)
+            msg_log.append({"sender": agent_name, "receiver": "supervisor", "type": "report", "content": str(result)[:300]})
+
+            review = await smart_call([{"role": "system", "content": f"You are a quality supervisor. Review this agent output against: {quality_criteria}\n\nRate 1-10 and suggest ONE improvement if score < 8.\nRespond JSON: {{\"score\": 0-10, \"pass\": bool, \"improvement\": \"\" or \"suggestion\"}}"}, {"role": "user", "content": f"Agent: {agent_name}\nTask: {task_desc}\n\nOutput:\n{result[:2000]}"}], provider)
+            msg_log.append({"sender": "supervisor", "receiver": agent_name, "type": "review", "content": review[:300]})
+            try:
+                review_data = json.loads(review.strip().removeprefix("```json").removesuffix("```").strip())
+                if not review_data.get("pass", True) and review_data.get("improvement"):
+                    improved = await smart_call([{"role": "system", "content": f"{prompt}\n\nImprove your output based on: {review_data['improvement']}"}, {"role": "user", "content": context}], provider)
+                    result = improved
+                    msg_log.append({"sender": agent_name, "receiver": "supervisor", "type": "revised", "content": str(result)[:300]})
+            except:
+                pass
+            reports.append(f"[{agent_name}]: {str(result)[:2000]}")
+            if uid: await save_checkpoint(uid, f"supervisor_{agent_name}", {"task": task_desc, "result": str(result)[:500]})
+
+        synthesis = await smart_call([{"role": "system", "content": orc_prompt}, {"role": "user", "content": f"Original request: {user_text}\n\nAgent reports:\n" + "\n\n".join(reports) + "\n\nSynthesize a final answer. Cite each agent's contribution."}], provider)
+        msg_log.append({"sender": "supervisor", "receiver": "user", "type": "final", "content": synthesis})
+        steps_summary = "\n".join(f"  {i+1}. [{s.get('agent','?')}] {s.get('task','')[:80]}" for i, s in enumerate(plan_steps[:4]))
+        if uid: await save_checkpoint(uid, "supervisor_done", {"final": synthesis[:500]})
+        return f"Supervisor pipeline ({len(plan_steps)} agents)\n{steps_summary}\n\n{synthesis}"
+
+    if arch == "reflection":
+        reflection_rounds = 2
+        current = await smart_call([{"role": "system", "content": AGENTS.get(agents_in_team[0], {}).get("prompt", "You are a helpful assistant.")}, {"role": "user", "content": user_text}], provider)
+        msg_log.append({"sender": agents_in_team[0] if agents_in_team else "agent", "receiver": "user", "type": "initial", "content": current[:300]})
+        for r in range(reflection_rounds):
+            reflect = await smart_call([{"role": "system", "content": "You are a critical reviewer. Analyze the following response. Identify: 1) what's good, 2) what's missing or could be improved, 3) factual errors. Be specific."}, {"role": "user", "content": f"Original request: {user_text}\n\nResponse to review:\n{current[:3000]}"}], provider)
+            msg_log.append({"sender": "critic", "receiver": agents_in_team[0] if agents_in_team else "agent", "type": "reflection", "content": reflect[:300]})
+            improved = await smart_call([{"role": "system", "content": f"{AGENTS.get(agents_in_team[0], {}).get('prompt', 'You are a helpful assistant.')}\n\nCritique received:\n{reflect}\n\nImprove your response based on this critique."}, {"role": "user", "content": user_text}], provider)
+            msg_log.append({"sender": agents_in_team[0] if agents_in_team else "agent", "receiver": "user", "type": f"refined_r{r+1}", "content": improved[:300]})
+            current = improved
+            if uid: await save_checkpoint(uid, f"reflection_r{r+1}", {"reflection": reflect[:300], "improved": improved[:300]})
+        return current
+
+    return await smart_call([{"role": "user", "content": user_text}], provider)
 
     team_def = TEAMS.get(active_team, {})
     plan = team_def.get("plan", [])
@@ -2568,6 +2746,8 @@ async def main():
         _t1.add_done_callback(_task_done)
         _t2 = asyncio.create_task(bf.run_reminder_loop(send))
         _t2.add_done_callback(_task_done)
+        _t6 = asyncio.create_task(bf.run_page_monitor_loop(send))
+        _t6.add_done_callback(_task_done)
         bf.init_plugins()
     _t3 = asyncio.create_task(auto_version_checker())
     _t3.add_done_callback(_task_done)
@@ -2629,11 +2809,25 @@ async def main():
                     text = f"/vision {caption}" if caption else "/vision describe"
                 elif voice:
                     await typing(chat)
+                    vmode = bf.get_voice_mode(chat)
                     transcribed = await bf.voice_to_text(voice["file_id"])
                     if not transcribed or transcribed == "/voice_error":
                         await send(chat, "Could not transcribe audio.")
                         continue
                     text = transcribed
+                    if vmode in ("conversation", "happy", "sad", "angry", "excited", "calm"):
+                        await send(chat, f"Transcribed: {text[:200]}")
+                        uid_key = str(uid)
+                        sessions.setdefault(uid_key, [])
+                        sessions[uid_key].append({"role": "user", "content": text})
+                        reply = await smart_call(sessions[uid_key][-10:], active_provider)
+                        sessions[uid_key].append({"role": "assistant", "content": reply})
+                        emotion = vmode if vmode != "conversation" else "neutral"
+                        await send(chat, reply[:1500])
+                        tts_ok = await bf.text_to_speech(reply, chat, emotion=emotion)
+                        if tts_ok:
+                            await send(chat, "🎙️ X-Phone voice reply sent. Say something else or /voice off to stop.")
+                        continue
                     await send(chat, f"Transcribed: {text[:300]}")
                     tts_ok = await bf.text_to_speech(text, chat)
                     continue
@@ -2719,6 +2913,16 @@ async def main():
                         "  /context — Show current auto-context",
                         "  /search — Web search via DuckDuckGo",
                         "  /youtube — Get YouTube transcript/summary",
+                        "  /youtube_search — Search YouTube videos by keyword",
+                        "  /tiktok — Search TikTok videos by keyword",
+                        "  /reddit — Search Reddit discussions",
+                        "  /hn — Search Hacker News",
+                        "  /social — Search Reddit + HN + Medium at once",
+                        "  /github_search — Search GitHub repos by keyword",
+                        "  /analyze — Deep analyze a GitHub repo (README, structure, languages)",
+                        "  /cron — Schedule recurring AI tasks",
+                        "  /monitor — Watch web pages for changes",
+                        "  /memory — View/search your persistent memory log",
                         "  /run — Execute code in sandbox (python/js)",
                         "  /fetch — Fetch and summarize any URL",
                         "  /remind — Set a reminder",
@@ -2772,7 +2976,7 @@ async def main():
                         ]),
                         ("MODES", [
                             "/mode — Toggle chat / team / autonomous",
-                            "/arch — Switch architecture (single, sequential, parallel…)",
+                            "/arch — Switch architecture (single, sequential, parallel, supervisor, reflection…)",
                             "/teams — List teams",
                             "/createteam <desc> — AI builds a team",
                             "/putteam <n> <a1> <a2>... — Create/update team",
@@ -2792,6 +2996,13 @@ async def main():
                         ("RESEARCH", [
                             "/search <query> — Web search + AI summary",
                             "/youtube <url> — Transcript + summary",
+                            "/youtube_search <query> — Search YouTube videos",
+                            "/tiktok <query> — Search TikTok videos",
+                            "/reddit <query> — Search Reddit discussions",
+                            "/hn <query> — Search Hacker News",
+                            "/social <query> — Search Reddit + HN + Medium at once",
+                            "/github_search <query> — Search GitHub repos by stars",
+                            "/analyze <repo_url> — Deep analyze GitHub repo",
                             "/fetch <url> — Fetch & summarize any URL",
                             "/translate <src>:<tgt> <text> — Translate",
                             "/run python|js <code> — Sandboxed code exec",
@@ -2810,10 +3021,13 @@ async def main():
                         ]),
                         ("AUTOMATION", [
                             "/schedule add|list|remove — Recurring AI tasks",
+                            "/cron add|list|remove — Schedule recurring AI prompts",
+                            "/monitor add|list|remove — Watch web pages for changes",
                             "/remind <duration> <msg> — Reminder",
                             "/digest — Summarize conversation",
                             "/routine create|list|show|delete|run — Prompt chaining workflows",
                             "/plugin load|list — Load/list plugins",
+                            "/memory stats|search|clear — Persistent memory log",
                         ]),
                         ("INTEGRATIONS", [
                             "/n8n — Trigger n8n webhook",
@@ -2963,26 +3177,91 @@ async def main():
                     await send(chat, f"Great choice! Do you wanna set token usage?\nUse /low /normal /medium /high /superhigh\nCurrent: {get_effort(chat)} ({EFFORT_LEVELS[get_effort(chat)]['desc']})")
 
                 elif cmd == "/video":
-                    name = "video-creator"
-                    if name not in AGENTS:
-                        await send(chat, "Video creator agent not loaded.")
-                        continue
-                    a = AGENTS[name]
-                    active_agent = name
-                    set_user_pref(chat, "active_agent", name)
-                    sessions.pop(uid, None)
-                    msg = f"Agent: {name} — {a['desc']}\n\nSwitched to OpenMontage video creator."
-                    rest = parts[1:] if len(parts) > 1 else []
-                    if rest:
-                        prompt = " ".join(rest)
-                        sessions[uid] = [{"role": "system", "content": a["prompt"]}, {"role": "user", "content": prompt}]
-                        msg += f"\n\nPrompt received: {prompt[:200]}"
-                    await send(chat, msg)
-                    ap = AGENT_PROVIDERS.get(name)
-                    if not ap or not _is_configured(ap.get("key", "")):
-                        await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>")
-                    await send(chat, f"Token usage: /low /normal /medium /high /superhigh (current: {get_effort(chat)} - {EFFORT_LEVELS[get_effort(chat)]['desc']})")
-                    await send(chat, "OpenMontage is not installed on this machine yet. I can walk you through installing it — start by saying 'install openmontage' or tell me what video you want to make and I'll guide you through the setup.")
+                    if vid_mod and vid_mod.HAS_PIL:
+                        if len(parts) < 2:
+                            styles = ", ".join(vid_mod.get_available_styles())
+                            templates = ", ".join(vid_mod.get_meme_templates().keys())
+                            await send(chat, f"Usage:\n/video make <title> | <caption> [style] — Generate video frame (styles: {styles})\n/video meme <template> <text1> [text2] — Generate meme (templates: {templates})\n/video virality <text> — Check virality score\n/video styles — List available styles")
+                            continue
+                        vsub = parts[1].lower()
+                        if vsub == "make":
+                            rest = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            if " | " not in rest:
+                                await send(chat, "Usage: /video make <title> | <caption> [style]")
+                                continue
+                            left, caption = rest.split(" | ", 1)
+                            left_p = left.rsplit(" ", 1)
+                            style = "tiktok"
+                            if len(left_p) > 1 and left_p[1].lower() in vid_mod.STYLES:
+                                style = left_p[1].lower()
+                                title = left_p[0]
+                            else:
+                                title = left
+                            await typing(chat)
+                            buf = vid_mod.create_frame(720, 720, vid_mod.STYLES[style]["bg"], title, caption, style, gradient=True)
+                            if buf:
+                                c = await bf.get_http()
+                                bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                                await c.post(f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                                    files={"photo": ("frame.png", buf.getvalue())},
+                                    data={"chat_id": chat, "caption": f"🎬 {title} ({style})"})
+                                score, kws = vid_mod.score_virality(caption)
+                                if score > 30:
+                                    await send(chat, f"📈 Virality score: {score}% — matched: {', '.join(kws) if kws else 'N/A'}")
+                            else:
+                                await send(chat, "PIL not available for image generation. Install Pillow.")
+                        elif vsub == "meme":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /video meme <template> <text1> [text2]")
+                                continue
+                            tmpl = parts[2].lower()
+                            text1 = parts[3]
+                            text2 = " ".join(parts[4:]) if len(parts) > 4 else ""
+                            await typing(chat)
+                            buf = vid_mod.create_meme(tmpl, text1, text2)
+                            if buf:
+                                c = await bf.get_http()
+                                bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                                await c.post(f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                                    files={"photo": ("meme.png", buf.getvalue())},
+                                    data={"chat_id": chat, "caption": f"Meme: {tmpl}"})
+                            else:
+                                await send(chat, "Failed to generate meme.")
+                        elif vsub == "virality":
+                            text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            if not text:
+                                await send(chat, "Usage: /video virality <text>")
+                                continue
+                            score, kws = vid_mod.score_virality(text)
+                            await send(chat, f"📈 Virality score: {score}%\nMatched keywords: {', '.join(kws) if kws else 'None'}\n{'🔥 Going viral!' if score > 60 else '📊 Needs more punch' if score > 30 else '💤 Low engagement potential'}")
+                        elif vsub == "styles":
+                            lines = ["Available styles:"]
+                            for sname, sdata in vid_mod.STYLES.items():
+                                lines.append(f"  {sname} — bg:{sdata['bg']}, text:{sdata['text_color']}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, f"Unknown subcommand: {vsub}")
+                    else:
+                        name = "video-creator"
+                        if name not in AGENTS:
+                            await send(chat, "Video creator agent not loaded.")
+                            continue
+                        a = AGENTS[name]
+                        active_agent = name
+                        set_user_pref(chat, "active_agent", name)
+                        sessions.pop(uid, None)
+                        msg = f"Agent: {name} — {a['desc']}\n\nSwitched to OpenMontage video creator."
+                        rest = parts[1:] if len(parts) > 1 else []
+                        if rest:
+                            prompt = " ".join(rest)
+                            sessions[uid] = [{"role": "system", "content": a["prompt"]}, {"role": "user", "content": prompt}]
+                            msg += f"\n\nPrompt received: {prompt[:200]}"
+                        await send(chat, msg)
+                        ap = AGENT_PROVIDERS.get(name)
+                        if not ap or not _is_configured(ap.get("key", "")):
+                            await send(chat, f"This agent needs its own API provider. Use:\n/agentprovider {name} <url> <key> <model>")
+                        await send(chat, f"Token usage: /low /normal /medium /high /superhigh (current: {get_effort(chat)} - {EFFORT_LEVELS[get_effort(chat)]['desc']})")
+                        await send(chat, "OpenMontage is not installed on this machine yet. I can walk you through installing it — start by saying 'install openmontage' or tell me what video you want to make and I'll guide you through the setup.")
 
                 elif cmd == "/repo":
                     if len(parts) < 2:
@@ -3432,6 +3711,97 @@ async def main():
                         lines.append(f"  Agents: {agents}")
                     await send(chat, "\n".join(lines))
 
+                elif cmd == "/market":
+                    if not market_mod:
+                        await send(chat, "Marketplace module not available.")
+                        continue
+                    if len(parts) < 2:
+                        await send(chat, "Usage:\n/market list [page] — Browse marketplace\n/market search <query> — Search agents\n/market featured — Featured agents\n/market install <name> — Install agent\n/market uninstall <name> — Remove agent\n/market installed — Your installed agents\n/market publish <name> <desc> | <prompt> — Publish agent")
+                        continue
+                    msub = parts[1].lower()
+                    market = market_mod.get_market()
+                    if msub == "list":
+                        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+                        agents_list = market.list_all(page=page)
+                        if not agents_list:
+                            await send(chat, "No agents found. Try /market refresh")
+                            continue
+                        lines = [f"Marketplace (page {page + 1}):"]
+                        for a in agents_list[:20]:
+                            sid = a.get("id", "?")
+                            desc = a.get("desc", "")[:60]
+                            stars = a.get("stars", 0)
+                            lines.append(f"  {sid} {'⭐' * (stars // 10 + 1)} {desc}")
+                        await send(chat, "\n".join(lines))
+                    elif msub == "search":
+                        q = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not q:
+                            await send(chat, "Usage: /market search <query>")
+                            continue
+                        results = market.search(q)
+                        if not results:
+                            await send(chat, f"No agents matching '{q}'. Try: /market refresh")
+                            continue
+                        lines = [f"Results for '{q}':"]
+                        for a in results[:15]:
+                            sid = a.get("id", "?")
+                            desc = a.get("desc", "")[:80]
+                            stars = a.get("stars", 0)
+                            lines.append(f"  {sid} (⭐{stars}) — {desc}")
+                        await send(chat, "\n".join(lines))
+                    elif msub == "featured":
+                        featured = market.get_featured()
+                        if not featured:
+                            await send(chat, "No featured agents. Try: /market refresh")
+                            continue
+                        lines = ["Featured agents:"]
+                        for a in featured[:10]:
+                            sid = a.get("id", "?")
+                            desc = a.get("desc", "")[:80]
+                            lines.append(f"  ⭐ {sid} — {desc}")
+                        await send(chat, "\n".join(lines))
+                    elif msub == "install":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /market install <agent_name>")
+                            continue
+                        aid = parts[2].lower()
+                        await typing(chat)
+                        ok, msg = await market.install(aid, await bf.get_http())
+                        await send(chat, msg)
+                    elif msub == "uninstall" and (is_owner or is_admin):
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /market uninstall <agent_name>")
+                            continue
+                        ok, msg = market.uninstall(parts[2])
+                        await send(chat, msg)
+                    elif msub == "installed":
+                        installed = market.list_installed()
+                        if not installed:
+                            await send(chat, "No marketplace agents installed.")
+                            continue
+                        lines = ["Installed marketplace agents:"]
+                        for name, info in installed[:20]:
+                            t = time.strftime("%Y-%m-%d", time.localtime(info.get("installed", 0)))
+                            lines.append(f"  {name} (installed {t})")
+                        await send(chat, "\n".join(lines))
+                    elif msub == "publish" and (is_owner or is_admin):
+                        rest = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if " | " not in rest:
+                            await send(chat, "Usage: /market publish <name> <desc> | <prompt>")
+                            continue
+                        left, prompt = rest.split(" | ", 1)
+                        left_parts = left.split(" ", 1)
+                        name = left_parts[0]
+                        desc = left_parts[1] if len(left_parts) > 1 else "Community agent"
+                        ok, msg = await market.publish(name, desc, prompt, await bf.get_http())
+                        await send(chat, msg)
+                    elif msub == "refresh":
+                        await typing(chat)
+                        reg = await market.fetch_registry(await bf.get_http())
+                        await send(chat, f"Refreshed. {len(reg)} agents in registry.")
+                    else:
+                        await send(chat, "Unknown subcommand. Use: /market")
+
                 elif cmd == "/addprompt" and (is_owner or is_admin or is_mod):
                     if len(parts) < 3:
                         await send(chat, "Usage: /addprompt <agentname> <prompt>")
@@ -3513,6 +3883,34 @@ async def main():
                     except Exception as e:
                         await send(chat, f"TTS error: {e}")
 
+                elif cmd == "/voice":
+                    if len(parts) < 2:
+                        mode = bf.get_voice_mode(chat)
+                        await send(chat, f"X-Phone Voice: {mode}\nUsage:\n/voice on — Enable voice conversation mode (voice in, voice out)\n/voice off — Disable voice mode\n/voice emotion <emotion> — Set voice emotion (neutral, happy, sad, angry, excited, calm, whisper)\n/voice status — Current settings")
+                        continue
+                    vc = parts[1].lower()
+                    if vc == "on":
+                        bf.set_voice_mode(chat, "conversation")
+                        await send(chat, "🎙️ X-Phone Voice ON. Send a voice message and I'll reply with voice.\nSpeak naturally — you can interrupt me anytime by sending another voice message.")
+                    elif vc == "off":
+                        bf.set_voice_mode(chat, "off")
+                        await send(chat, "X-Phone Voice OFF. Text mode restored.")
+                    elif vc == "emotion":
+                        if len(parts) < 3:
+                            await send(chat, f"Usage: /voice emotion <emotion>\nOptions: {', '.join(sorted(bf.VOICE_EMOTIONS))}")
+                            continue
+                        emotion = parts[2].lower()
+                        if emotion not in bf.VOICE_EMOTIONS:
+                            await send(chat, f"Unknown emotion. Use: {', '.join(sorted(bf.VOICE_EMOTIONS))}")
+                            continue
+                        bf.set_voice_mode(chat, emotion)
+                        await send(chat, f"Voice emotion set to: {emotion}")
+                    elif vc == "status":
+                        mode = bf.get_voice_mode(chat)
+                        await send(chat, f"X-Phone Status:\n  Mode: {mode}\n  Available emotions: {', '.join(sorted(bf.VOICE_EMOTIONS))}")
+                    else:
+                        await send(chat, "Unknown subcommand. Use: /voice")
+
                 elif cmd == "/video-analyze":
                     if len(parts) < 2:
                         await send(chat, "Usage: /video-analyze <search_query>\nExample: /video-analyze a cat playing piano\nDescribes what the AI would analyze in a video matching the query.")
@@ -3537,17 +3935,150 @@ async def main():
                     ], active_provider)
                     await send(chat, f"Prompt Analysis:\n\n{analysis[:3500]}")
 
-                elif cmd == "/kgraph":
+                elif cmd == "/kg":
                     if len(parts) < 2:
-                        await send(chat, "Usage: /kgraph <text_or_query>\nExtracts entities and relationships from text to build a knowledge graph.")
+                        await send(chat, "Usage:\n/kg add <entity> [type] — Add entity\n/kg relate <source> <relation> <target> — Add relation\n/kg extract <text> — Extract from text\n/kg search <query> — Search entities\n/kg query <text> — Graph query\n/kg related <name> — Show related\n/kg stats — Graph statistics\n/kg remove <entity> — Remove entity\n/kg clear — Clear all data")
                         continue
-                    graph_text = " ".join(parts[1:])
-                    await typing(chat)
-                    kgraph = await smart_call([
-                        {"role": "system", "content": "You are a knowledge graph specialist. Extract entities and relationships from the given text. Respond with a structured list of: ENTITIES (name, type), RELATIONSHIPS (source -> relation -> target). Format as CSV-like output for easy parsing."},
-                        {"role": "user", "content": f"Extract knowledge graph from:\n\n{graph_text}"}
-                    ], active_provider)
-                    await send(chat, f"Knowledge Graph:\n\n{kgraph[:3500]}")
+                    sub = parts[1].lower()
+                    if not kg_mod:
+                        await send(chat, "Knowledge Graph module not available.")
+                        continue
+                    kg_inst = kg_mod.get_kg()
+                    if sub == "add":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /kg add <entity> [type]")
+                            continue
+                        name = parts[2]
+                        etype = parts[3] if len(parts) > 3 else "concept"
+                        if kg_inst.add_entity(name, etype):
+                            await send(chat, f"Added: {name} ({etype})")
+                        else:
+                            await send(chat, f"Already exists: {name}")
+                    elif sub == "relate" and len(parts) >= 5:
+                        kg_inst.add_relation(parts[2], parts[3], parts[4])
+                        await send(chat, f"Related: {parts[2]} --[{parts[3]}]--> {parts[4]}")
+                    elif sub == "extract":
+                        text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not text:
+                            await send(chat, "Usage: /kg extract <text>")
+                            continue
+                        await typing(chat)
+                        ec, rc = await kg_inst.extract_from_text(text, smart_call)
+                        await send(chat, f"Extracted {ec} entities and {rc} relationships.")
+                    elif sub == "search":
+                        q = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not q:
+                            await send(chat, "Usage: /kg search <query>")
+                            continue
+                        results = kg_inst.search_entities(q)
+                        if not results:
+                            await send(chat, "No matches found.")
+                            continue
+                        lines = [f"Entities matching '{q}':"]
+                        for r in results:
+                            lines.append(f"  {r['name']} ({r.get('type', '?')})")
+                        await send(chat, "\n".join(lines))
+                    elif sub == "query":
+                        q = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not q:
+                            await send(chat, "Usage: /kg query <text>")
+                            continue
+                        await typing(chat)
+                        results = kg_inst.query(q)
+                        msg = f"Query: {q}\n"
+                        if results["entities"]:
+                            msg += f"\nDirect matches: {len(results['entities'])}\n"
+                            for e in results["entities"][:5]:
+                                msg += f"  {e['name']} ({e.get('type', '?')})\n"
+                        if results["paths"]:
+                            msg += f"\nPaths found: {len(results['paths'])}\n"
+                            for p in results["paths"][:3]:
+                                msg += f"  {' -> '.join(p['path'])}\n"
+                        if results["subgraph"]:
+                            sg = results["subgraph"]
+                            msg += f"\nSubgraph: {len(sg['nodes'])} nodes, {len(sg['edges'])} edges around '{sg['center']}'"
+                        await send(chat, msg[:3500])
+                    elif sub == "related":
+                        name = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not name:
+                            await send(chat, "Usage: /kg related <name>")
+                            continue
+                        rel = kg_inst.get_related(name)
+                        if not rel:
+                            await send(chat, f"Entity not found: {name}")
+                            continue
+                        await send(chat, f"Relationships for '{name}':\n  Nodes: {len(rel['nodes'])}\n  Edges: {len(rel['edges'])}\n\n  /kg webviz to see visual map")
+                    elif sub == "stats":
+                        s = kg_inst.stats()
+                        await send(chat, f"Knowledge Graph Stats:\n  Entities: {s['entities']}\n  Relationships: {s['relationships']}\n  Types: {json.dumps(s['types'])}")
+                    elif sub == "remove":
+                        name = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if name and kg_inst.remove_entity(name):
+                            await send(chat, f"Removed: {name}")
+                        else:
+                            await send(chat, "Entity not found.")
+                    elif sub == "clear" and (is_owner or is_admin):
+                        kg_inst.clear()
+                        await send(chat, "Knowledge Graph cleared.")
+                    elif sub == "webviz":
+                        await send(chat, f"Open web dashboard at http://localhost:{WEB_PORT}/kg-viz to see the graph")
+                    else:
+                        await send(chat, "Unknown subcommand. Use: /kg to see usage.")
+
+                elif cmd == "/vault":
+                    if len(parts) < 2:
+                        await send(chat, "Usage:\n/vault save <title> | <content>\n/vault search <query>\n/vault list\n/vault get <id>\n/vault delete <id>")
+                        continue
+                    vsub = parts[1].lower()
+                    if not kg_mod:
+                        await send(chat, "Knowledge Vault module not available.")
+                        continue
+                    vault = kg_mod.get_vault()
+                    if vsub == "save":
+                        rest = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if " | " not in rest:
+                            await send(chat, "Usage: /vault save <title> | <content>")
+                            continue
+                        title, content = rest.split(" | ", 1)
+                        eid = vault.save(title.strip(), content.strip(), uid=str(uid))
+                        await send(chat, f"Saved: '{title}' (id: {eid})")
+                    elif vsub == "search":
+                        q = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not q:
+                            await send(chat, "Usage: /vault search <query>")
+                            continue
+                        results = vault.search(q, uid=str(uid))
+                        if not results:
+                            await send(chat, "No matches found.")
+                            continue
+                        lines = ["Vault results:"]
+                        for r in results[:10]:
+                            lines.append(f"  [{r['id']}] {r['title']} — {r['content'][:80]}...")
+                        await send(chat, "\n".join(lines))
+                    elif vsub == "list":
+                        entries = vault.list(uid=str(uid))
+                        if not entries:
+                            await send(chat, "Vault is empty.")
+                            continue
+                        lines = ["Vault entries:"]
+                        for r in entries[:20]:
+                            lines.append(f"  [{r['id']}] {r['title']}")
+                        await send(chat, "\n".join(lines))
+                    elif vsub == "get":
+                        eid = parts[2] if len(parts) > 2 else ""
+                        entry = vault.get(eid)
+                        if entry:
+                            await send(chat, f"Title: {entry['title']}\n\n{entry['content'][:3000]}")
+                        else:
+                            await send(chat, "Entry not found.")
+                    elif vsub == "delete":
+                        eid = parts[2] if len(parts) > 2 else ""
+                        if vault.delete(eid):
+                            await send(chat, "Deleted.")
+                        else:
+                            await send(chat, "Entry not found.")
+                    else:
+                        await send(chat, "Unknown subcommand. Use: /vault")
 
                 elif cmd == "/routes":
                     await send(chat, f"Provider routing health ({len(PROVIDERS)}):\n{gateway.get_route_health()}")
@@ -4283,6 +4814,164 @@ async def main():
                         ], active_provider)
                         await send(chat, f"ðŸ“„ {url}\n\n{reply[:3500]}")
 
+                elif cmd == "/youtube_search":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /youtube_search <query>\nExample: /youtube_search how to use transformers")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.youtube_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these YouTube search results, highlighting the most relevant videos for the query."},
+                        {"role": "user", "content": f"Query: {q}\n\nResults:\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"YouTube search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1500]}")
+
+                elif cmd == "/tiktok":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /tiktok <query>\nExample: /tiktok AI coding tools")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.tiktok_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these TikTok search results, highlighting the most popular and relevant videos."},
+                        {"role": "user", "content": f"Query: {q}\n\nResults:\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"TikTok search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1500]}")
+
+                elif cmd == "/github_search":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /github_search <query>\nExample: /github_search transformer language model")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.github_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these GitHub search results, highlighting the most popular and relevant repositories for the query."},
+                        {"role": "user", "content": f"Query: {q}\n\nResults:\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"GitHub search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:2000]}")
+
+                elif cmd == "/analyze":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /analyze <github_repo_url>\nExample: /analyze https://github.com/huggingface/transformers")
+                        continue
+                    url = parts[1]
+                    await typing(chat)
+                    analysis = await bf.analyze_github_repo(url)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize this GitHub repository analysis, highlighting what the project does, key technologies, and how to get started."},
+                        {"role": "user", "content": f"Repo: {url}\n\nAnalysis:\n{analysis}"},
+                    ], active_provider)
+                    await send(chat, f"Repo analysis:\n\n{reply[:3500]}\n\n---\n{analysis[:2000]}")
+
+                elif cmd == "/reddit":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /reddit <query>\nExample: /reddit machine learning")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.reddit_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these Reddit search results, highlighting the most relevant discussions."},
+                        {"role": "user", "content": f"Query: {q}\n\nResults:\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"Reddit search: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1500]}")
+
+                elif cmd == "/hn":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /hn <query>\nExample: /hn rust programming")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.hackernews_search(q)
+                    reply = await smart_call([
+                        {"role": "system", "content": "Summarize these Hacker News results, highlighting the most popular stories and discussions."},
+                        {"role": "user", "content": f"Query: {q}\n\nResults:\n{results}"},
+                    ], active_provider)
+                    await send(chat, f"Hacker News: {q}\n\n{reply[:3500]}\n\nRaw results:\n{results[:1500]}")
+
+                elif cmd == "/social":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /social <query>\nExample: /social AI agents\nSearches Reddit, Hacker News, and Medium simultaneously.")
+                        continue
+                    q = " ".join(parts[1:])
+                    await typing(chat)
+                    results = await bf.social_search_all(q)
+                    await send(chat, f"Multi-platform search: {q}\n\n{results[:3500]}")
+
+                elif cmd == "/memory":
+                    sub = parts[1].lower() if len(parts) > 1 else "stats"
+                    if sub == "stats":
+                        stats = await bf.get_memory_stats(uid)
+                        if stats:
+                            await send(chat, f"Memory stats:\n  Total messages: {stats['total']}\n  Your messages: {stats['user']}\n  AI responses: {stats['ai']}\n  Days active: {stats['days']}\n  First message: {time.strftime('%Y-%m-%d', time.localtime(stats['first_seen'])) if stats['first_seen'] else 'N/A'}")
+                        else:
+                            await send(chat, "No memory data yet.")
+                    elif sub == "search" and len(parts) >= 3:
+                        kw = " ".join(parts[2:])
+                        results = await bf.search_user_memories(uid, kw)
+                        if results:
+                            lines = [f"Memories matching '{kw}':"]
+                            for e in results[-5:]:
+                                lines.append(f"  [{e['role']}] {e['content'][:200]}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, f"No memories found for: {kw}")
+                    elif sub == "clear":
+                        await bf.clear_user_memory(uid)
+                        await send(chat, "Your memory log cleared.")
+                    else:
+                        await send(chat, "Usage:\n  /memory stats — Memory statistics\n  /memory search <keyword> — Search your memory\n  /memory clear — Clear your memory log")
+
+                elif cmd == "/cron":
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "list":
+                        tasks = bf.scheduler.list()
+                        if not tasks:
+                            await send(chat, "No scheduled tasks.\nUsage: /cron add <interval_seconds> <prompt>\nExample: /cron add 3600 Give me a summary of today's AI news")
+                        else:
+                            lines = ["Scheduled tasks:"]
+                            for tid, label, interval, cid in tasks:
+                                lines.append(f"  [{tid}] {label} (every {interval}s) chat:{cid}")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "add" and len(parts) >= 4:
+                        try:
+                            interval = int(parts[2])
+                            prompt = " ".join(parts[3:])
+                            tid = bf.scheduler.add(interval, prompt, chat)
+                            await send(chat, f"Cron task added: [{tid}] every {interval}s\nPrompt: {prompt[:100]}")
+                        except ValueError:
+                            await send(chat, "Interval must be a number (seconds).")
+                    elif sub == "remove" and len(parts) >= 3:
+                        bf.scheduler.remove(parts[2])
+                        await send(chat, f"Task {parts[2]} removed.")
+                    else:
+                        await send(chat, "Usage:\n  /cron list — List scheduled tasks\n  /cron add <seconds> <prompt> — Add a task\n  /cron remove <id> — Remove a task")
+
+                elif cmd == "/monitor":
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "list":
+                        pages = bf.page_monitor.list(chat_id=chat)
+                        if not pages:
+                            await send(chat, "No monitored pages.\nUsage: /monitor add <url> [label]\nExample: /monitor add https://news.ycombinator.com HN frontpage")
+                        else:
+                            lines = ["Monitored pages:"]
+                            for pid, url, label, interval in pages:
+                                lines.append(f"  [{pid}] {label} ({interval}s interval)")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "add" and len(parts) >= 3:
+                        url = parts[2]
+                        label = " ".join(parts[3:]) if len(parts) > 3 else url[:40]
+                        pid = bf.page_monitor.add(url, chat, label)
+                        await send(chat, f"Monitoring added: [{pid}] {label}\nWill check for changes every hour.")
+                    elif sub == "remove" and len(parts) >= 3:
+                        bf.page_monitor.remove(parts[2])
+                        await send(chat, f"Monitor {parts[2]} removed.")
+                    else:
+                        await send(chat, "Usage:\n  /monitor list — List monitored pages\n  /monitor add <url> [label] — Add a page to monitor\n  /monitor remove <id> — Remove a monitor")
+
                 elif cmd == "/remind":
                     if len(parts) < 3:
                         tasks = bf.reminder_db.list(chat_id=chat)
@@ -4849,14 +5538,15 @@ async def main():
                         continue
                     if len(parts) < 2:
                         if not bridges:
-                            await send(chat, "No bridges configured.\nUsage:\n  /bridge list\n  /bridge add <name> <platform> <webhook_url|bot_token> [chat_id]\n  /bridge remove <name>\n  /bridge toggle <name>")
+                            await send(chat, "No bridges configured.\nUsage:\n  /bridge list\n  /bridge add <name> <platform> <webhook_url|bot_token> [chat_id]\n  /bridge remove <name>\n  /bridge toggle <name>\n  /bridge send <name> <message>\n  /bridge webhook <name> <url>\n  /bridge auto-reply <name> on|off\n  /bridge prompt <name> <system_prompt>")
                         else:
                             lines = ["Configured bridges:"]
                             for name, cfg in bridges.items():
                                 status = "ON" if cfg.get("enabled") else "OFF"
                                 targets = cfg.get("targets", [])
                                 platforms = ", ".join(t.get("platform", "?") for t in targets)
-                                lines.append(f"  {name} ({status}) -> {platforms}")
+                                ar = " AR" if cfg.get("auto_reply") else ""
+                                lines.append(f"  {name} ({status}){ar} -> {platforms}")
                             await send(chat, "\n".join(lines))
                         continue
                     sub = parts[1].lower()
@@ -4868,10 +5558,11 @@ async def main():
                             for name, cfg in bridges.items():
                                 status = "ON" if cfg.get("enabled") else "OFF"
                                 targets = cfg.get("targets", [])
+                                ar = " auto-reply" if cfg.get("auto_reply") else ""
                                 for t in targets:
                                     plat = t.get("platform", "?")
                                     url = t.get("webhook_url", t.get("bot_token", ""))[:40]
-                                    lines.append(f"  {name} [{status}] {plat} -> {url}...")
+                                    lines.append(f"  {name} [{status}]{ar} {plat} -> {url}...")
                             await send(chat, "\n".join(lines))
                     elif sub == "add" and len(parts) >= 4:
                         if not is_owner:
@@ -4879,8 +5570,8 @@ async def main():
                             continue
                         bname = parts[2]
                         platform = parts[3].lower()
-                        if platform not in ("telegram", "discord", "slack"):
-                            await send(chat, "Platform must be 'telegram', 'discord', or 'slack'.")
+                        if platform not in ("telegram", "discord", "slack", "bot"):
+                            await send(chat, "Platform must be 'telegram', 'discord', 'slack', or 'bot'.")
                             continue
                         rest = " ".join(parts[4:])
                         if platform == "telegram":
@@ -4891,6 +5582,10 @@ async def main():
                                 await send(chat, "Usage: /bridge add <name> telegram <bot_token> <chat_id>")
                                 continue
                             target = {"platform": "telegram", "bot_token": token, "chat_id": chat_id}
+                        elif platform == "bot":
+                            target = {"platform": "bot", "webhook_url": rest}
+                            bridges.setdefault(bname, {}).setdefault("targets", [])
+                            bridges[bname]["sender_name"] = "opencode-bot"
                         else:
                             webhook_url = rest
                             if not webhook_url.lower().startswith(("http://", "https://")):
@@ -4924,8 +5619,102 @@ async def main():
                             await send(chat, f"Bridge '{bname}' {s}.")
                         else:
                             await send(chat, f"Bridge '{bname}' not found.")
+                    elif sub == "send" and len(parts) >= 4:
+                        bname = parts[2]
+                        msg_text = " ".join(parts[3:])
+                        if bname not in bridges:
+                            await send(chat, f"Bridge '{bname}' not found.")
+                            continue
+                        cfg = bridges[bname]
+                        relayed = False
+                        for t in cfg.get("targets", []):
+                            if t.get("platform") == "telegram":
+                                token = t.get("bot_token")
+                                target_chat = t.get("chat_id")
+                                if token and target_chat:
+                                    try:
+                                        c = await get_http()
+                                        await c.post(f"https://api.telegram.org/bot{token}/sendMessage", json={"chat_id": target_chat, "text": msg_text[:3000]}, timeout=10)
+                                        relayed = True
+                                    except:
+                                        pass
+                            elif t.get("platform") == "bot":
+                                url = t.get("webhook_url")
+                                if url:
+                                    try:
+                                        c = await get_http()
+                                        sender_name = cfg.get("sender_name", "opencode-bot")
+                                        payload = {"text": msg_text[:2000], "sender": sender_name, "from": "opencode-bot"}
+                                        await c.post(url, json=payload, timeout=15)
+                                        relayed = True
+                                    except:
+                                        pass
+                            elif t.get("platform") in ("discord", "slack"):
+                                url = t.get("webhook_url")
+                                if url:
+                                    try:
+                                        c = await get_http()
+                                        payload = {"content": msg_text[:2000]}
+                                        if t.get("platform") == "slack":
+                                            payload = {"text": msg_text[:2000]}
+                                        await c.post(url, json=payload, timeout=10)
+                                        relayed = True
+                                    except:
+                                        pass
+                        if relayed:
+                            await send(chat, f"Message sent via bridge '{bname}'.")
+                        else:
+                            await send(chat, f"Could not relay. Check bridge '{bname}' targets.")
+                    elif sub == "webhook" and len(parts) >= 4:
+                        if not is_owner:
+                            await send(chat, "Only the owner can set webhooks.")
+                            continue
+                        bname = parts[2]
+                        webhook_url = parts[3]
+                        if bname not in bridges:
+                            await send(chat, f"Bridge '{bname}' not found. Create it first with /bridge add")
+                            continue
+                        if not webhook_url.lower().startswith(("http://", "https://")):
+                            await send(chat, "Webhook URL must start with http:// or https://")
+                            continue
+                        bridges[bname].setdefault("targets", [])
+                        bridges[bname]["targets"].append({"platform": "bot", "webhook_url": webhook_url, "expect_reply": True})
+                        bridges[bname]["my_webhook_url"] = webhook_url
+                        save_bridges()
+                        await send(chat, f"Bridge '{bname}' bot-to-bot webhook set. Other bots can POST to {webhook_url}")
+                    elif sub == "auto-reply" and len(parts) >= 4:
+                        if not is_owner:
+                            await send(chat, "Only the owner can configure auto-reply.")
+                            continue
+                        bname = parts[2]
+                        state = parts[3].lower()
+                        if bname not in bridges:
+                            await send(chat, f"Bridge '{bname}' not found.")
+                            continue
+                        if state == "on":
+                            bridges[bname]["auto_reply"] = True
+                            save_bridges()
+                            await send(chat, f"Bridge '{bname}' auto-reply enabled. Incoming bot messages will be answered by AI.")
+                        elif state == "off":
+                            bridges[bname]["auto_reply"] = False
+                            save_bridges()
+                            await send(chat, f"Bridge '{bname}' auto-reply disabled.")
+                        else:
+                            await send(chat, "Usage: /bridge auto-reply <name> on|off")
+                    elif sub == "prompt" and len(parts) >= 4:
+                        if not is_owner:
+                            await send(chat, "Only the owner can set bridge prompts.")
+                            continue
+                        bname = parts[2]
+                        prompt_text = " ".join(parts[3:])
+                        if bname not in bridges:
+                            await send(chat, f"Bridge '{bname}' not found.")
+                            continue
+                        bridges[bname]["system_prompt"] = prompt_text
+                        save_bridges()
+                        await send(chat, f"Bridge '{bname}' system prompt set.")
                     else:
-                        await send(chat, "Usage: /bridge list | add <name> <platform> <...> | remove <name> | toggle <name>")
+                        await send(chat, "Usage: /bridge list | add | remove | toggle | send <name> <msg> | webhook <name> <url> | auto-reply <name> on|off | prompt <name> <text>")
 
                 elif cmd == "/version":
                     ver_info = load_version()
@@ -5114,7 +5903,7 @@ async def main():
                             lines.append(f"  Chat {cid} — #{tag} ({count}x)")
                         await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/youtube_search", "/tiktok", "/github_search", "/analyze", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge", "/reddit", "/hn", "/social", "/memory", "/cron", "/monitor"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
@@ -5206,6 +5995,11 @@ async def main():
                             if not sessions[uid]:
                                 try:
                                     ctx = await bf.auto_context()
+                                    mem_ctx = ""
+                                    try:
+                                        mem_ctx = await bf.get_memory_context(uid)
+                                    except:
+                                        pass
                                     extra = ""
                                     if is_experimental_enabled("context-files"):
                                         chat_files = context_files.get(str(chat), [])
@@ -5213,8 +6007,9 @@ async def main():
                                             file_block = "\n\n".join(f"[{f['name']}]\n{f['content']}" for f in chat_files if f.get("content"))
                                             if file_block:
                                                 extra = f"\n\n[Attached Context Files]\n{file_block}"
-                                    if ctx or extra:
-                                        sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{ctx}{extra}"})
+                                    combined_ctx = f"{ctx}\n{mem_ctx}".strip()
+                                    if combined_ctx or extra:
+                                        sessions[uid].append({"role": "system", "content": f"{agent_prompt}\n\n[Auto-Context]\n{combined_ctx}{extra}"})
                                     else:
                                         sessions[uid].append({"role": "system", "content": agent_prompt})
                                 except Exception:
@@ -5236,10 +6031,18 @@ async def main():
                                     save_conversation_tags()
                             _bridge = asyncio.create_task(relay_to_bridge(text, chat, uid, msg))
                             _bridge.add_done_callback(_task_done)
+                            try:
+                                await bf.append_to_memory_log(uid, "user", text)
+                            except:
+                                pass
                             log(f"Calling {active_provider} for: {text[:50]}")
                             reply = await smart_call(sessions[uid][-20:], active_provider)
                             log(f"Reply: {reply[:80]}...")
                             sessions[uid].append({"role": "assistant", "content": reply})
+                            try:
+                                await bf.append_to_memory_log(uid, "assistant", reply[:2000])
+                            except:
+                                pass
                             save_sessions()
                             _safe_track_usage(uid, active_agent, active_provider)
                             await send(chat, reply)

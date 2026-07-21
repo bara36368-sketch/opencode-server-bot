@@ -214,6 +214,70 @@ async def webhook(request: Request):
 async def root():
     return {"status": "ok", "name": "OpenCode Bot Webhook"}
 
+# ── Bot-to-Bot Bridge ──────────────────────────────────────
+BRIDGES_FILE = os.path.join(BASE_DIR, "bridges.json")
+_bot_bridges = {}
+
+def _load_bridges():
+    global _bot_bridges
+    if os.path.exists(BRIDGES_FILE):
+        try:
+            with open(BRIDGES_FILE, encoding="utf-8") as f:
+                _bot_bridges = json.load(f)
+        except:
+            _bot_bridges = {}
+
+def _save_bridges():
+    try:
+        with open(BRIDGES_FILE, "w", encoding="utf-8") as f:
+            json.dump(_bot_bridges, f, indent=2)
+    except:
+        pass
+
+_load_bridges()
+
+@app.post("/bot-bridge/{bridge_name}")
+async def bot_bridge_webhook(bridge_name: str, request: Request):
+    try:
+        body = await request.json()
+    except:
+        return JSONResponse({"ok": False}, status_code=400)
+
+    bridge = _bot_bridges.get(bridge_name)
+    if not bridge or not bridge.get("enabled", False):
+        return JSONResponse({"ok": False, "error": "bridge not found or disabled"}, status_code=404)
+
+    text = body.get("text", "") or body.get("message", "") or body.get("content", "")
+    sender = body.get("sender", "") or body.get("from", "") or "unknown-bot"
+    reply_url = body.get("reply_url", "")
+
+    if not text:
+        return JSONResponse({"ok": False, "error": "no text"})
+
+    auto_reply = bridge.get("auto_reply", False)
+    response_text = ""
+
+    if auto_reply:
+        try:
+            msgs = [{"role": "system", "content": bridge.get("system_prompt", "You are a helpful bot assistant. Respond concisely.")}]
+            msgs.append({"role": "user", "content": f"[Message from bot {sender} via bridge {bridge_name}]: {text}"})
+            resp = await call_provider(msgs, "groq")
+            response_text = str(resp)[:3000]
+
+            if reply_url:
+                c2 = await get_http()
+                await c2.post(reply_url, json={"text": response_text, "from": "opencode-bot", "bridge": bridge_name}, timeout=10)
+        except Exception as e:
+            response_text = f"Auto-reply error: {e}"
+
+    if bridge.get("relay_to_owner", False) and OWNER_ID:
+        header = f"Bot-to-Bot [{sender} -> {bridge_name}]: {text[:500]}"
+        if response_text:
+            header += f"\n\n[Auto-reply]: {response_text[:500]}"
+        await tg("sendMessage", {"chat_id": OWNER_ID, "text": header[:4000]})
+
+    return JSONResponse({"ok": True, "reply": response_text if auto_reply else "", "auto_replied": auto_reply})
+
 @app.get("/setup-webhook")
 async def setup_webhook(request: Request):
     host = request.headers.get("host", "unknown")

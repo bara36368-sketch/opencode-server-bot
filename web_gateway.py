@@ -197,6 +197,74 @@ MCP_TOOLS = [
      "input_schema": {"type": "object", "properties": {
          "prompt": {"type": "string", "description": "The system prompt to analyze"}},
          "required": ["prompt"]}},
+    {"name": "youtube_search", "description": "Search YouTube for videos by keyword. Returns titles, views, channels, durations.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "tiktok_search", "description": "Search TikTok for trending videos by keyword. Returns plays, likes, author, description.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "github_search", "description": "Search GitHub repositories by keyword, sorted by stars. Returns repo info, stars, language, topics.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "sort_by": {"type": "string", "description": "stars or updated (default stars)"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "github_analyze", "description": "Deep analyze a GitHub repo: fetch README, detect languages, show file structure, summarize project.",
+     "input_schema": {"type": "object", "properties": {
+         "url": {"type": "string", "description": "Full GitHub repo URL (e.g. https://github.com/user/repo)"}},
+         "required": ["url"]}},
+    {"name": "reddit_search", "description": "Search Reddit for discussions and posts by keyword.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "hn_search", "description": "Search Hacker News for popular stories and discussions.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"},
+         "max_results": {"type": "integer", "description": "Max results (default 5)"}},
+         "required": ["query"]}},
+    {"name": "social_search", "description": "Multi-platform search across Reddit, Hacker News, and Medium simultaneously.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Search query"}},
+         "required": ["query"]}},
+    {"name": "memory_search", "description": "Search the user's persistent long-term memory log by keyword.",
+     "input_schema": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Keyword to search for"},
+         "uid": {"type": "string", "description": "User ID (optional)"}},
+         "required": ["query"]}},
+    {"name": "memory_stats", "description": "Get stats about a user's persistent memory usage.",
+     "input_schema": {"type": "object", "properties": {
+         "uid": {"type": "string", "description": "User ID (optional)"}}}},
+    {"name": "doc_analyze", "description": "Analyze an uploaded document or PDF. Returns content preview and metadata.",
+     "input_schema": {"type": "object", "properties": {
+         "file_id": {"type": "string", "description": "Telegram file_id"},
+         "file_name": {"type": "string", "description": "Original filename"},
+         "question": {"type": "string", "description": "Optional question about the document"}},
+         "required": ["file_id", "file_name"]}},
+    {"name": "cron_add", "description": "Schedule a recurring AI prompt task.",
+     "input_schema": {"type": "object", "properties": {
+         "interval_seconds": {"type": "integer", "description": "Interval in seconds between runs"},
+         "prompt": {"type": "string", "description": "The AI prompt to run"},
+         "chat_id": {"type": "integer", "description": "Telegram chat ID for delivery"}},
+         "required": ["interval_seconds", "prompt"]}},
+    {"name": "cron_list", "description": "List all scheduled cron tasks.",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "cron_remove", "description": "Remove a scheduled cron task by its ID.",
+     "input_schema": {"type": "object", "properties": {
+         "id": {"type": "string", "description": "Task ID to remove"}},
+         "required": ["id"]}},
+    {"name": "monitor_add", "description": "Start monitoring a web page for content changes.",
+     "input_schema": {"type": "object", "properties": {
+         "url": {"type": "string", "description": "URL to monitor"},
+         "label": {"type": "string", "description": "Optional label"},
+         "chat_id": {"type": "integer", "description": "Telegram chat ID for alerts"}},
+         "required": ["url"]}},
+    {"name": "monitor_list", "description": "List all currently monitored web pages.",
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "extract_knowledge_graph", "description": "Extract entities and relationships from text as a knowledge graph",
      "input_schema": {"type": "object", "properties": {
          "text": {"type": "string", "description": "Text to extract entities and relationships from"}},
@@ -215,6 +283,23 @@ MCP_TOOLS = [
          "content": {"type": "string", "description": "Memory content to store (for store action)"}},
          "required": ["action", "agent_id"]}},
 ]
+
+async def _bf_wrapper(fn_name, arguments, required_args):
+    try:
+        import bot_features as _bf
+    except Exception:
+        return {"content": [{"type": "text", "text": "bot_features module not available"}], "isError": True}
+    for a in required_args:
+        if a not in arguments:
+            return {"content": [{"type": "text", "text": f"Missing required argument: {a}"}], "isError": True}
+    try:
+        fn = getattr(_bf, fn_name, None)
+        if not fn:
+            return {"content": [{"type": "text", "text": f"Unknown bot_features function: {fn_name}"}], "isError": True}
+        result = await fn(**arguments)
+        return {"content": [{"type": "text", "text": str(result)[:5000]}]}
+    except Exception as e:
+        return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
 
 async def _mcp_call_tool(name, arguments):
     if name == "call_llm":
@@ -310,10 +395,30 @@ async def _mcp_call_tool(name, arguments):
         return {"content": [{"type": "text", "text": f"Prompt Analysis:\n- Length: {word_count} words, {len(lines)} lines\n- Role definitions: {len(roles)}\n- Guardrails: {len(guardrails)}\n- Structure: {'Well-structured' if len(lines) > 3 else 'Short prompt'}\n\nTip: Clear role + guardrail + output-format prompts perform best."}]}
     elif name == "extract_knowledge_graph":
         text = arguments.get("text", "")
-        import re as _re
-        entities = set(_re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text))
-        entities = {e for e in entities if len(e) > 2 and not _re.match(r'^(The|This|That|These|Those|When|What|Where|How|Why|From|With|They|Have|Has|Had|Would|Could|Should|Will|Can|May|Must|Been|Being|Were|Was|Are|Is|It|Its|All|Some|Any|Each|Every|Both|Few|Many|Much)$', e)}
-        return {"content": [{"type": "text", "text": f"Extracted {len(entities)} entities from text.\n\nEntities: {', '.join(sorted(entities)[:30])}\n\nRelationships: Co-occurrence graph built. Use /kgraph in Telegram for full visualization."}]}
+        try:
+            import knowledge_graph as kg_mod
+            kg_inst = kg_mod.get_kg()
+            ec, rc = 0, 0
+            for line in text.split("\n"):
+                if " --[" in line and "]--> " in line:
+                    parts = line.split(" --[", 1)
+                    source = parts[0].strip()
+                    rest = parts[1].split("]--> ", 1)
+                    if len(rest) == 2:
+                        rel = rest[0].strip()
+                        target = rest[1].strip().rstrip(".")
+                        if kg_inst.add_relation(source, rel, target):
+                            rc += 1
+                elif line.strip():
+                    kg_inst.add_entity(line.strip(), "concept", source="mcp")
+                    ec += 1
+            if ec or rc:
+                kg_inst.ensure_saved()
+            stats = kg_inst.stats()
+            return {"content": [{"type": "text", "text": f"Knowledge Graph updated: +{ec} entities, +{rc} relationships.\nTotal: {stats['entities']} entities, {stats['relationships']} relationships.\nUse /kg query in Telegram to explore."}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Knowledge Graph error: {e}"}]}
+
     elif name == "code_review_graph":
         cb = arguments.get("codebase", "")
         return {"content": [{"type": "text", "text": f"[Code Review Graph] Analyzing: {cb[:100]}\n\nAnalysis would check:\n1. Circular dependencies\n2. Dead code / unused exports\n3. Impact paths for changes\n4. Module coupling metrics\n5. Orphan modules\n\nUse /code-review in Telegram for detailed analysis."}]}
@@ -348,6 +453,50 @@ async def _mcp_call_tool(name, arguments):
         elif action == "retrieve":
             return {"content": [{"type": "text", "text": f"[Cognee] Retrieved memories for agent '{agent_id}':\n- Episodic: 3 past interactions\n- Semantic: 12 facts extracted\n- Procedural: 2 workflows cached"}]}
         return {"content": [{"type": "text", "text": "[Cognee] Unknown action. Use 'store' or 'retrieve'."}], "isError": True}
+    if name == "youtube_search":
+        return await _bf_wrapper("youtube_search", arguments, ["query"])
+    if name == "tiktok_search":
+        return await _bf_wrapper("tiktok_search", arguments, ["query"])
+    if name == "github_search":
+        return await _bf_wrapper("github_search", arguments, ["query"])
+    if name == "github_analyze":
+        return await _bf_wrapper("analyze_github_repo", arguments, ["url"])
+    if name == "reddit_search":
+        return await _bf_wrapper("reddit_search", arguments, ["query"])
+    if name == "hn_search":
+        return await _bf_wrapper("hackernews_search", arguments, ["query"])
+    if name == "social_search":
+        return await _bf_wrapper("social_search_all", arguments, ["query"])
+    if name == "memory_search":
+        uid = arguments.get("uid", "0")
+        result = await _bf_wrapper("search_user_memories", {"uid": uid, "keyword": arguments.get("query", "")}, ["query"])
+        return result
+    if name == "memory_stats":
+        uid = arguments.get("uid", "0")
+        stats = await _bf_wrapper("get_memory_stats", {"uid": uid}, [])
+        return stats
+    if name == "doc_analyze":
+        return await _bf_wrapper("analyze_document", arguments, ["file_id", "file_name"])
+    if name == "cron_add":
+        return await _bf_wrapper("scheduler.add", arguments, ["interval_seconds", "prompt"])
+    if name == "cron_list":
+        try:
+            import bot_features as _bf
+            tasks = _bf.scheduler.list()
+            return {"content": [{"type": "text", "text": "\n".join(f"[{t[0]}] {t[1]} (every {t[2]}s)" for t in tasks) or "No cron tasks."}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
+    if name == "cron_remove":
+        return await _bf_wrapper("scheduler.remove", arguments, ["id"])
+    if name == "monitor_add":
+        return await _bf_wrapper("page_monitor.add", arguments, ["url"])
+    if name == "monitor_list":
+        try:
+            import bot_features as _bf
+            pages = _bf.page_monitor.list()
+            return {"content": [{"type": "text", "text": "\n".join(f"[{p[0]}] {p[1]} ({p[2]})" for p in pages) or "No monitors."}]}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
     return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
 
 async def _mcp_handle(body_str):
@@ -967,7 +1116,6 @@ async def _handle(reader, writer):
         return
     method, raw_path = fl[0].upper(), fl[1]
     path = _parse_path(raw_path)
-    params["_raw_path"] = raw_path
     headers = {}
     i = 1
     while i < len(lines) and lines[i].strip():
@@ -997,6 +1145,7 @@ async def _handle(reader, writer):
         await _send(writer, 404, "text/plain", b"Not Found")
         writer.close()
         return
+    params["_raw_path"] = raw_path
 
     if path in ("/mcp/sse",):
         params["_writer"] = writer
@@ -1821,6 +1970,93 @@ async def handle_api_experimental_toggle(method, path, headers, body, params):
         return json_response({"error": f"Feature '{fid}' not found"}, 404)
     except Exception as e:
         return json_response({"error": str(e)}, 500)
+
+@route("GET", "/api/kg")
+async def handle_api_kg(method, path, headers, body, params):
+    try:
+        import knowledge_graph as kg_mod
+        kg_inst = kg_mod.get_kg()
+        data = kg_inst.to_json()
+        return json_response(data)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+
+@route("GET", "/kg-viz")
+async def handle_kg_viz(method, path, headers, body, params):
+    html_page = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Knowledge Graph</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#111;color:#eee}
+#graph{width:100vw;height:100vh}
+.controls{position:fixed;top:10px;left:10px;z-index:100;background:#222;padding:10px;border-radius:8px}
+button{background:#333;color:#fff;border:1px solid #555;padding:6px 12px;border-radius:4px;cursor:pointer;margin:2px}
+button:hover{background:#444}
+#info{position:fixed;bottom:10px;left:10px;background:#222;padding:8px;border-radius:4px;font-size:12px}
+</style></head>
+<body>
+<div class="controls">
+<button onclick="fetchKG()">Refresh</button>
+<button onclick="resetZoom()">Reset</button>
+</div>
+<div id="graph"></div>
+<div id="info">Loading...</div>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const width=window.innerWidth,height=window.innerHeight;
+const svg=d3.select("#graph").append("svg").attr("width",width).attr("height",height);
+const g=svg.append("g");
+let simulation,node,link,label;
+
+svg.call(d3.zoom().scaleExtent([0.1,4]).on("zoom",(e)=>g.attr("transform",e.transform)));
+
+async function fetchKG(){
+document.getElementById("info").textContent="Loading...";
+try{
+const r=await fetch("/api/kg");
+const data=await r.json();
+const nodes=data.nodes||[],edges=data.edges||[];
+if(!nodes.length){document.getElementById("info").textContent="No data";return}
+render(nodes,edges);
+document.getElementById("info").textContent=`${nodes.length} nodes, ${edges.length} edges`;
+}catch(e){document.getElementById("info").textContent="Error: "+e.message}
+}
+
+function render(nodes,edges){
+g.selectAll("*").remove();
+simulation=d3.forceSimulation(nodes)
+.force("link",d3.forceLink(edges).id(d=>d.id).distance(100))
+.force("charge",d3.forceManyBody().strength(-200))
+.force("center",d3.forceCenter(width/2,height/2));
+
+link=g.append("g").selectAll("line").data(edges).join("line")
+.attr("stroke","#666").attr("stroke-width",1.5).attr("stroke-opacity",0.6);
+
+node=g.append("g").selectAll("circle").data(nodes).join("circle")
+.attr("r",d=>Math.max(6,20-Math.min(16,d.id.length*0.5)))
+.attr("fill",d=>{const t=d.type||"concept";return t==="person"?"#4af":t==="technology"?"#0f8":t==="organization"?"#f80":t==="place"?"#8f4":t==="event"?"#f44":"#888"})
+.attr("stroke","#fff").attr("stroke-width",1)
+.call(d3.drag().on("start",(e,d)=>{if(!e.active)simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y})
+.on("drag",(e,d)=>{d.fx=e.x;d.fy=e.y})
+.on("end",(e,d)=>{if(!e.active)simulation.alphaTarget(0);d.fx=null;d.fy=null}));
+
+label=g.append("g").selectAll("text").data(nodes).join("text")
+.text(d=>d.id).attr("font-size","11px").attr("dx",8).attr("dy",4).attr("fill","#ccc");
+
+simulation.on("tick",()=>{
+link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+node.attr("cx",d=>d.x).attr("cy",d=>d.y);
+label.attr("x",d=>d.x).attr("y",d=>d.y);
+});
+}
+
+function resetZoom(){
+svg.transition().duration(500).call(d3.zoom().transform,d3.zoomIdentity);
+}
+
+fetchKG();
+</script></body></html>"""
+    return html_response(html_page)
 
 @route("GET", "/admin")
 def _check_admin_auth(headers, body, params):
