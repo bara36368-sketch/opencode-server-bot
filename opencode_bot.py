@@ -2539,7 +2539,7 @@ async def run_startup_check():
             pass
 
 async def main():
-    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update, processed
     last_update = 0
     try:
         c = await get_http()
