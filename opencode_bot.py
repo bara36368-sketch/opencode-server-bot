@@ -131,7 +131,7 @@ except Exception as _bf_err:
     try:
         with open("bot_crash.txt", "w", encoding="utf-8") as _f:
             _f.write(f"bot_features import failed: {_bf_err}\n{_tb.format_exc()}")
-    except:
+    except Exception:
         pass
     bf = _BfStub()
 
@@ -200,7 +200,7 @@ MULTI_FILE = os.path.join(os.path.dirname(__file__), "multi_sessions.json")
 
 try:
     LOG = open("bot.log", "a", encoding="utf-8")
-except:
+except Exception:
     LOG = None
 def log(msg):
     if LOG:
@@ -701,7 +701,7 @@ def load_routines():
                 data = json.load(f)
             routines.clear()
             routines.update(data)
-        except:
+        except Exception:
             routines.clear()
 
 multi_sessions = _LRUDict(200)
@@ -715,7 +715,7 @@ def load_multi():
                 data = json.load(f)
             multi_sessions.clear()
             multi_sessions.update(data)
-        except:
+        except Exception:
             multi_sessions.clear()
 
 ARCHITECTURES = {
@@ -774,7 +774,7 @@ PROCESSES = {
 # Persistent memory store (from ai_stack_combined)
 try:
     user_memory = ai_stack.MemoryStore() if ai_stack else None
-except:
+except Exception:
     user_memory = None
 
 def save_memory():
@@ -798,7 +798,7 @@ def load_memory():
                         user_memory.add(m["content"], m.get("user_id", "default"), **m.get("metadata", {}))
                     for k, v in data.get("blocks", {}).items():
                         user_memory.set_block(k, v)
-        except: pass
+        except Exception: pass
 
 # Token usage tracking for FreeTokenFaucet
 token_usage = {"balance": 1096964, "used": 0, "last_claim": "", "history": []}
@@ -809,7 +809,7 @@ def load_token_usage():
         try:
             with open(TOKEN_FILE, encoding="utf-8") as f:
                 token_usage.update(json.load(f))
-        except: pass
+        except Exception: pass
 
 def save_token_usage():
     _atomic_save(TOKEN_FILE, token_usage)
@@ -822,7 +822,7 @@ def load_experimental():
             with open(EXPERIMENTAL_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 experimental_features = data.get("features", {})
-        except:
+        except Exception:
             experimental_features = {}
     defaults = {
         "search-tags": {"name": "Search by Tags", "desc": "Enables /search tags <tag> to find chats by auto-generated tags", "version": "2.8.0", "category": "research"},
@@ -865,7 +865,7 @@ def load_bridges():
         try:
             with open(BRIDGES_FILE, encoding="utf-8") as f:
                 bridges = json.load(f)
-        except:
+        except Exception:
             bridges = {}
     else:
         bridges = {}
@@ -895,7 +895,7 @@ async def relay_to_bridge(text, _chat, _uid, _msg):
                             "parse_mode": "HTML",
                         }
                         await c.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
-                    except:
+                    except Exception:
                         pass
             elif platform in ("discord", "slack"):
                 if url:
@@ -906,7 +906,7 @@ async def relay_to_bridge(text, _chat, _uid, _msg):
                         if platform == "slack":
                             payload = {"text": f"[Bridge {name}] {safe_text}"}
                         await c.post(url, json=payload, timeout=10)
-                    except:
+                    except Exception:
                         pass
 
 def is_experimental_enabled(name):
@@ -945,7 +945,7 @@ def load_custom_commands():
         try:
             with open(CUSTOM_COMMANDS_FILE, encoding="utf-8") as f:
                 custom_commands = json.load(f)
-        except:
+        except Exception:
             custom_commands = {}
 
 def save_custom_commands():
@@ -958,7 +958,7 @@ def load_context_files():
         try:
             with open(CONTEXT_FILES_FILE, encoding="utf-8") as f:
                 context_files = json.load(f)
-        except:
+        except Exception:
             context_files = {}
 
 def save_context_files():
@@ -973,7 +973,7 @@ def load_conversation_tags():
                 data = json.load(f)
             conversation_tags.clear()
             conversation_tags.update(data)
-        except:
+        except Exception:
             conversation_tags.clear()
 
 def save_conversation_tags():
@@ -1518,28 +1518,28 @@ if os.path.exists(AGENTS_FILE):
     try:
         with open(AGENTS_FILE, encoding="utf-8") as f:
             AGENTS.update(json.load(f))
-    except: pass
+    except Exception: pass
 
 AGENT_PROVIDERS = {}
 if os.path.exists(AGENT_PROVIDERS_FILE):
     try:
         with open(AGENT_PROVIDERS_FILE, encoding="utf-8") as f:
             AGENT_PROVIDERS.update(json.load(f))
-    except: pass
+    except Exception: pass
 
 PREMADE_SKILLS = copy.deepcopy(DEFAULT_PREMADE_SKILLS)
 if os.path.exists(PREMADE_SKILLS_FILE):
     try:
         with open(PREMADE_SKILLS_FILE, encoding="utf-8") as f:
             PREMADE_SKILLS.update(json.load(f))
-    except: pass
+    except Exception: pass
 
 TEAMS = {}
 if os.path.exists(TEAMS_FILE):
     try:
         with open(TEAMS_FILE, encoding="utf-8") as f:
             TEAMS.update(json.load(f))
-    except: pass
+    except Exception: pass
 
 PROVIDERS = {
     "nvidia": {
@@ -1745,7 +1745,7 @@ if os.path.exists(PROVIDERS_FILE):
     try:
         with open(PROVIDERS_FILE, encoding="utf-8") as f:
             PROVIDERS.update(json.load(f))
-    except: pass
+    except Exception: pass
 
 SYNOXCLOUD_ENDPOINTS = {}
 SYNOXCLOUD_AI_MODELS = {}
@@ -1757,7 +1757,7 @@ if os.path.exists(SYNOXCLOUD_ENDPOINTS_FILE):
         for _cat in _sd.get("endpoints", []):
             for _item in _cat.get("items", []):
                 SYNOXCLOUD_ENDPOINTS[_item["id"]] = _item["path"]
-    except: pass
+    except Exception: pass
 
 if os.path.exists(SYNOXCLOUD_AI_MODELS_FILE):
     try:
@@ -1772,7 +1772,7 @@ if os.path.exists(SYNOXCLOUD_AI_MODELS_FILE):
                     "model": _mid,
                     "key": "free",
                 }
-    except: pass
+    except Exception: pass
 
 gateway.init_providers()
 
@@ -2220,7 +2220,7 @@ async def call_provider(messages, provider, override=None):
                     for k in ("result", "response", "message", "text", "data", "content"):
                         if k in data:
                             return str(data[k])
-            except:
+            except Exception:
                 return r.text[:2000]
         return f"SynoxCloud error: {r.status_code} - {r.text[:500]}"
     else:
@@ -2324,7 +2324,7 @@ async def announce_update(old_v, new_v, changes, state):
                 usage = json.load(f)
             for uid in usage:
                 known_chats.add(int(uid))
-    except:
+    except Exception:
         pass
     known_chats.discard(0)
     ver_info = load_version()
@@ -2423,7 +2423,7 @@ def get_git_log(from_sha, to_sha):
         if r.returncode == 0 and r.stdout.strip():
             lines = r.stdout.strip().split("\n")
             return [l.split(" ", 1)[1] if " " in l else l for l in lines if l.strip()]
-    except:
+    except Exception:
         pass
     return []
 
@@ -2436,7 +2436,7 @@ def auto_bump_version():
         segs = cur.split(".")
         major = segs[0]
         minor = segs[1] if len(segs) > 1 else "0"
-    except:
+    except Exception:
         pass
     try:
         import subprocess
@@ -2535,7 +2535,7 @@ async def run_startup_check():
         try:
             with open("bot_crash.txt", "w", encoding="utf-8") as _cf:
                 _cf.write(f"startup check error:\n{_tb.format_exc()}")
-        except:
+        except Exception:
             pass
 
 async def main():
@@ -3307,7 +3307,7 @@ async def main():
                         admins.add(new_id)
                         save_admins()
                         await send(chat, f"Added admin: {new_id}")
-                    except:
+                    except Exception:
                         await send(chat, "Invalid ID. Must be a number.")
 
                 elif cmd == "/removeadmin" and is_owner:
@@ -3324,7 +3324,7 @@ async def main():
                             await send(chat, f"Removed admin: {rem_id}")
                         else:
                             await send(chat, f"Not an admin: {rem_id}")
-                    except:
+                    except Exception:
                         await send(chat, "Invalid ID. Must be a number.")
 
                 elif cmd == "/adminlist" and is_owner:
@@ -3342,7 +3342,7 @@ async def main():
                             mods.add(new_id)
                             save_mods()
                             await send(chat, f"Added mod: {new_id}")
-                    except:
+                    except Exception:
                         await send(chat, "Invalid ID. Must be a number.")
 
                 elif cmd == "/removemod" and (is_owner or is_admin or is_mod):
@@ -3357,7 +3357,7 @@ async def main():
                             await send(chat, f"Removed mod: {rem_id}")
                         else:
                             await send(chat, f"Not a mod: {rem_id}")
-                    except:
+                    except Exception:
                         await send(chat, "Invalid ID. Must be a number.")
 
                 elif cmd == "/modlist" and (is_owner or is_admin or is_mod):
@@ -3421,7 +3421,7 @@ async def main():
                     except Exception as e:
                         await send(chat, f"Failed to create agent: {e}\nRaw: {raw[:300] if raw else 'none'}")
                         try: await send(chat, f"Tip: you can also use /addprompt <agentname> <prompt> to set a prompt manually.")
-                        except: pass
+                        except Exception: pass
 
                 elif cmd == "/premadeskills":
                     lines = [f"Pre-made skill teams ({len(PREMADE_SKILLS)}):"]
