@@ -196,6 +196,41 @@ except Exception:
     an_mod = None
 
 try:
+    import safety_moderation as safety_mod
+except Exception:
+    safety_mod = None
+
+try:
+    import coding_dev as dev_mod
+except Exception:
+    dev_mod = None
+
+try:
+    import ai_intelligence as ai_int_mod
+except Exception:
+    ai_int_mod = None
+
+try:
+    import community_engagement as comm_mod
+except Exception:
+    comm_mod = None
+
+try:
+    import automation_productivity as auto_mod
+except Exception:
+    auto_mod = None
+
+try:
+    import security_api as sec_mod
+except Exception:
+    sec_mod = None
+
+try:
+    import new_features as nf_mod
+except Exception:
+    nf_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -897,6 +932,13 @@ def load_experimental():
         "content-automation": {"name": "Content Automation", "desc": "Auto-post from RSS/Atom feeds to channels with AI-powered relevance filtering", "version": "3.1.0", "category": "automation"},
         "analytics-dashboard": {"name": "Analytics Dashboard", "desc": "Per-chat message/member tracking, stats, growth rate, peak hours, top users", "version": "3.1.0", "category": "admin"},
         "subscription-paywall": {"name": "Subscription Paywall", "desc": "Telegram Stars subscriptions, Dana bank transfer (Rp28k/month), plan management", "version": "3.1.0", "category": "admin"},
+        "safety-moderation": {"name": "Safety & Moderation", "desc": "AI toxicity detection, anti-nuke, CAPTCHA, behavioral analysis, cross-group reputation, edit detection", "version": "3.2.0", "category": "safety"},
+        "coding-dev-tools": {"name": "Coding & Dev Tools", "desc": "Remote coding assistant, code playground, GitHub integration, API doc generator", "version": "3.2.0", "category": "coding"},
+        "ai-intelligence": {"name": "AI Intelligence", "desc": "Proactive AI briefings, multi-modal processing, domain-specific chatbots, AI persona engine", "version": "3.2.0", "category": "ai"},
+        "community-engagement": {"name": "Community Engagement", "desc": "Reaction roles, AI server builder, image-based welcomes", "version": "3.2.0", "category": "community"},
+        "automation-productivity": {"name": "Automation & Productivity", "desc": "Content drip sequences, CRM integration, multi-step wizards, silent scheduled messages", "version": "3.2.0", "category": "automation"},
+        "security-api": {"name": "Security & API", "desc": "Ephemeral messages v2, communities support, star subscriptions v2, webhook manager, guest bots, bot-to-bot", "version": "3.2.0", "category": "security"},
+        "new-research-features": {"name": "New Research Features", "desc": "Streaming text, OCR document scanner, real-time translation", "version": "3.2.0", "category": "research"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -5870,6 +5912,484 @@ async def main():
                             await send(chat, "No active subscription found for that plan.")
                     else:
                         await send(chat, "Sub commands: list, status, pay, create (admin), cancel")
+
+                elif cmd == "/safety":
+                    if not safety_mod:
+                        await send(chat, "Safety module not available.")
+                        continue
+                    if not is_experimental_enabled("safety-moderation"):
+                        await send(chat, "Safety & Moderation is disabled. Use /experimental enable safety-moderation")
+                        continue
+                    sf = safety_mod.get_safety()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, sf.format_config(chat))
+                    elif sub == "on":
+                        sf.toggle(chat)
+                        await send(chat, "Safety & Moderation ON.")
+                    elif sub == "off":
+                        sf.toggle(chat)
+                        await send(chat, "Safety & Moderation OFF.")
+                    elif sub == "log":
+                        log_entries = sf.get_log(chat)
+                        if not log_entries:
+                            await send(chat, "No safety events logged.")
+                        else:
+                            lines = [f"Safety log ({len(log_entries)} entries):"]
+                            for e in log_entries[-10:]:
+                                lines.append(f"  [{e['feature']}] {e['action']} — user {e['user']}: {e['detail'][:80]}")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "trust":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /safety trust <user_id>")
+                            continue
+                        sf.add_trusted_user(chat, parts[2])
+                        await send(chat, f"User {parts[2]} trusted.")
+                    elif sub == "ban-global":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /safety ban-global <user_id> [reason]")
+                            continue
+                        reason = " ".join(parts[3:]) if len(parts) > 3 else "spam"
+                        sf.add_to_global_ban(parts[2], reason, chat)
+                        await send(chat, f"User {parts[2]} globally banned: {reason}")
+                    elif sub == "reputation":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /safety reputation <user_id>")
+                            continue
+                        rep = sf.get_reputation(parts[2])
+                        await send(chat, f"Reputation for {parts[2]}:\n  Score: {rep.get('score', 50)}/100\n  Violations: {rep.get('violations', 0)}\n  Verified: {rep.get('verified', False)}")
+                    else:
+                        await send(chat, "Safety commands: status, on, off, log, trust, ban-global, reputation")
+
+                elif cmd == "/dev":
+                    if not dev_mod:
+                        await send(chat, "Dev Tools module not available.")
+                        continue
+                    if not is_experimental_enabled("coding-dev-tools"):
+                        await send(chat, "Coding & Dev Tools is disabled. Use /experimental enable coding-dev-tools")
+                        continue
+                    dt = dev_mod.get_dev_tools()
+                    sub = parts[1].lower() if len(parts) > 1 else "help"
+                    if sub == "cwd":
+                        await send(chat, f"Working directory: {dt.get_working_dir(uid)}")
+                    elif sub == "setcwd":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev setcwd <path>")
+                            continue
+                        ok, msg = dt.set_working_dir(uid, " ".join(parts[2:]))
+                        await send(chat, msg)
+                    elif sub == "exec":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev exec <code>\nLanguages: python, javascript, bash")
+                            continue
+                        lang = "python"
+                        code = " ".join(parts[2:])
+                        if code.startswith("```"):
+                            code = code.split("\n", 1)[-1].rsplit("```", 1)[0]
+                        ok, result = await dt.execute_code(uid, code, lang)
+                        await send(chat, result[:4000])
+                    elif sub == "history":
+                        await send(chat, dt.list_history(uid))
+                    elif sub == "clear":
+                        dt.clear_history(uid)
+                        await send(chat, "History cleared.")
+                    elif sub == "github-token":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev github-token <token>")
+                            continue
+                        dt.set_github_token(uid, parts[2])
+                        await send(chat, "GitHub token set.")
+                    elif sub == "repos":
+                        ok, result = await dt.github_repos(uid)
+                        await send(chat, result[:4000] if ok else result)
+                    elif sub == "issues":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev issues <owner/repo>")
+                            continue
+                        ok, result = await dt.github_issues(uid, parts[2])
+                        await send(chat, result[:4000] if ok else result)
+                    elif sub == "prs":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev prs <owner/repo>")
+                            continue
+                        ok, result = await dt.github_prs(uid, parts[2])
+                        await send(chat, result[:4000] if ok else result)
+                    elif sub == "docs":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /dev docs <filepath>")
+                            continue
+                        ok, result = await dt.generate_api_docs(parts[2])
+                        await send(chat, result[:4000] if ok else result)
+                    else:
+                        await send(chat, "Dev commands: cwd, setcwd, exec, history, clear, github-token, repos, issues, prs, docs")
+
+                elif cmd == "/aiint":
+                    if not ai_int_mod:
+                        await send(chat, "AI Intelligence module not available.")
+                        continue
+                    if not is_experimental_enabled("ai-intelligence"):
+                        await send(chat, "AI Intelligence is disabled. Use /experimental enable ai-intelligence")
+                        continue
+                    ai = ai_int_mod.get_ai_intelligence()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, ai.format_config(chat))
+                    elif sub == "on":
+                        ai.toggle(chat)
+                        await send(chat, "AI Intelligence ON.")
+                    elif sub == "off":
+                        ai.toggle(chat)
+                        await send(chat, "AI Intelligence OFF.")
+                    elif sub == "domain":
+                        if len(parts) < 3:
+                            await send(chat, ai.list_domains())
+                            continue
+                        ok, msg = ai.set_domain(chat, parts[2])
+                        await send(chat, msg)
+                    elif sub == "persona":
+                        if len(parts) < 3:
+                            personas = ai.list_personas(uid)
+                            if not personas:
+                                await send(chat, "No custom personas. Use /aiint create-persona <name> <desc> <prompt>")
+                            else:
+                                lines = ["Your personas:"]
+                                for pid, p in personas.items():
+                                    lines.append(f"  [{pid}] {p['name']}: {p['description'][:50]}")
+                                await send(chat, "\n".join(lines))
+                            continue
+                        ok, msg = ai.set_persona(chat, parts[2])
+                        await send(chat, msg)
+                    elif sub == "create-persona":
+                        if len(parts) < 5:
+                            await send(chat, "Usage: /aiint create-persona <name> <description> <system_prompt>")
+                            continue
+                        pid = ai.create_persona(uid, parts[2], parts[3], " ".join(parts[4:]))
+                        await send(chat, f"Persona created: {pid} ({parts[2]})")
+                    elif sub == "briefing":
+                        if len(parts) < 3:
+                            ai.schedule_briefing(chat, "daily", "08:00")
+                            await send(chat, "Daily briefing scheduled at 08:00 UTC.")
+                        elif parts[2] == "off":
+                            ai.cancel_briefing(chat)
+                            await send(chat, "Briefing cancelled.")
+                        else:
+                            ai.schedule_briefing(chat, "daily", parts[2])
+                            await send(chat, f"Briefing scheduled at {parts[2]} UTC.")
+                    elif sub == "profile":
+                        profile = ai.get_user_profile(uid)
+                        if not profile:
+                            await send(chat, "No profile data yet.")
+                        else:
+                            lines = [f"Your AI profile:"]
+                            lines.append(f"  Mood: {profile.get('mood', 'neutral')}")
+                            lines.append(f"  Interests: {', '.join(profile.get('interests', [])) or 'none'}")
+                            lines.append(f"  Interactions: {profile.get('interaction_count', 0)}")
+                            lines.append(f"  Style: {profile.get('preferred_style', 'balanced')}")
+                            await send(chat, "\n".join(lines))
+                    else:
+                        await send(chat, "AI Intelligence commands: status, on, off, domain, persona, create-persona, briefing, profile")
+
+                elif cmd == "/community":
+                    if not comm_mod:
+                        await send(chat, "Community module not available.")
+                        continue
+                    if not is_experimental_enabled("community-engagement"):
+                        await send(chat, "Community Engagement is disabled. Use /experimental enable community-engagement")
+                        continue
+                    ce = comm_mod.get_community()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, ce.format_config(chat))
+                    elif sub == "on":
+                        ce.toggle(chat)
+                        await send(chat, "Community Engagement ON.")
+                    elif sub == "off":
+                        ce.toggle(chat)
+                        await send(chat, "Community Engagement OFF.")
+                    elif sub == "welcome":
+                        if len(parts) < 3:
+                            w = ce.get_welcome(chat)
+                            await send(chat, f"Welcome: {'ON' if w['enabled'] else 'OFF'}\nTemplate: {w['template']}")
+                        elif parts[2] == "on":
+                            ce.set_welcome(chat, enabled=True)
+                            await send(chat, "Welcome messages ON.")
+                        elif parts[2] == "off":
+                            ce.set_welcome(chat, enabled=False)
+                            await send(chat, "Welcome messages OFF.")
+                        elif parts[2] == "set":
+                            template = " ".join(parts[3:]) if len(parts) > 3 else None
+                            ce.set_welcome(chat, template=template)
+                            await send(chat, f"Welcome template set: {template}")
+                        else:
+                            await send(chat, "Usage: /community welcome [on|off|set <template>]")
+                    elif sub == "server-plan":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /community server-plan <description>\nExample: /community server-plan gaming community for Valorant players")
+                            continue
+                        prompt = " ".join(parts[2:])
+                        plan = ce.generate_server_plan(prompt)
+                        await send(chat, ce.format_server_plan(plan))
+                    elif sub == "reaction-role":
+                        if len(parts) < 5:
+                            await send(chat, "Usage: /community reaction-role <message_id> <emoji> <role_name>")
+                            continue
+                        msg = ce.add_reaction_role(chat, parts[2], parts[3], " ".join(parts[4:]))
+                        await send(chat, msg)
+                    else:
+                        await send(chat, "Community commands: status, on, off, welcome, server-plan, reaction-role")
+
+                elif cmd == "/automate":
+                    if not auto_mod:
+                        await send(chat, "Automation module not available.")
+                        continue
+                    if not is_experimental_enabled("automation-productivity"):
+                        await send(chat, "Automation & Productivity is disabled. Use /experimental enable automation-productivity")
+                        continue
+                    ap = auto_mod.get_automation()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, ap.format_config(chat))
+                    elif sub == "on":
+                        ap.toggle(chat)
+                        await send(chat, "Automation ON.")
+                    elif sub == "off":
+                        ap.toggle(chat)
+                        await send(chat, "Automation OFF.")
+                    elif sub == "drip":
+                        if len(parts) < 4:
+                            await send(chat, "Usage: /automate drip create <name> | <msg1> | <msg2> | ...\nOr: /automate drip list")
+                            continue
+                        action = parts[2].lower()
+                        if action == "list":
+                            drips = ap.list_drips(chat)
+                            if not drips:
+                                await send(chat, "No drip sequences.")
+                            else:
+                                lines = ["Drip sequences:"]
+                                for did, d in drips.items():
+                                    lines.append(f"  [{did}] {d['name']} ({len(d.get('messages', []))} messages, {len(d.get('subscribers', []))} subs)")
+                                await send(chat, "\n".join(lines))
+                        elif action == "create":
+                            name_msg = " ".join(parts[3:])
+                            parts_split = name_msg.split("|")
+                            name = parts_split[0].strip()
+                            messages = [m.strip() for m in parts_split[1:] if m.strip()]
+                            if not messages:
+                                await send(chat, "Usage: /automate drip create <name> | <msg1> | <msg2>")
+                                continue
+                            did = ap.create_drip(chat, name, messages)
+                            await send(chat, f"Drip created: {did} ({name}, {len(messages)} messages)")
+                        elif action == "subscribe":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /automate drip subscribe <drip_id>")
+                                continue
+                            ok, msg = ap.subscribe_drip(parts[3], uid)
+                            await send(chat, msg)
+                        else:
+                            await send(chat, "Drip commands: list, create, subscribe")
+                    elif sub == "crm":
+                        crm_action = parts[2].lower() if len(parts) > 2 else "list"
+                        if crm_action == "add":
+                            if len(parts) < 5:
+                                await send(chat, "Usage: /automate crm add <user_id> <name> [phone]")
+                                continue
+                            phone = parts[5] if len(parts) > 5 else None
+                            ap.add_crm_contact(chat, parts[3], parts[4], phone=phone)
+                            await send(chat, f"CRM contact added: {parts[4]}")
+                        elif crm_action == "list":
+                            contacts = ap.list_crm_contacts(chat)
+                            if not contacts:
+                                await send(chat, "No CRM contacts.")
+                            else:
+                                lines = [f"CRM contacts ({len(contacts)}):"]
+                                for uid_c, c in list(contacts.items())[:10]:
+                                    lines.append(f"  {c.get('name', uid_c)}: {c.get('phone', 'no phone')}")
+                                await send(chat, "\n".join(lines))
+                        elif crm_action == "search":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /automate crm search <query>")
+                                continue
+                            results = ap.search_crm(chat, " ".join(parts[3:]))
+                            if not results:
+                                await send(chat, "No matches.")
+                            else:
+                                lines = [f"Search results ({len(results)}):"]
+                                for uid_c, c in results.items():
+                                    lines.append(f"  {c.get('name', uid_c)}: {c.get('tags', [])}")
+                                await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "CRM commands: add, list, search")
+                    elif sub == "wizard":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /automate wizard list")
+                            continue
+                        action = parts[2].lower()
+                        if action == "list":
+                            wizards = ap.list_wizards(chat)
+                            if not wizards:
+                                await send(chat, "No wizards.")
+                            else:
+                                lines = ["Wizards:"]
+                                for wid, w in wizards.items():
+                                    lines.append(f"  [{wid}] {w['name']} ({len(w.get('steps', []))} steps)")
+                                await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "Wizard commands: list")
+                    else:
+                        await send(chat, "Automate commands: status, on, off, drip, crm, wizard")
+
+                elif cmd == "/secapi":
+                    if not sec_mod:
+                        await send(chat, "Security API module not available.")
+                        continue
+                    if not is_experimental_enabled("security-api"):
+                        await send(chat, "Security & API is disabled. Use /experimental enable security-api")
+                        continue
+                    sa = sec_mod.get_security_api()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, sa.format_config(chat))
+                    elif sub == "on":
+                        sa.toggle(chat)
+                        await send(chat, "Security & API ON.")
+                    elif sub == "off":
+                        sa.toggle(chat)
+                        await send(chat, "Security & API OFF.")
+                    elif sub == "ephemeral":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /secapi ephemeral <message>\n(Sends a self-destructing message)")
+                            continue
+                        text = " ".join(parts[2:])
+                        result = sa.create_ephemeral(chat, uid, text)
+                        if result:
+                            await send(chat, f"🔒 Ephemeral message sent (ID: {result['ephemeral_id']}, TTL: {result['ttl']}s)")
+                        else:
+                            await send(chat, "Ephemeral messages disabled.")
+                    elif sub == "webhook":
+                        if len(parts) < 3:
+                            whs = sa.list_webhooks()
+                            if not whs:
+                                await send(chat, "No webhooks configured.")
+                            else:
+                                lines = [f"Webhooks ({len(whs)}):"]
+                                for wid, wh in whs.items():
+                                    status = "ON" if wh.get("enabled") else "OFF"
+                                    lines.append(f"  [{wid}] {wh['name']} → {wh['url'][:50]} ({status})")
+                                await send(chat, "\n".join(lines))
+                            continue
+                        action = parts[2].lower()
+                        if action == "add" and len(parts) >= 5:
+                            name = parts[3]
+                            url = parts[4]
+                            wid = sa.add_webhook(name, url)
+                            await send(chat, f"Webhook added: {wid} ({name})")
+                        elif action == "remove" and len(parts) >= 4:
+                            sa.remove_webhook(parts[3])
+                            await send(chat, f"Webhook {parts[3]} removed.")
+                        else:
+                            await send(chat, "Webhook commands: add <name> <url>, remove <id>")
+                    elif sub == "guest-bot":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /secapi guest-bot add <bot_username>")
+                            continue
+                        action = parts[2].lower()
+                        if action == "add" and len(parts) >= 4:
+                            bot_name = parts[3].lstrip("@")
+                            msg = sa.add_guest_bot(chat, bot_name)
+                            await send(chat, msg)
+                        elif action == "remove" and len(parts) >= 4:
+                            bot_name = parts[3].lstrip("@")
+                            msg = sa.remove_guest_bot(chat, bot_name)
+                            await send(chat, msg)
+                        else:
+                            await send(chat, "Guest bot commands: add <username>, remove <username>")
+                    elif sub == "bot-bot":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /secapi bot-bot add <bot_username>")
+                            continue
+                        action = parts[2].lower()
+                        if action == "add" and len(parts) >= 4:
+                            bot_name = parts[3].lstrip("@")
+                            msg = sa.add_bot_bot_partner(chat, bot_name)
+                            await send(chat, msg)
+                        elif action == "remove" and len(parts) >= 4:
+                            bot_name = parts[3].lstrip("@")
+                            msg = sa.remove_bot_bot_partner(chat, bot_name)
+                            await send(chat, msg)
+                        else:
+                            await send(chat, "Bot-bot commands: add <username>, remove <username>")
+                    else:
+                        await send(chat, "Security API commands: status, on, off, ephemeral, webhook, guest-bot, bot-bot")
+
+                elif cmd == "/translate":
+                    if not nf_mod:
+                        await send(chat, "New Features module not available.")
+                        continue
+                    if not is_experimental_enabled("new-research-features"):
+                        await send(chat, "New Research Features is disabled. Use /experimental enable new-research-features")
+                        continue
+                    nf = nf_mod.get_new_features()
+                    sub = parts[1].lower() if len(parts) > 1 else "help"
+                    if sub == "help" or sub == "":
+                        await send(chat, "Usage:\n/translate <text> — translate to default language\n/translate <lang> <text> — translate to specific language\n/translate lang — set default language\n/languages — list all languages")
+                    elif sub == "lang":
+                        if len(parts) < 3:
+                            await send(chat, nf.list_languages()[:2000])
+                        else:
+                            ok, msg = nf.set_target_lang(chat, parts[2])
+                            await send(chat, msg)
+                    else:
+                        target = nf.get_chat(chat).get("default_target_lang", "en")
+                        if sub in nf_mod.LANGUAGES and len(parts) > 2:
+                            target = sub
+                            text = " ".join(parts[2:])
+                        else:
+                            text = " ".join(parts[1:])
+                        await typing(chat)
+                        translated = await nf.translate_text(text, target)
+                        await send(chat, f"🌐 [{target}] {translated[:4000]}")
+
+                elif cmd == "/languages":
+                    if not nf_mod:
+                        await send(chat, "New Features module not available.")
+                        continue
+                    nf = nf_mod.get_new_features()
+                    await send(chat, nf.list_languages()[:2000])
+
+                elif cmd == "/ocr":
+                    if not nf_mod:
+                        await send(chat, "New Features module not available.")
+                        continue
+                    if not is_experimental_enabled("new-research-features"):
+                        await send(chat, "New Research Features is disabled. Use /experimental enable new-research-features")
+                        continue
+                    nf = nf_mod.get_new_features()
+                    if not msg.get("photo"):
+                        await send(chat, "Send a photo with /ocr as caption, or reply to a photo with /ocr")
+                        continue
+                    await typing(chat)
+                    photo = msg["photo"][-1]
+                    file_id = photo["file_id"]
+                    try:
+                        c = await get_http()
+                        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                        file_resp = await c.get(f"https://api.telegram.org/bot{bot_token}/getFile?file_id={file_id}", timeout=15)
+                        file_data = file_resp.json()
+                        if file_data.get("ok"):
+                            file_path = file_data["result"]["file_path"]
+                            dl_resp = await c.get(f"https://api.telegram.org/file/bot{bot_token}/{file_path}", timeout=30)
+                            if dl_resp.status_code == 200:
+                                text = nf.extract_text_from_image_data(dl_resp.content)
+                                if text:
+                                    await send(chat, f"📄 OCR Result:\n{text[:4000]}")
+                                else:
+                                    await send(chat, "Could not extract text from image. Make sure the image contains readable text.")
+                            else:
+                                await send(chat, "Could not download image.")
+                        else:
+                            await send(chat, "Could not get file info.")
+                    except Exception as e:
+                        await send(chat, f"OCR error: {str(e)[:200]}")
 
                 elif cmd == "/weather":
                     city = " ".join(parts[1:]) if len(parts) > 1 else ""

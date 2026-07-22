@@ -1,5 +1,5 @@
 {
-  "version": "3.1.1",
+  "version": "3.2.0",
   "updated": "2026-07-22",
   "experimental": [
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -21,9 +21,26 @@
     "Poll Plus -- /pollplus track/stats/list — advanced poll tracking with vote distribution, bar charts, peak hour detection (subscription only)",
     "Content Automation -- /content add/status/on/off — auto-post RSS/Atom feeds to channels with AI relevance filtering",
     "Analytics Dashboard -- /analytics stats/daily/top — per-chat message/member tracking, growth rate, peak hours",
-    "Subscription Paywall -- /sub list/status/pay/create/cancel — Telegram Stars + Dana bank transfer (Rp28k/month)"
+    "Subscription Paywall -- /sub list/status/pay/create/cancel — Telegram Stars + Dana bank transfer (Rp28k/month)",
+    "Safety & Moderation -- /safety on/off/log/trust/ban-global/reputation — AI toxicity detection, anti-nuke, CAPTCHA, behavioral analysis, cross-group reputation",
+    "Coding & Dev Tools -- /dev cwd/exec/history/github-token/repos/issues/prs/docs — remote coding, code playground, GitHub integration",
+    "AI Intelligence -- /aiint status/on/off/domain/persona/briefing/profile — proactive briefings, domain-specific chatbots, multi-modal",
+    "Community Engagement -- /community on/off/welcome/server-plan/reaction-role — reaction roles, AI server builder, image welcomes",
+    "Automation & Productivity -- /automate on/off/drip/crm/wizard — content drip, CRM, multi-step wizards",
+    "Security & API -- /secapi on/off/ephemeral/webhook/guest-bot/bot-bot — ephemeral v2, webhooks, bot-to-bot",
+    "New Research Features -- /translate, /languages, /ocr — streaming text, OCR scanner, real-time translation"
   ],
   "whats_new": {
+    "3.2.0": [
+      "Safety & Moderation -- /safety status/on/off/log/trust/ban-global/reputation — AI toxicity detection (NLP spam scoring + custom blocked phrases + global bans), anti-nuke (mass-action detection, rate limiting), CAPTCHA verification (math challenges), behavioral analysis (join rate, suspicious profiles), cross-group reputation, edit detection",
+      "Coding & Dev Tools -- /dev cwd/setcwd/exec/history/clear/github-token/repos/issues/prs/docs — remote coding assistant with working directory management, code playground (Python/JS/Bash), GitHub integration (repos, issues, PRs), API doc generator",
+      "AI Intelligence -- /aiint status/on/off/domain/persona/create-persona/briefing/profile — proactive daily briefings, domain-specific chatbots (healthcare, finance, ecommerce, education, legal), AI persona engine v2 with user profiles (mood, interests, context memory)",
+      "Community Engagement -- /community status/on/off/welcome/server-plan/reaction-role — reaction roles (emoji→role mapping), AI server builder (generate channel/role/permission plans from plain English), image-based welcomes with template placeholders ({name}/{group}/{time}/{date})",
+      "Automation & Productivity -- /automate status/on/off/drip/crm/wizard — content drip sequences (create/subscribe with intervals), CRM integration (add/update/search contacts with tags), multi-step wizards",
+      "Security & API -- /secapi status/on/off/ephemeral/webhook/guest-bot/bot-bot — ephemeral messages v2 (create/edit/delete/TTL), webhook manager (add/remove/trigger with event filtering), guest AI bot mode, bot-to-bot communication",
+      "New Research Features -- /translate, /languages, /ocr — real-time translation (20 languages via Google Translate with caching), OCR document scanner (Tesseract text extraction from images)",
+      "All 7 new modules wired into opencode_bot.py with experimental toggles, command handlers, and usage instructions"
+    ],
     "3.1.1": [
       "Content Automation -- /content add <rss_url>, /content on/off, /content channel <id> — auto-post from RSS/Atom feeds with AI-powered relevance scoring",
       "Analytics Dashboard -- /analytics stats [days], /analytics daily [days], /analytics top [days] — per-chat message/member tracking, growth rate, peak hours, top users",
