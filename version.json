@@ -1,6 +1,6 @@
 {
-  "version": "3.1.0",
-  "updated": "2026-07-21",
+  "version": "3.1.1",
+  "updated": "2026-07-22",
   "experimental": [
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
     "Scheduled Cron -- recurring AI prompts with /cron and web page change monitoring with /monitor",
@@ -16,9 +16,24 @@
     "Bot-to-Bot Auto-Reply -- /bridge auto-reply <name> on: AI auto-responds to incoming bot messages",
     "Agent Marketplace -- /market — browse, install, and share community agents from GitHub registry",
     "Video Generator v2 -- /video make, /video meme, /video virality — TikTok styles, meme templates, auto-captions, virality scoring",
-    "X-Phone Voice v2 -- /voice on — voice-to-voice chat with emotion, conversation mode, and interruption"
+    "X-Phone Voice v2 -- /voice on — voice-to-voice chat with emotion, conversation mode, and interruption",
+    "AI Styles -- /style list, /style on <name>, /style create <name> <text>, /style off — custom AI personality presets (teacher, friendly, professional, concise, poetic, mentor, socratic, comedian)",
+    "Poll Plus -- /pollplus track/stats/list — advanced poll tracking with vote distribution, bar charts, peak hour detection (subscription only)",
+    "Content Automation -- /content add/status/on/off — auto-post RSS/Atom feeds to channels with AI relevance filtering",
+    "Analytics Dashboard -- /analytics stats/daily/top — per-chat message/member tracking, growth rate, peak hours",
+    "Subscription Paywall -- /sub list/status/pay/create/cancel — Telegram Stars + Dana bank transfer (Rp28k/month)"
   ],
   "whats_new": {
+    "3.1.1": [
+      "Content Automation -- /content add <rss_url>, /content on/off, /content channel <id> — auto-post from RSS/Atom feeds with AI-powered relevance scoring",
+      "Analytics Dashboard -- /analytics stats [days], /analytics daily [days], /analytics top [days] — per-chat message/member tracking, growth rate, peak hours, top users",
+      "Subscription Paywall -- /sub list, /sub status, /sub pay <plan_id>, /sub create (admin), /sub cancel — Telegram Stars invoices, Dana bank transfer (Rp28k/month), hotelmurah.com fallback",
+      "Fixed HTTP/2 crash — disabled http2=True in httpx client (Telegram Bot API doesn't support HTTP/2)",
+      "Rich Messages released — AI responses use Telegram's native rich blocks (tables, code, headings)",
+      "Guardian moderation wired into message flow — auto-delete/ban for rule violations",
+      "Auto-reply template injected into AI system prompt when configured",
+      "Analytics tracking wired into message loop — automatic per-chat stats collection"
+    ],
     "3.1.0": [
       "Knowledge Graph v2 -- /kg add, /kg relate, /kg extract, /kg search, /kg query, /kg related, /kg stats, /kg webviz — NetworkX-based graph with entity/relation extraction via LLM, full CRUD, D3.js interactive visualization at /kg-viz",
       "Knowledge Vault -- /vault save, /vault search, /vault list, /vault get, /vault delete — persistent personal second brain",
@@ -32,7 +47,9 @@
       "New platform type 'bot' for /bridge add -- connect OpenCode Bot to any bot via webhook",
       "Agent Marketplace -- /market list, /market search, /market featured, /market install, /market uninstall, /market installed, /market publish, /market refresh — browse/install/share agents from GitHub registry",
       "Video Generator v2 -- /video make <title> | <caption> [style] — generate TikTok/YouTube/Instagram/Neon/Vintage/Minimal style frames with Pillow; /video meme <template> <text1> [text2] — generate memes (drake, distracted, captain, doge); /video virality <text> — score engagement potential; /video styles — list all styles",
-      "X-Phone Voice v2 -- /voice on — full voice-to-voice conversation mode: speak → whisper STT → LLM → OpenAI TTS → voice reply; /voice emotion <emotion> — 7 emotions (neutral, happy, sad, angry, excited, calm, whisper); voice interruption support — send another voice message to interrupt current reply; improved TTS with OpenAI fallback chain"
+      "X-Phone Voice v2 -- /voice on — full voice-to-voice conversation mode: speak → whisper STT → LLM → OpenAI TTS → voice reply; /voice emotion <emotion> — 7 emotions (neutral, happy, sad, angry, excited, calm, whisper); voice interruption support — send another voice message to interrupt current reply; improved TTS with OpenAI fallback chain",
+      "AI Styles -- /style list, /style on/off, /style create/delete, /style show — custom AI personality presets: teacher, friendly, professional, concise, poetic, mentor, socratic, comedian + create your own",
+      "Poll Plus -- /pollplus track/stats/list — advanced poll tracking with vote distribution bar charts, unique voter count, peak voting hour detection. Paywall-gated subscription feature."
     ],
     "2.8.0": [
       "Conversation History - /archive, /history, /view, /change to save and browse past chats",

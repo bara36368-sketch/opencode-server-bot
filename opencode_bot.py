@@ -161,6 +161,41 @@ except Exception:
     vid_mod = None
 
 try:
+    import guardian as guard_mod
+except Exception:
+    guard_mod = None
+
+try:
+    import rich_message as rich_mod
+except Exception:
+    rich_mod = None
+
+try:
+    import ai_styles as styles_mod
+except Exception:
+    styles_mod = None
+
+try:
+    import poll_plus as pollplus_mod
+except Exception:
+    pollplus_mod = None
+
+try:
+    import paywall as pw_mod
+except Exception:
+    pw_mod = None
+
+try:
+    import content_automation as ca_mod
+except Exception:
+    ca_mod = None
+
+try:
+    import analytics as an_mod
+except Exception:
+    an_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -196,7 +231,7 @@ async def get_http():
         _http = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=10, read=60, write=30, pool=10),
             limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30),
-            http2=True,
+            http2=False,
         )
     return _http
 
@@ -856,6 +891,12 @@ def load_experimental():
         "scheduled-cron": {"name": "Scheduled Cron", "desc": "Recurring AI prompt scheduling with /cron and web page monitoring with /monitor", "version": "3.0.0", "category": "automation"},
         "social-search": {"name": "Social Search", "desc": "Multi-platform search across Reddit, Hacker News, and Medium via /reddit, /hn, /social", "version": "3.0.0", "category": "research"},
         "doc-analyzer": {"name": "Document Analyzer", "desc": "Enhanced PDF/document analysis with AI-powered Q&A and multi-engine text extraction", "version": "3.0.0", "category": "ai"},
+        "rich-messages": {"name": "Rich Messages", "desc": "Send AI responses using Telegram's Rich Message format (tables, code blocks, headings, collapsible details)", "version": "3.1.0", "category": "ai"},
+        "ai-styles": {"name": "AI Styles", "desc": "Custom AI personality presets: /style list, /style on <name>, /style create <name> <text>, /style off", "version": "3.1.0", "category": "ai"},
+        "poll-plus": {"name": "Poll Plus", "desc": "Advanced poll tracking with statistics, vote distribution charts, peak hour detection (subscription only)", "version": "3.1.0", "category": "admin"},
+        "content-automation": {"name": "Content Automation", "desc": "Auto-post from RSS/Atom feeds to channels with AI-powered relevance filtering", "version": "3.1.0", "category": "automation"},
+        "analytics-dashboard": {"name": "Analytics Dashboard", "desc": "Per-chat message/member tracking, stats, growth rate, peak hours, top users", "version": "3.1.0", "category": "admin"},
+        "subscription-paywall": {"name": "Subscription Paywall", "desc": "Telegram Stars subscriptions, Dana bank transfer (Rp28k/month), plan management", "version": "3.1.0", "category": "admin"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -2274,7 +2315,7 @@ async def tg(method, data=None):
     return resp
 
 _sent_cache = {}
-async def send(chat, text, parse_mode=None):
+async def send(chat, text, parse_mode=None, receiver_user=None):
     raw = str(text)
     if not raw:
         return {"ok": True, "empty": True}
@@ -2289,7 +2330,18 @@ async def send(chat, text, parse_mode=None):
             if now - _sent_cache[k] > 10:
                 del _sent_cache[k]
 
-    # Auto-convert markdown-like syntax to HTML for rich formatting
+    rich_ok = rich_mod and is_experimental_enabled("rich-messages") and rich_mod.has_rich_content(raw) and len(raw) < 5000
+
+    if rich_ok:
+        try:
+            c = await get_http()
+            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+            r = await rich_mod.send_rich(c, bot_token, chat, raw, receiver_user)
+            if r and r.get("ok"):
+                return r
+        except Exception:
+            pass
+
     if parse_mode is None and ("```" in raw or "**" in raw or "`" in raw):
         import re as _re
         html = raw
@@ -2303,13 +2355,17 @@ async def send(chat, text, parse_mode=None):
         parse_mode = "HTML"
 
     MAX_TG = 4096
+    params = {"chat_id": chat, "text": raw}
+    if parse_mode:
+        params["parse_mode"] = parse_mode
+    if receiver_user:
+        params["receiver_user_id"] = receiver_user
+
     if len(raw) <= MAX_TG:
-        params = {"chat_id": chat, "text": raw}
-        if parse_mode:
-            params["parse_mode"] = parse_mode
+        if receiver_user:
+            params["receiver_user_id"] = receiver_user
         return await tg("sendMessage", params)
 
-    # Chunk long messages
     chunks = []
     while raw:
         if len(raw) <= MAX_TG:
@@ -2325,14 +2381,25 @@ async def send(chat, text, parse_mode=None):
 
     results = []
     for chunk in chunks:
-        params = {"chat_id": chat, "text": chunk}
-        r = await tg("sendMessage", params)
+        p = {"chat_id": chat, "text": chunk}
+        if receiver_user:
+            p["receiver_user_id"] = receiver_user
+        r = await tg("sendMessage", p)
         results.append(r)
         await asyncio.sleep(0.3)
     return results[-1] if results else {"ok": True}
 
 async def typing(chat):
     await tg("sendChatAction", {"chat_id": chat, "action": "typing"})
+
+async def bot_delete_message(chat, mid):
+    try:
+        c = await get_http()
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        await c.post(f"https://api.telegram.org/bot{bot_token}/deleteMessage",
+            json={"chat_id": chat, "message_id": mid}, timeout=10)
+    except Exception:
+        pass
 
 async def call_provider(messages, provider, override=None):
     if override:
@@ -2429,7 +2496,7 @@ _empty_polls = 0
 
 async def poll():
     global last_update, _empty_polls
-    p = {"timeout": 15, "allowed_updates": ["message"]}
+    p = {"timeout": 15, "allowed_updates": ["message", "chat_join_request", "chat_member", "my_chat_member", "poll_answer"]}
     if last_update:
         p["offset"] = last_update + 1
     for attempt in range(3):
@@ -2779,12 +2846,76 @@ async def main():
                 if _shutdown_event.is_set():
                     break
                 msg = u.get("message")
+                join_req = u.get("chat_join_request")
+                if join_req:
+                    jchat = join_req["chat"]["id"]
+                    juser = join_req["from"]["id"]
+                    jname = join_req["from"].get("first_name", "User")
+                    if guard_mod:
+                        guard = guard_mod.get_guardian()
+                        if guard.is_enabled(jchat):
+                            approved, reason = guard.evaluate_join_request(jchat, join_req.get("from", {}))
+                            guard.log_action(jchat, "join_request" if approved else "join_rejected", juser, f"{jname}: {reason or 'approved'}")
+                            if approved:
+                                try:
+                                    c = await get_http()
+                                    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                                    await c.post(f"https://api.telegram.org/bot{bot_token}/approveChatJoinRequest",
+                                        json={"chat_id": jchat, "user_id": juser}, timeout=10)
+                                    cfg = guard.get_chat(jchat)
+                                    welcome = cfg.get("welcome", "")
+                                    if welcome:
+                                        wtext = welcome.replace("{name}", jname)
+                                        await c.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                                            json={"chat_id": jchat, "text": wtext, "parse_mode": "HTML"}, timeout=10)
+                                except Exception:
+                                    pass
+                        else:
+                            pass
+                    continue
+                poll_ans = u.get("poll_answer")
+                if poll_ans and pollplus_mod:
+                    pp = pollplus_mod.get_poll_plus()
+                    pid = poll_ans["poll_id"]
+                    uid_a = poll_ans["user"]["id"]
+                    opts = poll_ans.get("option_ids", [])
+                    pp.record_answer(pid, uid_a, opts)
+                    continue
                 if not msg: continue
                 mid, cid = msg.get("message_id"), msg["chat"]["id"]
                 if mid and (cid, mid) in processed: continue
                 if mid: processed.add((cid, mid))
                 if len(processed) > 1000:
                     processed = set(list(processed)[-500:])
+                new_members = msg.get("new_chat_members", [])
+                if new_members:
+                    for nm in new_members:
+                        if nm.get("is_bot"):
+                            if nm.get("id") == int(os.environ.get("TELEGRAM_BOT_TOKEN", "0").split(":")[0]) if ":" in os.environ.get("TELEGRAM_BOT_TOKEN", "") else False:
+                                await send(chat, "🤖 Bot added to group! Use /guard on to enable AI guardian.")
+                            continue
+                        if guard_mod:
+                            guard = guard_mod.get_guardian()
+                            if guard.is_enabled(cid):
+                                cfg = guard.get_chat(cid)
+                                welcome = cfg.get("welcome", "")
+                                if welcome:
+                                    nm_name = nm.get("first_name", "User")
+                                    wtext = welcome.replace("{name}", nm_name)
+                                    try:
+                                        c = await get_http()
+                                        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                                        await c.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                                            json={"chat_id": cid, "text": wtext, "parse_mode": "HTML"}, timeout=10)
+                                    except Exception:
+                                        pass
+                                guard.log_action(cid, "member_joined", nm.get("id", 0), nm.get("first_name", "?"))
+                                if an_mod and is_experimental_enabled("analytics-dashboard"):
+                                    try:
+                                        an_mod.get_analytics().track_member_join(cid, nm.get("id", 0))
+                                    except Exception:
+                                        pass
+                    continue
                 if msg.get("from", {}).get("is_bot"):
                     continue
                 chat, uid = msg["chat"]["id"], msg["from"]["id"]
@@ -2799,6 +2930,11 @@ async def main():
                 else:
                     _last_msg_times[uid] = now
                 last_user_msg[uid] = {"t": now, "text": text}
+                if an_mod and is_experimental_enabled("analytics-dashboard"):
+                    try:
+                        an_mod.get_analytics().track_message(chat, uid, text, is_command=text.startswith("/"))
+                    except Exception:
+                        pass
                 photo = msg.get("photo")
                 voice = msg.get("voice")
                 document = msg.get("document")
@@ -2852,6 +2988,26 @@ async def main():
                         else:
                             await send(chat, f"Could not extract text from '{fname}'.")
                     continue
+
+                if guard_mod and text:
+                    guard = guard_mod.get_guardian()
+                    v = guard.check_message(chat, text)
+                    if v:
+                        is_cmd = text.startswith("/")
+                        if not is_cmd:
+                            actions = []
+                            for vtype, vmsg in v:
+                                guard.log_action(chat, f"mod_{vtype}", uid, vmsg[:100])
+                                if vtype == "ban":
+                                    actions.append(f"⛔ {vmsg}")
+                                else:
+                                    actions.append(f"⚠️ {vmsg}")
+                            if actions:
+                                try:
+                                    await bot_delete_message(chat, mid)
+                                except Exception:
+                                    pass
+                                await send(chat, f"Guardian mod:\n" + "\n".join(actions[:3]))
 
                 parts = text.split()
                 cmd = parts[0].lower() if parts else ""
@@ -3910,6 +4066,157 @@ async def main():
                         await send(chat, f"X-Phone Status:\n  Mode: {mode}\n  Available emotions: {', '.join(sorted(bf.VOICE_EMOTIONS))}")
                     else:
                         await send(chat, "Unknown subcommand. Use: /voice")
+
+                elif cmd == "/auto":
+                    if not guard_mod:
+                        await send(chat, "Auto-reply module not available.")
+                        continue
+                    auto = guard_mod.get_auto()
+                    if len(parts) < 2:
+                        c = auto.get(uid)
+                        status = "ON" if c.get("enabled") else "OFF"
+                        await send(chat, f"Chat Automation: {status}\nUsage:\n/auto on — Enable AI auto-response on your behalf\n/auto off — Disable\n/auto toggle — Toggle on/off\n/auto template <text> — Set auto-reply style/prompt\n/auto scope all|whitelist|blacklist — Set chat scope\n/auto allow <chat_id> — Add chat to whitelist\n/auto deny <chat_id> — Add chat to blacklist\n/auto status — Current settings")
+                        continue
+                    a_sub = parts[1].lower()
+                    if a_sub == "on":
+                        auto.set(uid, enabled=True)
+                        await send(chat, f"✅ Chat Automation ON. I'll auto-respond to messages in allowed chats using your style.\nUse /auto template <text> to customize my voice.")
+                    elif a_sub == "off":
+                        auto.set(uid, enabled=False)
+                        await send(chat, "Chat Automation OFF.")
+                    elif a_sub == "toggle":
+                        new = auto.toggle(uid)
+                        await send(chat, f"Chat Automation {'ON' if new else 'OFF'}.")
+                    elif a_sub == "template":
+                        tpl = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not tpl:
+                            await send(chat, "Usage: /auto template <text>\nExample: /auto template Respond as a friendly, professional assistant. Keep replies under 100 chars.")
+                            continue
+                        auto.set(uid, template=tpl)
+                        await send(chat, f"Auto-reply template set:\n{tpl[:200]}")
+                    elif a_sub == "scope":
+                        if len(parts) < 3 or parts[2] not in ("all", "whitelist", "blacklist"):
+                            await send(chat, "Usage: /auto scope all|whitelist|blacklist")
+                            continue
+                        auto.set(uid, scope=parts[2])
+                        await send(chat, f"Scope set to: {parts[2]}")
+                    elif a_sub == "allow":
+                        cid = parts[2] if len(parts) > 2 else ""
+                        if cid:
+                            cfg = auto.get(uid)
+                            wl = cfg.get("whitelist", [])
+                            if cid not in wl:
+                                wl.append(cid)
+                            auto.set(uid, whitelist=wl, scope=cfg.get("scope", "all"))
+                            await send(chat, f"Added {cid} to whitelist.")
+                    elif a_sub == "deny":
+                        cid = parts[2] if len(parts) > 2 else ""
+                        if cid:
+                            cfg = auto.get(uid)
+                            bl = cfg.get("blacklist", [])
+                            if cid not in bl:
+                                bl.append(cid)
+                            auto.set(uid, blacklist=bl, scope=cfg.get("scope", "all"))
+                            await send(chat, f"Added {cid} to blacklist.")
+                    elif a_sub == "status":
+                        c = auto.get(uid)
+                        status = "ON" if c.get("enabled") else "OFF"
+                        await send(chat, f"Chat Automation Status:\n  Status: {status}\n  Scope: {c.get('scope', 'all')}\n  Template: {c.get('template', '(default)')[:100]}")
+                    else:
+                        await send(chat, f"Unknown subcommand: {a_sub}")
+
+                elif cmd == "/guard":
+                    if not guard_mod:
+                        await send(chat, "Guardian module not available.")
+                        continue
+                    guard = guard_mod.get_guardian()
+                    is_group = msg.get("chat", {}).get("type", "") in ("group", "supergroup")
+                    if not is_group and (is_owner or is_admin):
+                        pass
+                    elif not is_group:
+                        await send(chat, "Guardian mode only works in groups.")
+                        continue
+                    if len(parts) < 2:
+                        cfg = guard.get_chat(chat)
+                        status = "ON" if cfg.get("enabled") else "OFF"
+                        qcount = len(cfg.get("quizzes", []))
+                        await send(chat, f"AI Guardian: {status}\nUsage:\n/guard on — Enable AI guardian for this group\n/guard off — Disable\n/guard toggle — Toggle\n/guard rules <text> — Set moderation rules (ban:keyword, warn:keyword, maxlen:N)\n/guard screening on|off — Toggle join request screening\n/guard quiz add <question> | <answer> — Add screening question\n/guard quiz remove <id> — Remove quiz question\n/guard quiz list — List questions\n/guard welcome <text> — Set welcome message\n/guard strictness low|medium|high — Set screening strictness\n/guard log on|off — Toggle action logging\n/guard status — Current settings")
+                        continue
+                    g_sub = parts[1].lower()
+                    if g_sub == "on":
+                        guard.set_chat(chat, enabled=True)
+                        await send(chat, f"🛡️ AI Guardian ON for this group.\nI'll screen join requests, enforce rules, and welcome new members.\nUse /guard rules to set moderation rules.")
+                    elif g_sub == "off":
+                        guard.set_chat(chat, enabled=False)
+                        await send(chat, "AI Guardian OFF.")
+                    elif g_sub == "toggle":
+                        new = guard.toggle(chat)
+                        await send(chat, f"AI Guardian {'ON' if new else 'OFF'}.")
+                    elif g_sub == "rules":
+                        rules = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not rules:
+                            await send(chat, "Usage: /guard rules <text>\nOne rule per line. Prefix with ban:, warn:, or maxlen:\nExample:\n/guard rules ban:spam\nban:crypto\nwarn:badword\nmaxlen:1000")
+                            continue
+                        guard.set_chat(chat, rules=rules)
+                        await send(chat, f"Guardian rules set ({len(rules.split(chr(10)))} lines).")
+                    elif g_sub == "screening":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /guard screening on|off")
+                            continue
+                        on = parts[2].lower() == "on"
+                        guard.set_chat(chat, screening=on)
+                        await send(chat, f"Join request screening {'ON' if on else 'OFF'}.")
+                    elif g_sub == "quiz" and len(parts) >= 3:
+                        qsub = parts[2].lower()
+                        if qsub == "add":
+                            rest = " ".join(parts[3:]) if len(parts) > 3 else ""
+                            if " | " not in rest:
+                                await send(chat, "Usage: /guard quiz add <question> | <answer>")
+                                continue
+                            qq, qa = rest.split(" | ", 1)
+                            guard.add_quiz(chat, qq.strip(), qa.strip())
+                            await send(chat, f"Quiz question added:\nQ: {qq.strip()}\nA: {qa.strip()}")
+                        elif qsub == "remove":
+                            qid = parts[3] if len(parts) > 3 else ""
+                            guard.remove_quiz(chat, qid)
+                            await send(chat, f"Removed quiz: {qid}")
+                        elif qsub == "list":
+                            cfg = guard.get_chat(chat)
+                            quizzes = cfg.get("quizzes", [])
+                            if not quizzes:
+                                await send(chat, "No screening questions configured.")
+                                continue
+                            lines = [f"Screening questions ({len(quizzes)}):"]
+                            for q in quizzes:
+                                lines.append(f"  [{q['id']}] {q['question']} -> {q['answer']}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "Usage: /guard quiz add|remove|list")
+                    elif g_sub == "welcome":
+                        welcome = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        if not welcome:
+                            await send(chat, "Usage: /guard welcome <text>\nExample: /guard welcome Welcome {name}! Please read the rules.")
+                            continue
+                        guard.set_chat(chat, welcome=welcome)
+                        await send(chat, f"Welcome message set:\n{welcome[:200]}")
+                    elif g_sub == "strictness":
+                        if len(parts) < 3 or parts[2] not in ("low", "medium", "high"):
+                            await send(chat, "Usage: /guard strictness low|medium|high")
+                            continue
+                        guard.set_chat(chat, strictness=parts[2])
+                        await send(chat, f"Screening strictness set to: {parts[2]}")
+                    elif g_sub == "log":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /guard log on|off")
+                            continue
+                        guard.set_chat(chat, log=parts[2].lower() == "on")
+                        await send(chat, f"Guardian logging {'ON' if parts[2].lower() == 'on' else 'OFF'}.")
+                    elif g_sub == "status":
+                        cfg = guard.get_chat(chat)
+                        status = "ON" if cfg.get("enabled") else "OFF"
+                        await send(chat, f"AI Guardian Status:\n  Status: {status}\n  Screening: {'ON' if cfg.get('screening') else 'OFF'}\n  Strictness: {cfg.get('strictness', 'medium')}\n  Rules: {(cfg.get('rules', '') or '')[:200] or '(none)'}\n  Quizzes: {len(cfg.get('quizzes', []))}\n  Welcome: {(cfg.get('welcome', '') or '')[:100] or '(none)'}")
+                    else:
+                        await send(chat, f"Unknown subcommand: {g_sub}")
 
                 elif cmd == "/video-analyze":
                     if len(parts) < 2:
@@ -5293,6 +5600,277 @@ async def main():
                     else:
                         await send(chat, get_experimental_list())
 
+                elif cmd == "/rich":
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "on":
+                        if not rich_mod:
+                            await send(chat, "Rich Messages module not available.")
+                            continue
+                        fid = "rich-messages"
+                        if fid not in experimental_features:
+                            experimental_features[fid] = {"enabled": True, "name": "Rich Messages", "desc": "Send AI responses using Telegram's Rich Message format", "version": "3.1.0", "category": "ai"}
+                        experimental_features[fid]["enabled"] = True
+                        save_experimental()
+                        await send(chat, "✅ Rich Messages ON. AI output will use structured blocks (tables, code, headings).")
+                    elif sub == "off":
+                        fid = "rich-messages"
+                        if fid in experimental_features:
+                            experimental_features[fid]["enabled"] = False
+                            save_experimental()
+                        await send(chat, "Rich Messages OFF.")
+                    elif sub == "status" or sub == "":
+                        on = is_experimental_enabled("rich-messages") if rich_mod else False
+                        await send(chat, f"Rich Messages: {'ON' if on else 'OFF'}\nConverts AI markdown into Telegram's native rich blocks (tables, code, headings, collapsible details).\nUse /rich on or /rich off to toggle.")
+
+                elif cmd == "/style":
+                    if not styles_mod:
+                        await send(chat, "AI Styles module not available.")
+                        continue
+                    if not is_experimental_enabled("ai-styles"):
+                        await send(chat, "AI Styles is disabled. Use /experimental on ai-styles to enable.")
+                        continue
+                    ast = styles_mod.get_ai_styles()
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub in ("list", ""):
+                        all_s, active_n = ast.list_styles(uid)
+                        lines = [f"AI Styles (active: {active_n or 'none'})", ""]
+                        for sname, (stype, sdesc) in sorted(all_s.items()):
+                            mark = "★ " if sname == active_n else "  "
+                            lines.append(f"{mark}{sname} [{stype}] — {sdesc}")
+                        lines.append("")
+                        lines.append("Usage:")
+                        lines.append("  /style on <name> — activate")
+                        lines.append("  /style off — deactivate")
+                        lines.append("  /style create <name> <text> — custom style")
+                        lines.append("  /style show <name> — view style text")
+                        lines.append("  /style delete <name> — delete custom style")
+                        await send(chat, "\n".join(lines))
+                    elif sub == "on":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /style on <name>")
+                            continue
+                        sname = parts[2]
+                        if ast.set_active(uid, sname):
+                            await send(chat, f"Style '{sname}' activated.")
+                        else:
+                            await send(chat, f"Style '{sname}' not found. Use /style list to see available styles.")
+                    elif sub == "off":
+                        ast.set_active(uid, None)
+                        await send(chat, "Style deactivated.")
+                    elif sub == "show":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /style show <name>")
+                            continue
+                        sname = parts[2]
+                        stext = ast.get_style_text(uid, sname)
+                        if stext:
+                            await send(chat, f"Style '{sname}':\n{stext}")
+                        else:
+                            await send(chat, f"Style '{sname}' not found.")
+                    elif sub == "create":
+                        if len(parts) < 4:
+                            await send(chat, "Usage: /style create <name> <style text>")
+                            continue
+                        sname = parts[2]
+                        stext = " ".join(parts[3:])
+                        ast.create_custom(uid, sname, stext)
+                        await send(chat, f"Custom style '{sname}' created. Use /style on {sname} to activate.")
+                    elif sub == "delete":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /style delete <name>")
+                            continue
+                        sname = parts[2]
+                        if ast.delete_style(uid, sname):
+                            await send(chat, f"Style '{sname}' deleted.")
+                        else:
+                            await send(chat, f"Style '{sname}' not found or is a built-in preset (cannot delete).")
+
+                elif cmd == "/pollplus":
+                    if not pollplus_mod or not pw_mod:
+                        await send(chat, "Poll Plus module or Paywall not available.")
+                        continue
+                    if not is_experimental_enabled("poll-plus"):
+                        await send(chat, "Poll Plus is disabled. Use /experimental on poll-plus to enable.")
+                        continue
+                    pw = pw_mod.get_paywall()
+                    has_sub = any(s.get("active") for s in pw.user_subs(uid))
+                    if not has_sub and not is_owner:
+                        await send(chat, f"This feature requires an active subscription.\n{pw.payment_instructions()}")
+                        continue
+                    pp = pollplus_mod.get_poll_plus()
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "track":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /pollplus track <poll_id>\nForward a poll to me or paste its ID.")
+                            continue
+                        pid = parts[2]
+                        existing = pp.get_poll(pid)
+                        if existing:
+                            await send(chat, f"Already tracking poll {pid}.")
+                            continue
+                        await send(chat, f"Poll {pid} is now being tracked. Use /pollplus stats {pid} to see results.")
+                    elif sub == "stats":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /pollplus stats <poll_id>")
+                            continue
+                        pid = parts[2]
+                        formatted = pp.format_stats(pid)
+                        if formatted:
+                            await send(chat, formatted)
+                        else:
+                            await send(chat, f"No data for poll {pid}. Track it first with /pollplus track {pid}")
+                    elif sub == "list":
+                        tracked = pp.list_tracked(chat)
+                        if not tracked:
+                            await send(chat, "No polls tracked in this chat. Use /pollplus track <poll_id> to start.")
+                        else:
+                            lines = ["Tracked polls in this chat:"]
+                            for p in tracked:
+                                lines.append(f"  {p['id']} — {p['question'][:50]}")
+                            await send(chat, "\n".join(lines))
+
+                elif cmd == "/content":
+                    if not ca_mod:
+                        await send(chat, "Content Automation module not available.")
+                        continue
+                    if not is_experimental_enabled("content-automation"):
+                        await send(chat, "Content Automation is disabled. Use /experimental enable content-automation")
+                        continue
+                    ca = ca_mod.get_ca()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, ca.get_status(chat))
+                    elif sub == "on":
+                        ca.toggle(chat)
+                        await send(chat, "Content Automation ON.")
+                    elif sub == "off":
+                        ca.toggle(chat)
+                        await send(chat, "Content Automation OFF.")
+                    elif sub == "add":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /content add <rss_url> [label]")
+                            continue
+                        url = parts[2]
+                        label = parts[3] if len(parts) > 3 else None
+                        fid = ca.add_feed(chat, url, label=label)
+                        await send(chat, f"Feed added: {url}\nID: {fid}\nUse /content on to enable auto-posting.")
+                    elif sub == "remove":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /content remove <feed_id>")
+                            continue
+                        ca.remove_feed(chat, parts[2])
+                        await send(chat, f"Feed {parts[2]} removed.")
+                    elif sub == "channel":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /content channel <channel_id>\n(Use -100... format for private channels)")
+                            continue
+                        ca.set_channel(chat, parts[2])
+                        await send(chat, f"Channel set to {parts[2]}")
+                    else:
+                        await send(chat, "Content commands: status, on, off, add, remove, channel")
+
+                elif cmd == "/analytics":
+                    if not an_mod:
+                        await send(chat, "Analytics module not available.")
+                        continue
+                    if not is_experimental_enabled("analytics-dashboard"):
+                        await send(chat, "Analytics Dashboard is disabled. Use /experimental enable analytics-dashboard")
+                        continue
+                    an = an_mod.get_analytics()
+                    sub = parts[1].lower() if len(parts) > 1 else "stats"
+                    days = 7
+                    if len(parts) > 2:
+                        try:
+                            days = max(1, min(90, int(parts[2])))
+                        except Exception:
+                            days = 7
+                    if sub == "stats":
+                        await send(chat, an.format_stats(chat, days))
+                    elif sub == "daily":
+                        await send(chat, an.format_daily(chat, days))
+                    elif sub == "top":
+                        stats = an.get_stats(chat, days)
+                        if not stats:
+                            await send(chat, "No data.")
+                        else:
+                            lines = [f"Top users ({days}d):"]
+                            for uid, cnt in stats.get("top_users", []):
+                                lines.append(f"  {uid}: {cnt} msgs")
+                            await send(chat, "\n".join(lines))
+                    else:
+                        await send(chat, "Analytics commands: stats [days], daily [days], top [days]")
+
+                elif cmd == "/sub":
+                    if not pw_mod:
+                        await send(chat, "Paywall module not available.")
+                        continue
+                    if not is_experimental_enabled("subscription-paywall"):
+                        await send(chat, "Subscription Paywall is disabled. Use /experimental enable subscription-paywall")
+                        continue
+                    pw = pw_mod.get_paywall()
+                    sub = parts[1].lower() if len(parts) > 1 else "list"
+                    if sub == "list":
+                        plans = pw.list_plans()
+                        if not plans:
+                            await send(chat, "No active plans. Admins can use /sub create to add one.")
+                        else:
+                            lines = ["Available plans:"]
+                            for p in plans:
+                                lines.append(pw.format_plan(p))
+                            lines.append("")
+                            lines.append(pw.payment_instructions())
+                            await send(chat, "\n".join(lines))
+                    elif sub == "status":
+                        user_subs = pw.user_subs(uid)
+                        active = [s for s in user_subs if s.get("active")]
+                        if not active:
+                            await send(chat, "You have no active subscriptions.\n" + pw.payment_instructions())
+                        else:
+                            lines = ["Your subscriptions:"]
+                            for s in active:
+                                plan = pw.get_plan(s["plan_id"])
+                                exp = datetime.fromtimestamp(s["expires"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                                lines.append(f"  {plan['name'] if plan else s['plan_id']} — expires {exp}")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "pay":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /sub pay <plan_id>")
+                            continue
+                        plan_id = parts[2]
+                        plan = pw.get_plan(plan_id)
+                        if not plan:
+                            await send(chat, "Plan not found.")
+                            continue
+                        inv_id = pw.create_stars_invoice(plan_id, uid)
+                        await send(chat, f"Invoice created (pending): {inv_id}\nPlan: {plan['name']}\n{pw.payment_instructions()}")
+                    elif sub == "create":
+                        if not is_owner and not is_admin:
+                            await send(chat, "Owner/Admin only.")
+                            continue
+                        if len(parts) < 5:
+                            await send(chat, "Usage: /sub create <name> <stars_price> <days> [description]")
+                            continue
+                        name = parts[2]
+                        try:
+                            price = int(parts[3])
+                            days_sub = int(parts[4])
+                        except Exception:
+                            await send(chat, "Price and days must be numbers.")
+                            continue
+                        desc = " ".join(parts[5:]) if len(parts) > 5 else f"{name} subscription"
+                        pid = pw.create_plan(uid, name, desc, price, days_sub)
+                        await send(chat, f"Plan created: {name}\nID: {pid}\n{pw.format_plan(pw.get_plan(pid))}")
+                    elif sub == "cancel":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /sub cancel <plan_id>")
+                            continue
+                        if pw.cancel(parts[2], uid):
+                            await send(chat, "Subscription cancelled.")
+                        else:
+                            await send(chat, "No active subscription found for that plan.")
+                    else:
+                        await send(chat, "Sub commands: list, status, pay, create (admin), cancel")
+
                 elif cmd == "/weather":
                     city = " ".join(parts[1:]) if len(parts) > 1 else ""
                     await typing(chat)
@@ -5992,6 +6570,16 @@ async def main():
                                 sessions[uid] = []
                             sessions.setdefault(uid, [])
                             agent_prompt = AGENTS[active_agent]["prompt"]
+                            if guard_mod:
+                                auto = guard_mod.get_auto()
+                                acfg = auto.get(uid)
+                                if acfg.get("enabled") and acfg.get("template"):
+                                    agent_prompt = f"{agent_prompt}\n\n[Auto-Reply Style]\n{acfg['template']}"
+                            if styles_mod and is_experimental_enabled("ai-styles"):
+                                ast = styles_mod.get_ai_styles()
+                                stext = ast.get_style_text(uid)
+                                if stext:
+                                    agent_prompt = f"{agent_prompt}\n\n[AI Style]\n{stext}"
                             if not sessions[uid]:
                                 try:
                                     ctx = await bf.auto_context()
