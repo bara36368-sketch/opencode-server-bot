@@ -15,3 +15,6 @@ termux_setup.sh
 experience-transfer.txt
 usage_stats.json
 whatsapp_qr.png
+.env
+ngrok.exe
+ngrok.zip
