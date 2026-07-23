@@ -2636,41 +2636,29 @@ async def announce_update(old_v, new_v, changes, state):
     known_chats.discard(0)
     ver_info = load_version()
     exp_features = ver_info.get("experimental", [])
-    total = len(changes) + len(exp_features)
-    if total < 2:
-        update_type = "patch"
-    elif total <= 4:
-        update_type = "mini"
-    else:
-        update_type = "big"
+    new_features = [c for c in changes if not any(kw in c.lower() for kw in ["fix", "bug", "crash", "patch", "hotfix", "corrected", "resolved"])]
+    new_exp = [ef for ef in exp_features if ef not in state.get("announced_experimental", [])]
+    total_new = len(new_features) + len(new_exp)
+    if total_new < 5:
+        log(f"Update skipped: v{old_v} -> v{new_v} (only {total_new} new items, need 5+)")
+        return state
     lines = []
-    if update_type == "big":
-        lines.append("🚀 ==============================")
-        lines.append("   BIG UPDATE INCOMING!")
-        lines.append("   ==============================")
+    lines.append("🚀 ==============================")
+    lines.append("   BIG UPDATE INCOMING!")
+    lines.append("   ==============================")
+    lines.append("")
+    lines.append(f"  v{old_v} → v{new_v}")
+    lines.append("")
+    if new_features:
+        lines.append(f"🆕 {len(new_features)} New Feature{'s' if len(new_features) > 1 else ''}:")
         lines.append("")
-        lines.append(f"  v{old_v} → v{new_v}")
-        lines.append("")
-    elif update_type == "mini":
-        lines.append("🟢 Mini Update!")
-        lines.append(f"  v{old_v} → v{new_v}")
-        lines.append("")
-    else:
-        lines.append(f"✨ Patch v{new_v}")
-        lines.append("")
-    if changes:
-        if update_type == "big":
-            lines.append("🆕 What's New:")
-        else:
-            lines.append(f"🆕 {len(changes)} New Feature{'s' if len(changes) > 1 else ''}:")
-        lines.append("")
-        for i, c in enumerate(changes, 1):
+        for i, c in enumerate(new_features, 1):
             lines.append(f"  {i}. {c}")
         lines.append("")
-    if exp_features:
-        lines.append(f"🧪 Experimental ({len(exp_features)}):")
+    if new_exp:
+        lines.append(f"🧪 {len(new_exp)} New Experimental Feature{'s' if len(new_exp) > 1 else ''}:")
         lines.append("")
-        for i, ef in enumerate(exp_features, 1):
+        for i, ef in enumerate(new_exp, 1):
             lines.append(f"  {i}. {ef}")
         lines.append("")
         lines.append("  Use /experimental to enable!")
@@ -2681,7 +2669,7 @@ async def announce_update(old_v, new_v, changes, state):
     lines.append("  /start — See updated commands")
     lines.append("  /help — Browse all features")
     lines.append("  /version — Full changelog")
-    if exp_features:
+    if new_exp:
         lines.append("  /experimental — Enable new features")
     lines.append("")
     lines.append("🚀 Enjoying the bot? Share it with friends!")
@@ -2697,7 +2685,9 @@ async def announce_update(old_v, new_v, changes, state):
                 await asyncio.sleep(0.1)
         except Exception:
             pass
-    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (type={update_type}, features={total})")
+    if new_exp:
+        state.setdefault("announced_experimental", []).extend(new_exp)
+    log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (features={len(new_features)}, experimental={len(new_exp)})")
     if sent_count > 0:
         state["last_version"] = new_v
         save_version_state(state)
