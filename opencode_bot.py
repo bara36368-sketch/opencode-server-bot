@@ -2356,11 +2356,25 @@ load_conversation_tags()
 
 async def tg(method, data=None):
     c = await get_http()
-    r = await c.post(f"{TG_API}/{method}", json=data or {}, timeout=15)
-    resp = r.json()
-    if not resp.get("ok"):
-        log(f"TG API error: {method} {resp}")
-    return resp
+    for _attempt in range(2):
+        try:
+            r = await c.post(f"{TG_API}/{method}", json=data or {}, timeout=15)
+            resp = r.json()
+            if resp.get("ok"):
+                return resp
+            if resp.get("error_code") == 429:
+                retry_after = resp.get("parameters", {}).get("retry_after", 5)
+                await asyncio.sleep(retry_after)
+                continue
+            log(f"TG API error: {method} {resp}")
+            return resp
+        except Exception as _e:
+            if _attempt == 0:
+                await asyncio.sleep(1)
+                continue
+            log(f"TG API error: {method} {_e}")
+            return {"ok": False, "error": str(_e)}
+    return {"ok": False}
 
 _sent_cache = {}
 async def send(chat, text, parse_mode=None, receiver_user=None):
@@ -2885,6 +2899,18 @@ async def main():
     if is_experimental_enabled("plugin-system"):
         bf.init_plugins_from_dir()
 
+    async def keepalive_loop():
+        while True:
+            try:
+                await asyncio.sleep(120)
+                c = await get_http()
+                await c.get(f"{TG_API}/getMe", timeout=10)
+            except Exception:
+                pass
+
+    _tk = asyncio.create_task(keepalive_loop())
+    _tk.add_done_callback(_task_done)
+
     while True:
         if _shutdown_event.is_set():
             log("Shutting down gracefully...")
@@ -2967,6 +2993,7 @@ async def main():
                 if msg.get("from", {}).get("is_bot"):
                     continue
                 chat, uid = msg["chat"]["id"], msg["from"]["id"]
+                await typing(chat)
                 resolve_state(chat)
                 text = msg.get("text", "")
                 now = time.time()
