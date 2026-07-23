@@ -7,7 +7,7 @@ import hashlib
 import hmac
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [webhook] %(message)s")
-log = logging.getLogger("webhook")
+logger = logging.getLogger("webhook")
 
 WEBHOOK_HOST = "127.0.0.1"
 WEBHOOK_PORT = 8443
@@ -21,14 +21,14 @@ async def handle_webhook(request):
     try:
         x_telegram = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if SECRET_TOKEN and x_telegram != SECRET_TOKEN:
-            log(f"Invalid secret token from {request.remote}")
+            logger.info(f"Invalid secret token from {request.remote}")
             return {"ok": False, "error": "unauthorized"}, 403
         data = await request.json()
         if update_queue:
             await update_queue.put(data)
         return {"ok": True}
     except Exception as e:
-        log(f"Webhook error: {e}")
+        logger.info(f"Webhook error: {e}")
         return {"ok": False, "error": str(e)}, 400
 
 async def handle_health(request):
@@ -51,10 +51,10 @@ async def setup_webhook(public_url):
         }, timeout=15)
         resp = r.json()
         if resp.get("ok"):
-            log(f"Webhook set: {webhook_url}")
+            logger.info(f"Webhook set: {webhook_url}")
             return True
         else:
-            log(f"Webhook setup failed: {resp}")
+            logger.info(f"Webhook setup failed: {resp}")
             return False
 
 async def remove_webhook():
@@ -64,7 +64,7 @@ async def remove_webhook():
     TG_API_url = f"https://api.telegram.org/bot{bot_token}"
     async with httpx.AsyncClient() as c:
         await c.post(f"{TG_API_url}/deleteWebhook", timeout=10)
-        log("Webhook removed")
+        logger.info("Webhook removed")
 
 def start_server(queue, token):
     global update_queue, bot_token
@@ -74,5 +74,5 @@ def start_server(queue, token):
     app = web.Application()
     app.router.add_post("/webhook", handle_webhook)
     app.router.add_get("/health", handle_health)
-    log(f"Starting webhook server on {WEBHOOK_HOST}:{WEBHOOK_PORT}")
+    logger.info(f"Starting webhook server on {WEBHOOK_HOST}:{WEBHOOK_PORT}")
     web.run_app(app, host=WEBHOOK_HOST, port=WEBHOOK_PORT, print=None)
