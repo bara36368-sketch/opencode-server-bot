@@ -58,15 +58,18 @@ def log(msg, section="runner"):
     logging.info(f"{ts} [{section}] {msg}")
 
 def load_dotenv():
-    env_path = os.path.join(DIR, ".env")
     env_vars = os.environ.copy()
-    if os.path.exists(env_path):
-        with open(env_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, val = line.partition("=")
-                    env_vars[key.strip()] = val.strip()
+    for fname in [".env", "setenv.sh"]:
+        fpath = os.path.join(DIR, fname)
+        if os.path.exists(fpath):
+            with open(fpath, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        line = line.replace("export ", "")
+                        key, _, val = line.partition("=")
+                        val = val.strip().strip('"').strip("'")
+                        env_vars[key.strip()] = val
     return env_vars
 
 def file_hashes():
