@@ -57,6 +57,18 @@ def log(msg, section="runner"):
     print(f"{ts} [{section}] {msg}")
     logging.info(f"{ts} [{section}] {msg}")
 
+def load_dotenv():
+    env_path = os.path.join(DIR, ".env")
+    env_vars = os.environ.copy()
+    if os.path.exists(env_path):
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, val = line.partition("=")
+                    env_vars[key.strip()] = val.strip()
+    return env_vars
+
 def file_hashes():
     h = {}
     skip = {"version.json", "version_state.json", "runner.log", "crash.log"}
@@ -148,6 +160,7 @@ last_hashes = file_hashes()
 procs = {}
 first = True
 restart_times = []
+bot_env = load_dotenv()
 
 while True:
     for name, cmd in PROCESSES.items():
@@ -157,7 +170,7 @@ while True:
                 free_port(4357)
                 time.sleep(1)
             log(f"starting {name}...", "proc")
-            proc = subprocess.Popen(cmd, cwd=DIR)
+            proc = subprocess.Popen(cmd, cwd=DIR, env=bot_env)
             procs[name] = proc
             threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
             if name == "web":
