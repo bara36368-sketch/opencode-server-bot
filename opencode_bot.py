@@ -2848,12 +2848,56 @@ async def run_startup_check():
 async def main():
     global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update, processed
     last_update = 0
-    try:
-        c = await get_http()
-        await c.post(f"{TG_API}/deleteWebhook", timeout=10)
-    except Exception as _e:
-        log(f"poll loop error: {_e}")
-        pass
+    use_webhook = os.environ.get("WEBHOOK_MODE", "").lower() in ("1", "true", "yes")
+    webhook_queue = None
+    if use_webhook:
+        try:
+            import webhook_server as whs
+            webhook_queue = asyncio.Queue()
+            whs.SECRET_TOKEN = os.environ.get("WEBHOOK_SECRET", whs.SECRET_TOKEN)
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, whs.start_server, webhook_queue, os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+            await asyncio.sleep(2)
+            try:
+                import subprocess
+                ngrok_proc = subprocess.Popen(["ngrok", "http", "8443", "--log=stdout"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                await asyncio.sleep(3)
+                import httpx
+                async with httpx.AsyncClient() as _c:
+                    r = await _c.get("http://127.0.0.1:4040/api/tunnels", timeout=5)
+                    tunnels = r.json().get("tunnels", [])
+                    public_url = tunnels[0]["public_url"] if tunnels else None
+                if public_url:
+                    ok = await whs.setup_webhook(public_url)
+                    if ok:
+                        log(f"Webhook mode active: {public_url}")
+                    else:
+                        log("Webhook setup failed, falling back to polling")
+                        use_webhook = False
+                        webhook_queue = None
+                else:
+                    log("ngrok failed, falling back to polling")
+                    use_webhook = False
+                    webhook_queue = None
+            except FileNotFoundError:
+                log("ngrok not found, falling back to polling. Install ngrok or set WEBHOOK_URL manually.")
+                use_webhook = False
+                webhook_queue = None
+            except Exception as _e:
+                log(f"Webhook setup error: {_e}, falling back to polling")
+                use_webhook = False
+                webhook_queue = None
+        except Exception as _e:
+            log(f"Webhook import error: {_e}, falling back to polling")
+            use_webhook = False
+            webhook_queue = None
+    if not use_webhook:
+        try:
+            c = await get_http()
+            await c.post(f"{TG_API}/deleteWebhook", timeout=10)
+        except Exception as _e:
+            log(f"poll loop error: {_e}")
+            pass
     try:
         loop = asyncio.get_running_loop()
         if os.name == "nt":
@@ -2916,7 +2960,16 @@ async def main():
             log("Shutting down gracefully...")
             break
         try:
-            for u in (await poll()):
+            updates = []
+            if use_webhook and webhook_queue:
+                try:
+                    u = await asyncio.wait_for(webhook_queue.get(), timeout=1.0)
+                    updates = [u]
+                except asyncio.TimeoutError:
+                    pass
+            else:
+                updates = await poll()
+            for u in updates:
                 if _shutdown_event.is_set():
                     break
                 msg = u.get("message")

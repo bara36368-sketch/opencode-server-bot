@@ -1,5 +1,5 @@
 {
-  "version": "3.2.2",
+  "version": "3.3.0",
   "updated": "2026-07-23",
   "experimental": [
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -29,9 +29,16 @@
     "Automation & Productivity -- /automate on/off/drip/crm/wizard \u2014 content drip, CRM, multi-step wizards",
     "Security & API -- /secapi on/off/ephemeral/webhook/guest-bot/bot-bot \u2014 ephemeral v2, webhooks, bot-to-bot",
     "New Research Features -- /translate, /languages, /ocr \u2014 streaming text, OCR scanner, real-time translation",
-    "Location & Distance -- /loc set/range/here/nearby/dist/status \u2014 set home location, restrict responses to within 14km, track user distances"
+    "Location & Distance -- /loc set/range/here/nearby/dist/status \u2014 set home location, restrict responses to within 14km, track user distances",
+    "Webhook Mode \u2014 instant Telegram message delivery via webhooks + ngrok tunnel (set WEBHOOK_MODE=1 to enable)"
   ],
   "whats_new": {
+    "3.3.0": [
+      "Webhook Mode \u2014 instant Telegram message delivery via webhooks + ngrok tunnel. Set WEBHOOK_MODE=1 in .env to enable. Messages are pushed to the bot instantly instead of polling every 15s. Requires ngrok installed.",
+      "Typing indicator on every message receipt \u2014 keeps Telegram connection alive for faster notification delivery",
+      "Keepalive ping every 120s \u2014 prevents Telegram connection drops on idle",
+      "Retry logic on Telegram API calls \u2014 auto-retry on 429 rate limits and transient failures"
+    ],
     "3.2.1": [
       "Location & Distance -- /loc set <lat> <lon> [name], /loc range <km>, /loc here, /loc nearby, /loc dist <user_id>, /loc status \u2014 set home location, restrict bot responses to within 14km, auto-record user locations on send, distance tracking",
       "Auto-record location when users share location via Telegram \u2014 no command needed, just send location"
@@ -178,6 +185,7 @@
       "Fixed: runner.py Unicode crash on Windows (\u2501 chars in print)",
       "Fixed: Gemini vision model list updated (gemini-2.0-flash added)"
     ],
-    "3.2.111": []
+    "3.2.111": [],
+    "3.2.112": []
   }
 }
