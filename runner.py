@@ -46,6 +46,7 @@ logging.basicConfig(
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
+    "ngrok": ["ngrok", "http", "8443", "--log=stdout"],
 }
 CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
