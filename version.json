@@ -1,6 +1,6 @@
 {
-  "version": "3.2.0",
-  "updated": "2026-07-22",
+  "version": "3.2.1",
+  "updated": "2026-07-23",
   "experimental": [
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
     "Scheduled Cron -- recurring AI prompts with /cron and web page change monitoring with /monitor",
@@ -28,9 +28,14 @@
     "Community Engagement -- /community on/off/welcome/server-plan/reaction-role — reaction roles, AI server builder, image welcomes",
     "Automation & Productivity -- /automate on/off/drip/crm/wizard — content drip, CRM, multi-step wizards",
     "Security & API -- /secapi on/off/ephemeral/webhook/guest-bot/bot-bot — ephemeral v2, webhooks, bot-to-bot",
-    "New Research Features -- /translate, /languages, /ocr — streaming text, OCR scanner, real-time translation"
+    "New Research Features -- /translate, /languages, /ocr — streaming text, OCR scanner, real-time translation",
+    "Location & Distance -- /loc set/range/here/nearby/dist/status — set home location, restrict responses to within 14km, track user distances"
   ],
   "whats_new": {
+    "3.2.1": [
+      "Location & Distance -- /loc set <lat> <lon> [name], /loc range <km>, /loc here, /loc nearby, /loc dist <user_id>, /loc status — set home location, restrict bot responses to within 14km, auto-record user locations on send, distance tracking",
+      "Auto-record location when users share location via Telegram — no command needed, just send location"
+    ],
     "3.2.0": [
       "Safety & Moderation -- /safety status/on/off/log/trust/ban-global/reputation — AI toxicity detection (NLP spam scoring + custom blocked phrases + global bans), anti-nuke (mass-action detection, rate limiting), CAPTCHA verification (math challenges), behavioral analysis (join rate, suspicious profiles), cross-group reputation, edit detection",
       "Coding & Dev Tools -- /dev cwd/setcwd/exec/history/clear/github-token/repos/issues/prs/docs — remote coding assistant with working directory management, code playground (Python/JS/Bash), GitHub integration (repos, issues, PRs), API doc generator",

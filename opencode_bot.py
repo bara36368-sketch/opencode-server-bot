@@ -231,6 +231,11 @@ except Exception:
     nf_mod = None
 
 try:
+    import location_distance as loc_mod
+except Exception:
+    loc_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -939,6 +944,7 @@ def load_experimental():
         "automation-productivity": {"name": "Automation & Productivity", "desc": "Content drip sequences, CRM integration, multi-step wizards, silent scheduled messages", "version": "3.2.0", "category": "automation"},
         "security-api": {"name": "Security & API", "desc": "Ephemeral messages v2, communities support, star subscriptions v2, webhook manager, guest bots, bot-to-bot", "version": "3.2.0", "category": "security"},
         "new-research-features": {"name": "New Research Features", "desc": "Streaming text, OCR document scanner, real-time translation", "version": "3.2.0", "category": "research"},
+        "location-distance": {"name": "Location & Distance", "desc": "Set home location, track user distances, restrict responses to within 14km range", "version": "3.2.1", "category": "utility"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -3030,6 +3036,22 @@ async def main():
                         else:
                             await send(chat, f"Could not extract text from '{fname}'.")
                     continue
+
+                location = msg.get("location")
+                if location and loc_mod and is_experimental_enabled("location-distance"):
+                    try:
+                        ld = loc_mod.get_location()
+                        ld.record_user_location(chat, uid, location["latitude"], location["longitude"])
+                        dist = ld.get_distance(chat, uid)
+                        maxd = ld.get_max_distance(chat)
+                        if dist is not None:
+                            lines = [f"📍 Location recorded ({location['latitude']:.4f}, {location['longitude']:.4f})"]
+                            lines.append(f"Distance from home: {dist:.1f} km")
+                            if maxd and dist > maxd:
+                                lines.append(f"⚠️ You are {dist - maxd:.1f} km OUTSIDE the {maxd} km range")
+                            await send(chat, "\n".join(lines))
+                    except Exception:
+                        pass
 
                 if guard_mod and text:
                     guard = guard_mod.get_guardian()
@@ -6390,6 +6412,75 @@ async def main():
                             await send(chat, "Could not get file info.")
                     except Exception as e:
                         await send(chat, f"OCR error: {str(e)[:200]}")
+
+                elif cmd == "/loc":
+                    if not loc_mod:
+                        await send(chat, "Location module not available.")
+                        continue
+                    if not is_experimental_enabled("location-distance"):
+                        await send(chat, "Location & Distance is disabled. Use /experimental enable location-distance")
+                        continue
+                    ld = loc_mod.get_location()
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "status":
+                        await send(chat, ld.format_config(chat))
+                    elif sub == "set":
+                        if len(parts) < 4:
+                            await send(chat, "Usage: /loc set <lat> <lon> [name]\nExample: /loc set -6.2088 106.8456 Home")
+                            continue
+                        try:
+                            lat, lon = float(parts[2]), float(parts[3])
+                            name = " ".join(parts[4:]) if len(parts) > 4 else "Home"
+                            ld.set_home(chat, lat, lon, name)
+                            await send(chat, f"Home location set: {name} ({lat}, {lon})")
+                        except ValueError:
+                            await send(chat, "Invalid coordinates. Use decimal format like -6.2088 106.8456")
+                    elif sub == "here":
+                        if msg.get("location"):
+                            loc = msg["location"]
+                            ld.record_user_location(chat, uid, loc["latitude"], loc["longitude"])
+                            dist = ld.get_distance(chat, uid)
+                            maxd = ld.get_max_distance(chat)
+                            lines = [f"Your location recorded ({loc['latitude']:.4f}, {loc['longitude']:.4f})"]
+                            if dist is not None:
+                                lines.append(f"Distance from home: {dist:.1f} km")
+                                if maxd:
+                                    status = "WITHIN" if dist <= maxd else "OUTSIDE"
+                                    lines.append(f"Range: {status} ({status.lower()} {maxd} km limit)")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "Send your location using Telegram's location button (📎 → Location), then reply with /loc here")
+                    elif sub == "range":
+                        if len(parts) < 3:
+                            maxd = ld.get_max_distance(chat)
+                            await send(chat, f"Current max distance: {maxd} km" if maxd else "No distance limit set.")
+                            continue
+                        try:
+                            km = float(parts[2])
+                            ld.set_max_distance(chat, km)
+                            await send(chat, f"Max distance set to {km} km. Bot will only respond within this range.")
+                        except ValueError:
+                            await send(chat, "Usage: /loc range <km>")
+                    elif sub == "nearby":
+                        users = ld.get_all_users_in_range(chat)
+                        if not users:
+                            await send(chat, "No users tracked or no home set.")
+                        else:
+                            lines = [f"Users within range ({len(users)}):"]
+                            for u in users[:10]:
+                                lines.append(f"  User {u['user_id']}: {u['distance_km']} km")
+                            await send(chat, "\n".join(lines))
+                    elif sub == "dist":
+                        if len(parts) < 3:
+                            await send(chat, "Usage: /loc dist <user_id>")
+                            continue
+                        dist = ld.get_distance(chat, parts[2])
+                        if dist is None:
+                            await send(chat, "No location data for that user.")
+                        else:
+                            await send(chat, f"User {parts[2]} is {dist:.1f} km from home.")
+                    else:
+                        await send(chat, "Location commands:\n  /loc set <lat> <lon> [name] — set home\n  /loc here — record your location (send location first)\n  /loc range <km> — set max distance\n  /loc nearby — users in range\n  /loc dist <user_id> — distance to user\n  /loc status — current config")
 
                 elif cmd == "/weather":
                     city = " ".join(parts[1:]) if len(parts) > 1 else ""
