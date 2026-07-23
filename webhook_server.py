@@ -5,6 +5,7 @@ import time
 import logging
 import hashlib
 import hmac
+import queue
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [webhook] %(message)s")
 logger = logging.getLogger("webhook")
@@ -16,6 +17,7 @@ SECRET_TOKEN = os.environ.get("WEBHOOK_SECRET", "opencode_webhook_secret_" + has
 update_queue = None
 bot_token = None
 TG_API = None
+_thread_queue = queue.Queue()
 
 async def handle_webhook(request):
     try:
@@ -24,15 +26,25 @@ async def handle_webhook(request):
             logger.info(f"Invalid secret token from {request.remote}")
             return {"ok": False, "error": "unauthorized"}, 403
         data = await request.json()
-        if update_queue:
-            await update_queue.put(data)
+        _thread_queue.put(data)
         return {"ok": True}
     except Exception as e:
         logger.info(f"Webhook error: {e}")
         return {"ok": False, "error": str(e)}, 400
 
 async def handle_health(request):
-    return {"status": "ok", "queue_size": update_queue.qsize() if update_queue else 0, "timestamp": time.time()}
+    return {"status": "ok", "queue_size": _thread_queue.qsize(), "timestamp": time.time()}
+
+async def drain_queue():
+    while True:
+        try:
+            while not _thread_queue.empty():
+                item = _thread_queue.get_nowait()
+                if update_queue:
+                    await update_queue.put(item)
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
 
 async def setup_webhook(public_url):
     import httpx
@@ -66,9 +78,8 @@ async def remove_webhook():
         await c.post(f"{TG_API_url}/deleteWebhook", timeout=10)
         logger.info("Webhook removed")
 
-def start_server(queue, token):
-    global update_queue, bot_token
-    update_queue = queue
+def start_server(token):
+    global bot_token
     bot_token = token
     from aiohttp import web
     app = web.Application()

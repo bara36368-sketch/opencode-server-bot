@@ -2854,9 +2854,10 @@ async def main():
         try:
             import webhook_server as whs
             webhook_queue = asyncio.Queue()
+            whs.update_queue = webhook_queue
             whs.SECRET_TOKEN = os.environ.get("WEBHOOK_SECRET", whs.SECRET_TOKEN)
             loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, whs.start_server, webhook_queue, os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+            loop.run_in_executor(None, whs.start_server, os.environ.get("TELEGRAM_BOT_TOKEN", ""))
             await asyncio.sleep(2)
             try:
                 import subprocess
@@ -2871,6 +2872,8 @@ async def main():
                     ok = await whs.setup_webhook(public_url)
                     if ok:
                         log(f"Webhook mode active: {public_url}")
+                        _drain = asyncio.create_task(whs.drain_queue())
+                        _drain.add_done_callback(_task_done)
                     else:
                         log("Webhook setup failed, falling back to polling")
                         use_webhook = False
