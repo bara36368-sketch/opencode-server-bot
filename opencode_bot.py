@@ -236,6 +236,11 @@ except Exception:
     loc_mod = None
 
 try:
+    import mini_app as ma_mod
+except Exception:
+    ma_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -945,6 +950,7 @@ def load_experimental():
         "security-api": {"name": "Security & API", "desc": "Ephemeral messages v2, communities support, star subscriptions v2, webhook manager, guest bots, bot-to-bot", "version": "3.2.0", "category": "security"},
         "new-research-features": {"name": "New Research Features", "desc": "Streaming text, OCR document scanner, real-time translation", "version": "3.2.0", "category": "research"},
         "location-distance": {"name": "Location & Distance", "desc": "Set home location, track user distances, restrict responses to within 14km range", "version": "3.2.1", "category": "utility"},
+        "mini-apps": {"name": "Mini Apps", "desc": "Telegram Web Apps — full HTML dashboards and tools inside Telegram", "version": "3.4.0", "category": "utility"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -3039,6 +3045,19 @@ async def main():
                 if msg.get("from", {}).get("is_bot"):
                     continue
                 chat, uid = msg["chat"]["id"], msg["from"]["id"]
+                # Handle Mini App web_app_data
+                web_app_data = msg.get("web_app_data")
+                if web_app_data and ma_mod and is_experimental_enabled("mini-apps"):
+                    try:
+                        wa_data = web_app_data.get("data", "")
+                        ma_mod.get_mini_app().record_web_app_data(uid, chat, wa_data)
+                        if wa_data.startswith("/"):
+                            text = wa_data
+                        else:
+                            await send(chat, f"📱 Received from Mini App: {wa_data[:500]}")
+                            continue
+                    except Exception:
+                        pass
                 await typing(chat)
                 resolve_state(chat)
                 text = msg.get("text", "")
@@ -3230,6 +3249,7 @@ async def main():
                         "  /weather <city> — Weather forecast",
                         "  /dailydigest — Daily summary",
                         "  /experimental — Experimental features",
+                        "  /miniapp — Telegram Mini App dashboard",
                     ]
                     if is_owner or is_admin or is_mod:
                         lines += [
@@ -6554,6 +6574,18 @@ async def main():
                             await send(chat, f"User {parts[2]} is {dist:.1f} km from home.")
                     else:
                         await send(chat, "Location commands:\n  /loc set <lat> <lon> [name] — set home\n  /loc here — record your location (send location first)\n  /loc range <km> — set max distance\n  /loc nearby — users in range\n  /loc dist <user_id> — distance to user\n  /loc status — current config")
+
+                elif cmd == "/miniapp":
+                    if not ma_mod:
+                        await send(chat, "Mini App module not available.")
+                        continue
+                    if not is_experimental_enabled("mini-apps"):
+                        await send(chat, "Mini Apps is disabled. Use /experimental enable mini-apps")
+                        continue
+                    action, data = ma_mod.handle_mini_app_command(parts, uid, is_owner)
+                    response = ma_mod.format_mini_app_response(action, data)
+                    if response:
+                        await send(chat, response)
 
                 elif cmd == "/weather":
                     city = " ".join(parts[1:]) if len(parts) > 1 else ""

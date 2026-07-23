@@ -59,7 +59,7 @@
     "knowledge-graph": {
       "name": "Knowledge Graph",
       "desc": "Build and query a personal knowledge graph from conversations and documents",
-      "version": "2.4.0",
+      "version": "3.1.0",
       "enabled": false,
       "category": "ai"
     },
@@ -108,7 +108,7 @@
     "knowledge-vault": {
       "name": "Knowledge Vault",
       "desc": "Personal second brain: save facts, search notes, organize knowledge with AI",
-      "version": "2.6.0",
+      "version": "3.1.0",
       "enabled": false,
       "category": "ai"
     },
@@ -182,20 +182,6 @@
       "category": "automation",
       "enabled": false
     },
-    "knowledge-graph": {
-      "name": "Knowledge Graph",
-      "desc": "Build and query a personal knowledge graph from conversations and documents",
-      "version": "3.1.0",
-      "enabled": false,
-      "category": "ai"
-    },
-    "knowledge-vault": {
-      "name": "Knowledge Vault",
-      "desc": "Personal second brain: save facts, search notes, organize knowledge with AI",
-      "version": "3.1.0",
-      "enabled": false,
-      "category": "ai"
-    },
     "agent-market": {
       "name": "Agent Marketplace",
       "desc": "Browse, install, and share community agents from a GitHub registry",
@@ -216,6 +202,132 @@
       "version": "3.1.0",
       "enabled": false,
       "category": "media"
+    },
+    "persistent-memory": {
+      "name": "Persistent Memory",
+      "desc": "Long-term memory log per user with search, stats, and auto-context injection",
+      "version": "3.0.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "scheduled-cron": {
+      "name": "Scheduled Cron",
+      "desc": "Recurring AI prompt scheduling with /cron and web page monitoring with /monitor",
+      "version": "3.0.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "social-search": {
+      "name": "Social Search",
+      "desc": "Multi-platform search across Reddit, Hacker News, and Medium via /reddit, /hn, /social",
+      "version": "3.0.0",
+      "category": "research",
+      "enabled": false
+    },
+    "doc-analyzer": {
+      "name": "Document Analyzer",
+      "desc": "Enhanced PDF/document analysis with AI-powered Q&A and multi-engine text extraction",
+      "version": "3.0.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "rich-messages": {
+      "name": "Rich Messages",
+      "desc": "Send AI responses using Telegram's Rich Message format (tables, code blocks, headings, collapsible details)",
+      "version": "3.1.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "ai-styles": {
+      "name": "AI Styles",
+      "desc": "Custom AI personality presets: /style list, /style on <name>, /style create <name> <text>, /style off",
+      "version": "3.1.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "poll-plus": {
+      "name": "Poll Plus",
+      "desc": "Advanced poll tracking with statistics, vote distribution charts, peak hour detection (subscription only)",
+      "version": "3.1.0",
+      "category": "admin",
+      "enabled": false
+    },
+    "content-automation": {
+      "name": "Content Automation",
+      "desc": "Auto-post from RSS/Atom feeds to channels with AI-powered relevance filtering",
+      "version": "3.1.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "analytics-dashboard": {
+      "name": "Analytics Dashboard",
+      "desc": "Per-chat message/member tracking, stats, growth rate, peak hours, top users",
+      "version": "3.1.0",
+      "category": "admin",
+      "enabled": false
+    },
+    "subscription-paywall": {
+      "name": "Subscription Paywall",
+      "desc": "Telegram Stars subscriptions, Dana bank transfer (Rp28k/month), plan management",
+      "version": "3.1.0",
+      "category": "admin",
+      "enabled": false
+    },
+    "safety-moderation": {
+      "name": "Safety & Moderation",
+      "desc": "AI toxicity detection, anti-nuke, CAPTCHA, behavioral analysis, cross-group reputation, edit detection",
+      "version": "3.2.0",
+      "category": "safety",
+      "enabled": false
+    },
+    "coding-dev-tools": {
+      "name": "Coding & Dev Tools",
+      "desc": "Remote coding assistant, code playground, GitHub integration, API doc generator",
+      "version": "3.2.0",
+      "category": "coding",
+      "enabled": false
+    },
+    "ai-intelligence": {
+      "name": "AI Intelligence",
+      "desc": "Proactive AI briefings, multi-modal processing, domain-specific chatbots, AI persona engine",
+      "version": "3.2.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "community-engagement": {
+      "name": "Community Engagement",
+      "desc": "Reaction roles, AI server builder, image-based welcomes",
+      "version": "3.2.0",
+      "category": "community",
+      "enabled": false
+    },
+    "automation-productivity": {
+      "name": "Automation & Productivity",
+      "desc": "Content drip sequences, CRM integration, multi-step wizards, silent scheduled messages",
+      "version": "3.2.0",
+      "category": "automation",
+      "enabled": false
+    },
+    "security-api": {
+      "name": "Security & API",
+      "desc": "Ephemeral messages v2, communities support, star subscriptions v2, webhook manager, guest bots, bot-to-bot",
+      "version": "3.2.0",
+      "category": "security",
+      "enabled": false
+    },
+    "new-research-features": {
+      "name": "New Research Features",
+      "desc": "Streaming text, OCR document scanner, real-time translation",
+      "version": "3.2.0",
+      "category": "research",
+      "enabled": false
+    },
+    "location-distance": {
+      "name": "Location & Distance",
+      "desc": "Set home location, track user distances, restrict responses to within 14km range",
+      "version": "3.2.1",
+      "category": "utility",
+      "enabled": false
     }
   }
 }
