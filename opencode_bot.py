@@ -6082,12 +6082,15 @@ async def main():
                             await send(chat, "\n".join(lines))
 
                         elif sub == "categories":
-                            cats = agent.build_generator.category_defaults
+                            from cyberdeck_agent import CATEGORY_DEFAULTS
                             lines = ["📂 **Cyberdeck Categories:**\n"]
-                            for cat_id, cat_info in cats.items():
-                                lines.append(f"**{cat_info['name']}** — {cat_info['description']}")
-                                lines.append(f"  Budget: ${cat_info['budget_min']}-${cat_info['budget_max']}")
-                                lines.append(f"  Priority: {', '.join(cat_info['priority'])}")
+                            for cat_id, cat_info in CATEGORY_DEFAULTS.items():
+                                br = cat_info.get("budget_range", [0, 0])
+                                lines.append(f"**{cat_info['name']}** (`{cat_id}`)")
+                                lines.append(f"  {cat_info['description']}")
+                                lines.append(f"  Budget: ${br[0]}–${br[1]}")
+                                lines.append(f"  Best SBCs: {', '.join(cat_info.get('sbcs', [])[:2])}")
+                                lines.append(f"  Best OS: {', '.join(cat_info.get('os', [])[:2])}")
                                 lines.append("")
                             await send(chat, "\n".join(lines))
 

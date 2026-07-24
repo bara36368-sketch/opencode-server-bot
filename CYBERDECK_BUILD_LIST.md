@@ -160,6 +160,31 @@ A cyberdeck is a personal portable computer built by hand. It rejects the polish
 
 ---
 
+## QUICK CATEGORY REFERENCE
+
+| # | Category | ID | Budget | Best SBC | Best OS | Soldering |
+|---|----------|-----|--------|----------|---------|-----------|
+| 1 | Coding & Development | `coding` | $300–$1200 | Pi 5 8/16GB, LattePanda Mu | Pi OS, Kali, Ubuntu MATE | Optional |
+| 2 | Writerdeck | `writerdeck` | $100–$400 | Pi Zero 2 W, Pi 4 | writerdeckOS, DietPi | Optional |
+| 3 | Security & Pentesting | `security` | $400–$1500 | Pi 5 8/16GB | Kali Linux | Optional |
+| 4 | Retro Gaming & Media | `gaming` | $150–$500 | Pi 5, Pi 4, Orange Pi 5 | RetroPie, Batocera | Optional |
+| 5 | Field Research | `research` | $300–$800 | Pi 5 8GB | Pi OS, DietPi | Optional |
+| 6 | AI & Machine Learning | `ai` | $500–$2000 | Jetson Orin Nano, Pi 5 16GB | Pi OS, Ubuntu | Optional |
+| 7 | Survival & Off-Grid | `survival` | $300–$1000 | Pi 5 8/16GB | Pi OS, DietPi | Optional |
+| 8 | Media Center | `media` | $150–$500 | Pi 5, Pi 4 | LibreELEC, Kodi | Optional |
+| 9 | Conversation Piece | `conversation` | $150–$800 | Pi Zero 2 W, Pi 4 | Twister OS, Pi OS | Optional |
+
+**Soldering is always optional** across all categories and tiers. No build requires soldering unless you choose custom wiring.
+
+### How to Use Categories
+```
+/cyberdeck categories          — View all 9 categories with details
+/cyberdeck build <category>    — Build a deck for a specific category
+/cyberdeck pick sbc <category> — Pick the best SBC for a category
+```
+
+---
+
 ## SINGLE BOARD COMPUTERS
 
 ### Raspberry Pi 5
