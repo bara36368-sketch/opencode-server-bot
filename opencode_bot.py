@@ -5898,8 +5898,143 @@ async def main():
                                 for aid, res in results.items():
                                     response += f"**{aid}:** {str(res)[:150]}\n"
                                 await send(chat, response)
+                        elif sub == "crew":
+                            if len(parts) < 3:
+                                crews = manager.crew.list_crews()
+                                if crews:
+                                    lines = ["👥 **Crews:**\n"]
+                                    for c in crews:
+                                        lines.append(f"  `{c['id']}` — {c['name']} ({c['members']} members, {c['process']})")
+                                    await send(chat, "\n".join(lines))
+                                else:
+                                    await send(chat, "No crews defined. Use Python to create one:\n`manager.crew.create_crew(CrewConfig(...))`")
+                            else:
+                                crew_action = parts[2].lower()
+                                if crew_action == "run" and len(parts) >= 5:
+                                    cid = parts[3]
+                                    task = " ".join(parts[4:])
+                                    await send(chat, "👥 Running crew...")
+                                    result = await manager.run_crew(cid, task, uid)
+                                    response = f"✅ **Crew Complete**\n"
+                                    for r in result.get("results", []):
+                                        response += f"  `{r['agent_id']}` ({r['role']}): {str(r.get('result', {}))[:150]}\n"
+                                    if result.get("delegations"):
+                                        response += f"\n  Delegations: {len(result['delegations'])}"
+                                    if result.get("final_output"):
+                                        response += f"\n\n**Final:** {str(result['final_output'])[:300]}"
+                                    await send(chat, response)
+                                else:
+                                    await send(chat, "Usage: /agent crew run <crew_id> <task>")
+
+                        elif sub == "debate":
+                            if len(parts) < 5:
+                                debates = manager.debate.list_debates()
+                                if debates:
+                                    lines = ["🗣️ **Recent Debates:**\n"]
+                                    for d in debates:
+                                        lines.append(f"  `{d['id']}` — {d['topic']} ({d['rounds']} rounds)")
+                                    await send(chat, "\n".join(lines))
+                                else:
+                                    await send(chat, "Usage: /agent debate <topic> <proponent> <opponent> [neutral] [judge] [rounds]")
+                            else:
+                                topic = parts[2]
+                                proponent = parts[3]
+                                opponent = parts[4]
+                                neutral = parts[5] if len(parts) > 5 and parts[5] not in ("2", "3", "4", "5") else None
+                                judge = parts[6] if len(parts) > 6 and parts[6] not in ("2", "3", "4", "5") else None
+                                rounds = 3
+                                for p in parts[2:]:
+                                    if p.isdigit() and 1 <= int(p) <= 10:
+                                        rounds = int(p)
+                                await send(chat, f"🗣️ Starting debate: {topic}")
+                                result = await manager.run_debate(topic, proponent, opponent, neutral, judge, rounds, uid)
+                                response = f"🗣️ **Debate: {result.get('topic', topic)}**\nRounds: {result.get('total_rounds', 0)}\n\n"
+                                for r in result.get("rounds", []):
+                                    role_emoji = {"proponent": "🟢", "opponent": "🔴", "neutral": "⚪", "judge": "⚖️"}.get(r["role"], "•")
+                                    response += f"{role_emoji} **R{r['round']}** {r['role']}: {r['argument'][:200]}\n"
+                                if result.get("judgment"):
+                                    response += f"\n⚖️ **Judgment:** {str(result['judgment'])[:300]}"
+                                await send(chat, response)
+
+                        elif sub == "handoff":
+                            if len(parts) < 4:
+                                stats = manager.handoff.get_stats()
+                                rules = manager.handoff.handoff_rules
+                                lines = [f"🔄 **Handoff System** ({stats['total_rules']} rules, {stats['total_handoffs']} performed)\n"]
+                                for r in rules:
+                                    lines.append(f"  `{r.from_agent}` → `{r.to_agent}` ({r.strategy.value})")
+                                await send(chat, "\n".join(lines))
+                            else:
+                                from_ag = parts[2]
+                                to_ag = parts[3]
+                                task = " ".join(parts[4:]) if len(parts) > 4 else "test handoff"
+                                result = await manager.run_handoff(from_ag, to_ag, task)
+                                response = f"🔄 **Handoff:** `{from_ag}` → `{to_ag}`\n"
+                                if isinstance(result, dict):
+                                    for k, v in result.items():
+                                        response += f"  **{k}:** {str(v)[:150]}\n"
+                                await send(chat, response)
+
+                        elif sub == "swarm":
+                            if len(parts) < 4:
+                                status = manager.swarm.get_status()
+                                lines = [f"🐝 **Swarm Status**\nAgents: {status['swarm_agents']}, Active: {status['active_swarms']}"]
+                                for aid, load in status.get("agent_loads", {}).items():
+                                    lines.append(f"  `{aid}` — load: {load:.1f}")
+                                await send(chat, "\n".join(lines))
+                            else:
+                                caps = [c.strip() for c in parts[2].split(",")]
+                                task = " ".join(parts[3:])
+                                max_a = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 3
+                                await send(chat, f"🐝 Swarm executing with capabilities: {', '.join(caps)}")
+                                result = await manager.run_swarm(task, caps, max_a, uid)
+                                response = f"🐝 **Swarm Complete**\nAgents: {', '.join(result.get('selected_agents', []))}\n"
+                                consensus = result.get("consensus", {})
+                                response += f"Consensus: {consensus.get('strategy', 'none')}\n"
+                                for pr in result.get("peer_results", []):
+                                    response += f"  `{pr['agent_id']}`: {str(pr.get('result', {}))[:150]}\n"
+                                await send(chat, response)
+
+                        elif sub == "flow":
+                            if len(parts) < 3:
+                                flows = manager.flow.list_flows()
+                                if flows:
+                                    lines = ["📊 **Flows:**\n"]
+                                    for f in flows:
+                                        lines.append(f"  `{f['id']}` — {f['name']} ({f['nodes']} nodes)")
+                                    await send(chat, "\n".join(lines))
+                                else:
+                                    await send(chat, "No flows defined.")
+                            elif parts[2] == "run" and len(parts) >= 4:
+                                fid = parts[3]
+                                data = {"message": " ".join(parts[4:])} if len(parts) > 4 else {}
+                                await send(chat, f"📊 Running flow...")
+                                result = await manager.run_flow(fid, data, uid)
+                                response = f"📊 **Flow: {result.get('flow_name', fid)}**\nStatus: {result.get('status')}\n"
+                                response += f"Path: {' → '.join(result.get('path', []))}\n"
+                                for nid, nr in result.get("node_results", {}).items():
+                                    response += f"  `{nid}`: {str(nr)[:150]}\n"
+                                if result.get("error"):
+                                    response += f"\n❌ Error: {result['error']}"
+                                await send(chat, response)
+                            else:
+                                await send(chat, "Usage: /agent flow [run <flow_id> <message>]")
+
                         else:
-                            await send(chat, "🤖 **Multi-Agent System**\n\nCommands:\n  /agent status — System status\n  /agent list — List all agents\n  /agent info <id> — Agent details\n  /agent run <message> — Route request\n  /agent pipeline <a1,a2,...> <msg> — Sequential\n  /agent parallel <a1,a2,...> <msg> — Parallel")
+                            await send(chat, "🤖 **Multi-Agent System v3.6.0**\n\n"
+                                "**Basic:**\n"
+                                "  /agent status — System status\n"
+                                "  /agent list — List all agents\n"
+                                "  /agent info <id> — Agent details\n"
+                                "  /agent run <msg> — Route request\n"
+                                "  /agent pipeline <a1,a2,...> <msg> — Sequential\n"
+                                "  /agent parallel <a1,a2,...> <msg> — Parallel\n\n"
+                                "**Advanced:**\n"
+                                "  /agent crew [run <id> <task>] — Crew execution\n"
+                                "  /agent debate <topic> <prop> <opp> [neutral] [judge] [rounds]\n"
+                                "  /agent handoff [from to] — Handoff system\n"
+                                "  /agent swarm [caps] <task> — Swarm execution\n"
+                                "  /agent flow [run <id> <msg>] — Flow execution")
                     except Exception as e:
                         await send(chat, f"Agent system error: {str(e)[:200]}")
 

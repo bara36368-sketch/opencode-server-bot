@@ -1,8 +1,8 @@
 {
-  "version": "3.5.0",
+  "version": "3.6.0",
   "updated": "2026-07-24",
   "experimental": [
-    "Multi-Agent System -- /agent status/list/info/run/pipeline/parallel -- Bot-to-Bot Agent orchestration with specialized AI agents collaborating on complex tasks",
+    "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
     "Scheduled Cron -- recurring AI prompts with /cron and web page change monitoring with /monitor",
     "Social Search -- search Reddit (/reddit), Hacker News (/hn), or all at once (/social)",
@@ -35,6 +35,15 @@
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)"
   ],
   "whats_new": {
+    "3.6.0": [
+      "Multi-Agent Crew Pattern -- /agent crew run <id> <task> -- agents with roles, goals, backstories; sequential or hierarchical delegation",
+      "Multi-Agent Debate -- /agent debate <topic> <proponent> <opponent> -- structured debate with proponent/opponent/neutral/judge roles, multi-round argumentation",
+      "Agent Handoff -- /agent handoff -- direct agent-to-agent handoff with context passing strategies (direct/with-context/summarized)",
+      "Swarm Execution -- /agent swarm <capabilities> <task> -- peer-to-peer collaboration with capability-based routing and consensus building",
+      "Flow Orchestration -- /agent flow run <id> <msg> -- event-driven workflows with conditional branching, agent nodes, and state persistence",
+      "Default Research Pipeline flow auto-configured on startup",
+      "4 pre-configured handoff rules (research->analysis, research->writing, analysis->writing, coding->research)"
+    ],
     "3.5.0": [
       "Multi-Agent System -- /agent status/list/info/run/pipeline/parallel -- Bot-to-Bot Agent orchestration with specialized AI agents (Triage, Research, Analysis, Writing, Coding) collaborating on complex tasks",
       "Sequential Pipeline -- /agent pipeline research,analysis,writing <message> -- chain agents for multi-step workflows",
@@ -208,6 +217,8 @@
     "3.3.120": [],
     "3.3.121": [],
     "3.4.122": [],
-    "3.4.123": []
+    "3.4.123": [],
+    "3.5.124": [],
+    "3.6.0": []
   }
 }
