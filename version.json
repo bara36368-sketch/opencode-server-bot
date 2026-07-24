@@ -1,5 +1,5 @@
 {
-  "version": "3.7.0",
+  "version": "3.7.128",
   "updated": "2026-07-24",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -220,11 +220,13 @@
       "Keyboard Database -- 5 types (60% mech, 40% ortho, Corne split, thumb, Bluetooth)",
       "Power Database -- 4 solutions (UPS HAT, PiSugar 3+, USB power bank, custom 18650)",
       "Enclosure Database -- 5 types (Pelican, 3D printed, Apache, found object, no enclosure)",
-      "Compatibility Engine -- validates SBC↔display, SBC↔keyboard, SBC↔power with auto-fix",
+      "Compatibility Engine -- validates SBC\u2194display, SBC\u2194keyboard, SBC\u2194power with auto-fix",
       "CyberdeckLearner -- persistent learning from videos, user interactions, flaws fixed",
       "Category Defaults -- 9 categories (coding, writerdeck, security, gaming, research, AI, survival, media, conversation-piece)",
       "Triage routing added for cyberdeck keywords",
-      "Handoff rules: coding→cyberdeck, research→cyberdeck, cyberdeck→coding"
-    ]
+      "Handoff rules: coding\u2192cyberdeck, research\u2192cyberdeck, cyberdeck\u2192coding"
+    ],
+    "3.7.126": [],
+    "3.7.127": []
   }
 }

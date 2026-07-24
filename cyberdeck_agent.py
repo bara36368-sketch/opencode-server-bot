@@ -1,9 +1,10 @@
 """
-Cyberdeck Agent v1.0
+Cyberdeck Agent v2.0
 Specialized agent for building, upgrading, and managing cyberdeck builds.
 Features: component selection, compatibility checking, BOM generation,
-tutorial generation, image analysis, video learning, code generation,
-idea creation, flaw detection, and continuous learning.
+tutorial generation, image analysis (AI vision), video learning (auto-queue),
+code generation, idea creation, flaw detection, cooling system, custom categories,
+optional parts picker, and continuous learning from user chats + videos.
 """
 
 import os
@@ -433,6 +434,102 @@ ENCLOSURE_DATABASE = {
     },
 }
 
+COOLING_DATABASE = {
+    "active_fan_30mm": {
+        "name": "30mm Active Cooling Fan",
+        "type": "fan",
+        "size": "30x30x10mm",
+        "noise": "moderate",
+        "cooling_power": "high",
+        "price": 10,
+        "best_for": ["pi5_16gb", "pi5_8gb", "jetson_orin_nano"],
+        "requires_5v": True,
+        "gpio_control": True,
+        "pros": ["Effective cooling", "Adjustable speed via GPIO", "Low cost"],
+        "cons": ["Noise", "Power draw ~0.5W"],
+    },
+    "active_fan_40mm": {
+        "name": "40mm USB Fan",
+        "type": "fan",
+        "size": "40x40x10mm",
+        "noise": "moderate",
+        "cooling_power": "high",
+        "price": 8,
+        "best_for": ["pi5_8gb", "pi4_8gb", "orange_pi_5"],
+        "requires_5v": True,
+        "gpio_control": False,
+        "usb_powered": True,
+        "pros": ["Easy install — USB powered", "No GPIO wiring needed"],
+        "cons": ["Less control", "USB port occupied"],
+    },
+    "heatsink_aluminum": {
+        "name": "Aluminum Heatsink (Pi 5)",
+        "type": "passive_heatsink",
+        "material": "aluminum",
+        "size": "Custom fit for Pi 5",
+        "cooling_power": "medium",
+        "price": 8,
+        "best_for": ["pi5_8gb", "pi5_4gb", "pi4_8gb"],
+        "thermal_conductivity": "205 W/mK",
+        "pros": ["No noise", "No power draw", "Reliable"],
+        "cons": ["Limited cooling under sustained load", "Needs good airflow"],
+    },
+    "heatsink_copper": {
+        "name": "Copper Heatsink (Pi 5)",
+        "type": "passive_heatsink",
+        "material": "copper",
+        "size": "Custom fit for Pi 5",
+        "cooling_power": "very_high",
+        "price": 15,
+        "best_for": ["pi5_16gb", "pi5_8gb"],
+        "thermal_conductivity": "401 W/mK",
+        "pros": ["Excellent passive cooling", "No noise", "No power draw", "Best thermal conductivity"],
+        "cons": ["Heavier than aluminum", "More expensive"],
+    },
+    "thermal_paste_premium": {
+        "name": "Premium Thermal Paste (Arctic MX-6)",
+        "type": "thermal_interface",
+        "thermal_conductivity": "12.5 W/mK",
+        "price": 8,
+        "best_for": ["all"],
+        "pros": ["Essential for any heatsink/fan setup", "Long lasting", "Easy application"],
+        "cons": ["Must reapply every 2-3 years"],
+    },
+    "active_cooler_official": {
+        "name": "Raspberry Pi Active Cooler (Official)",
+        "type": "fan_heatsink_combo",
+        "size": "Pi 5 specific",
+        "noise": "quiet",
+        "cooling_power": "very_high",
+        "price": 12,
+        "best_for": ["pi5_16gb", "pi5_8gb", "pi5_4gb"],
+        "requires_5v": True,
+        "gpio_control": True,
+        "pros": ["Official Raspberry Pi product", "Perfect fit", "PWM controlled", "Quietest option"],
+        "cons": ["Pi 5 only"],
+    },
+    "fan_shroud_3d": {
+        "name": "3D Printed Fan Shroud + 30mm Fan",
+        "type": "custom_fan",
+        "cooling_power": "high",
+        "price": 5,
+        "best_for": ["any_sbc"],
+        "pros": ["Custom directed airflow", "3D printable", "Very cheap"],
+        "cons": ["Requires 3D printer", "Design time"],
+    },
+    "heat_spreader_copper_plate": {
+        "name": "Copper Heat Spreader Plate",
+        "type": "heat_spreader",
+        "material": "copper",
+        "size": "40x40mm",
+        "cooling_power": "medium",
+        "price": 6,
+        "best_for": ["any_sbc"],
+        "pros": ["Spreads heat evenly", "Works with any heatsink", "Low profile"],
+        "cons": ["Needs thermal paste"],
+    },
+}
+
 OS_DATABASE = {
     "pi_os": {"name": "Raspberry Pi OS", "base": "Debian", "best_for": ["general", "coding", "research"], "difficulty": "beginner"},
     "kali": {"name": "Kali Linux", "base": "Debian", "best_for": ["security", "pentesting"], "difficulty": "intermediate"},
@@ -456,6 +553,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "pelican_1450"],
         "os": ["pi_os", "kali", "ubuntu_mate"],
         "accessories": ["nvme_ssd", "usb_hub", "ethernet_switch"],
+        "cooling": ["active_cooler_official", "heatsink_copper", "thermal_paste_premium"],
         "budget_range": [300, 1200],
     },
     "writerdeck": {
@@ -468,6 +566,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "found_object"],
         "os": ["writerdeck_os", "dietpi"],
         "accessories": [],
+        "cooling": ["heatsink_aluminum"],
         "budget_range": [100, 400],
     },
     "security": {
@@ -480,6 +579,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "pelican_1150"],
         "os": ["kali"],
         "accessories": ["wifi_antenna", "sdr", "ethernet_switch", "gpio_switches"],
+        "cooling": ["active_cooler_official", "heatsink_copper", "thermal_paste_premium"],
         "budget_range": [400, 1500],
     },
     "gaming": {
@@ -492,6 +592,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "pelican_1150"],
         "os": ["retropie", "batocera"],
         "accessories": ["game_controllers", "hdmi_output", "speakers"],
+        "cooling": ["active_fan_30mm", "heatsink_aluminum"],
         "budget_range": [150, 500],
     },
     "research": {
@@ -504,6 +605,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "pelican_1150"],
         "os": ["pi_os", "dietpi"],
         "accessories": ["nvme_ssd", "offline_wikipedia", "sunlight_readable"],
+        "cooling": ["active_cooler_official", "heatsink_aluminum"],
         "budget_range": [300, 800],
     },
     "ai": {
@@ -516,6 +618,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom"],
         "os": ["pi_os", "ubuntu_mate"],
         "accessories": ["nvme_ssd", "active_cooling", "gpu_compute"],
+        "cooling": ["active_cooler_official", "active_fan_40mm", "heatsink_copper", "thermal_paste_premium"],
         "budget_range": [500, 2000],
     },
     "survival": {
@@ -528,6 +631,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["pelican_1150", "3d_printed_custom"],
         "os": ["pi_os", "dietpi"],
         "accessories": ["lora", "ham_radio", "solar_panel", "offline_wikipedia", "usb_storage"],
+        "cooling": ["heatsink_copper", "thermal_paste_premium"],
         "budget_range": [300, 1000],
     },
     "media": {
@@ -540,6 +644,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["3d_printed_custom", "pelican_1150"],
         "os": ["libreelec"],
         "accessories": ["hdmi_output", "speakers", "wireless_keyboard"],
+        "cooling": ["heatsink_aluminum"],
         "budget_range": [150, 500],
     },
     "conversation": {
@@ -552,6 +657,7 @@ CATEGORY_DEFAULTS = {
         "enclosures": ["found_object", "3d_printed_custom"],
         "os": ["twister_os", "pi_os"],
         "accessories": ["leds", "themed_aesthetics"],
+        "cooling": ["fan_shroud_3d", "heatsink_aluminum"],
         "budget_range": [150, 800],
     },
 }
@@ -752,6 +858,8 @@ class BuildGenerator:
         tier_idx = tier_map.get(tier, 1)
 
         components = self._select_components(cat_config, tier_idx, custom_parts or {})
+        cooling = self._select_cooling(cat_config, components)
+        components["cooling"] = cooling
 
         compat = CompatibilityEngine.check_full_build(components)
 
@@ -773,12 +881,65 @@ class BuildGenerator:
             "soldering_notes": self._get_soldering_notes(tier, components),
             "aesthetic_suggestions": self._get_aesthetic_suggestions(category, tier),
             "upgrade_paths": self._get_upgrade_paths(components, category),
+            "cooling_plan": self._generate_cooling_plan(cooling, components),
             "generated_at": datetime.now().isoformat(),
         }
 
         if user_id:
             self.learner.learn_from_user(user_id, prompt, category, {"tier": tier, "sbc": components.get("sbc"), "display": components.get("display")})
 
+        return build
+
+    def generate_custom_category_build(self, category_name: str, prompt: str, tier: str = "intermediate",
+                                        custom_parts: Dict[str, str] = None, user_id: int = None) -> Dict[str, Any]:
+        cat_config = {
+            "name": category_name,
+            "description": f"Custom category: {category_name}",
+            "sbcs": ["pi5_16gb", "pi5_8gb", "pi4_8gb"],
+            "displays": ["7ips_hdmi_1280", "10ips_hdmi", "7ips_hdmi_touch"],
+            "keyboards": ["60_mechanical", "40_ortholinear"],
+            "power": ["ups_hat_waveshare", "custom_18650_4cell"],
+            "enclosures": ["3d_printed_custom", "pelican_1450"],
+            "os": ["pi_os", "kali", "ubuntu_mate", "dietpi"],
+            "accessories": ["nvme_ssd", "usb_hub"],
+            "cooling": ["active_cooler_official", "heatsink_copper", "thermal_paste_premium"],
+            "budget_range": [200, 1500],
+        }
+        detected = self._detect_category(prompt + " " + category_name)
+        base_config = CATEGORY_DEFAULTS.get(detected, CATEGORY_DEFAULTS["coding"])
+        for key in ["sbcs", "displays", "keyboards", "power", "enclosures", "os", "accessories", "cooling"]:
+            if key not in cat_config or not cat_config[key]:
+                cat_config[key] = base_config.get(key, cat_config.get(key, []))
+
+        tier_map = {"beginner": 0, "intermediate": 1, "advanced": 2}
+        tier_idx = tier_map.get(tier, 1)
+        components = self._select_components(cat_config, tier_idx, custom_parts or {})
+        cooling = self._select_cooling(cat_config, components)
+        components["cooling"] = cooling
+        compat = CompatibilityEngine.check_full_build(components)
+        if not compat["compatible"]:
+            components = self._fix_flaws(components, compat["issues"], cat_config, tier_idx)
+            compat = CompatibilityEngine.check_full_build(components)
+        build = {
+            "prompt": prompt,
+            "category": f"custom:{category_name}",
+            "category_name": category_name,
+            "tier": tier,
+            "components": components,
+            "compatibility": compat,
+            "bom": self._generate_bom(components, cat_config),
+            "tutorial": self._generate_tutorial(components, cat_config, tier),
+            "tips": self._get_tips(detected, tier),
+            "optional_enhancements": self._get_enhancements(detected, components),
+            "soldering_notes": self._get_soldering_notes(tier, components),
+            "aesthetic_suggestions": self._get_aesthetic_suggestions(detected, tier),
+            "upgrade_paths": self._get_upgrade_paths(components, detected),
+            "cooling_plan": self._generate_cooling_plan(cooling, components),
+            "generated_at": datetime.now().isoformat(),
+            "custom_category": True,
+        }
+        if user_id:
+            self.learner.learn_from_user(user_id, prompt, f"custom:{category_name}", {"tier": tier, "sbc": components.get("sbc")})
         return build
 
     def _detect_category(self, prompt: str) -> str:
@@ -849,7 +1010,42 @@ class BuildGenerator:
         if extras:
             components["extras"] = extras
 
+        cooling_list = cat_config.get("cooling", ["heatsink_aluminum"])
+        best_cooling = cooling_list[0] if cooling_list else "heatsink_aluminum"
+        if custom_parts.get("cooling"):
+            best_cooling = custom_parts["cooling"]
+        components["cooling"] = best_cooling
+
         return components
+
+    def _select_cooling(self, cat_config: Dict, components: Dict) -> str:
+        cooling_list = cat_config.get("cooling", ["heatsink_aluminum"])
+        sbc_id = components.get("sbc", "")
+        for cid in cooling_list:
+            cooler = COOLING_DATABASE.get(cid, {})
+            if sbc_id in cooler.get("best_for", []) or "any_sbc" in cooler.get("best_for", []):
+                return cid
+        return cooling_list[0] if cooling_list else "heatsink_aluminum"
+
+    def _generate_cooling_plan(self, cooling_id: str, components: Dict) -> Dict[str, Any]:
+        cooler = COOLING_DATABASE.get(cooling_id, {})
+        sbc_id = components.get("sbc", "")
+        sbc_data = SBC_DATABASE.get(sbc_id, {})
+        tdp = sbc_data.get("tdp", "12W")
+        return {
+            "cooler": cooler.get("name", "Unknown"),
+            "type": cooler.get("type", "passive"),
+            "material": cooler.get("material", "aluminum"),
+            "tdp_match": True,
+            "recommendation": f"Use {cooler.get('name', 'this cooler')} with {sbc_data.get('name', 'your SBC')} (TDP: {tdp}). {'Apply thermal paste between CPU and heatsink.' if cooler.get('type') in ('passive_heatsink', 'thermal_interface') else ''}",
+            "notes": [
+                "Always apply thermal paste between the CPU and heatsink/cooler",
+                "For Pi 5: the official Active Cooler is the quietest and most effective option",
+                "Copper heatsinks offer 2x better thermal conductivity than aluminum",
+                "Ensure airflow in enclosed builds — add ventilation holes if needed",
+                "Monitor CPU temperature: should stay below 80°C under load",
+            ],
+        }
 
     def _fix_flaws(self, components: Dict, issues: List[str], cat_config: Dict, tier_idx: int) -> Dict[str, str]:
         fixed = dict(components)
@@ -888,6 +1084,9 @@ class BuildGenerator:
         enclosure = ENCLOSURE_DATABASE.get(components.get("enclosure", ""), {})
         if enclosure:
             bom.append({"item": enclosure["name"], "type": "Enclosure", "price": enclosure.get("price", 0), "essential": True})
+        cooling = COOLING_DATABASE.get(components.get("cooling", ""), {})
+        if cooling:
+            bom.append({"item": cooling["name"], "type": "Cooling", "price": cooling.get("price", 0), "essential": True})
         bom.append({"item": "MicroSD Card (64GB+)", "type": "Storage", "price": 15, "essential": True})
         bom.append({"item": "USB-C Power Cable", "type": "Cable", "price": 8, "essential": True})
         bom.append({"item": "Micro HDMI to HDMI Cable", "type": "Cable", "price": 10, "essential": True})
@@ -952,7 +1151,8 @@ class BuildGenerator:
             f"24. Route all cables cleanly — use cable ties or clips.",
             f"25. Connect all cables: display, keyboard, power.",
             f"26. Install any status LEDs or switches if desired.",
-            f"27. Add cooling if needed — fan or heatsink.",
+            f"27. Apply thermal paste to CPU and install cooling: {COOLING_DATABASE.get(components.get('cooling', ''), {}).get('name', 'heatsink')}.",
+            f"28. Ensure proper airflow — add ventilation holes if enclosure is sealed.",
             "",
             "## Phase 5: Software Setup",
             f"28. Flash {os_data.get('name', 'Raspberry Pi OS')} to microSD.",
@@ -1116,7 +1316,10 @@ class CyberdeckAgent:
         self.learner = CyberdeckLearner()
         self.generator = BuildGenerator(self.learner)
         self.build_history = self._load_history()
-        self.version = "1.0.0"
+        self.version = "2.0.0"
+        self.video_queue = []
+        self._video_queue_file = "cyberdeck_video_queue.json"
+        self._load_video_queue()
 
     def _load_history(self) -> List[Dict]:
         if os.path.exists(CYBERDECK_BUILD_HISTORY):
@@ -1131,9 +1334,25 @@ class CyberdeckAgent:
         with open(CYBERDECK_BUILD_HISTORY, 'w') as f:
             json.dump(self.build_history[-100:], f, indent=2)
 
+    def _load_video_queue(self):
+        if os.path.exists(self._video_queue_file):
+            try:
+                with open(self._video_queue_file, 'r') as f:
+                    self.video_queue = json.load(f)
+            except Exception:
+                self.video_queue = []
+
+    def _save_video_queue(self):
+        with open(self._video_queue_file, 'w') as f:
+            json.dump(self.video_queue, f, indent=2)
+
     async def build_from_prompt(self, prompt: str, tier: str = "intermediate",
-                                 custom_parts: Dict[str, str] = None, user_id: int = None) -> Dict[str, Any]:
-        build = self.generator.generate_build(prompt, tier=tier, custom_parts=custom_parts or {}, user_id=user_id)
+                                 custom_parts: Dict[str, str] = None, user_id: int = None,
+                                 custom_category_name: str = None) -> Dict[str, Any]:
+        if custom_category_name:
+            build = self.generator.generate_custom_category_build(custom_category_name, prompt, tier=tier, custom_parts=custom_parts or {}, user_id=user_id)
+        else:
+            build = self.generator.generate_build(prompt, tier=tier, custom_parts=custom_parts or {}, user_id=user_id)
         self.build_history.append({
             "prompt": prompt[:200],
             "category": build["category"],
@@ -1208,16 +1427,79 @@ class CyberdeckAgent:
                 results["suggestions"].append({"type": "Keyboard", "name": kb["name"], "price_range": kb["price_range"], "id": kid})
         return results
 
-    async def learn_from_video(self, title: str, url: str, key_points: List[str], components: List[str], tips: List[str]):
+    async def learn_from_video(self, url: str, title: str = None, key_points: List[str] = None,
+                                components: List[str] = None, tips: List[str] = None) -> Dict[str, Any]:
+        if not title:
+            title = url.split("/")[-1][:80] if "/" in url else url[:80]
+        key_points = key_points or []
+        components = components or []
+        tips = tips or []
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["python", os.path.expanduser("~/.claude/skills/watch-video/scripts/watch.py"), url],
+                capture_output=True, text=True, timeout=120
+            )
+            if result.returncode == 0 and result.stdout:
+                lines = result.stdout.strip().split("\n")
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    line_lower = line.lower()
+                    if any(kw in line_lower for kw in ["sbc", "raspberry pi", "zero 2w", "jetson", "orange pi", "lattepanda"]):
+                        components.append(line[:100])
+                    if any(kw in line_lower for kw in ["tip", "trick", "note", "warning", "important", "make sure", "don't forget"]):
+                        tips.append(line[:200])
+                    if len(key_points) < 10:
+                        key_points.append(line[:200])
+                if not title or title == url.split("/")[-1][:80]:
+                    for line in lines[:3]:
+                        if len(line) > 5 and len(line) < 100:
+                            title = line.strip()
+                            break
+        except Exception as e:
+            logger.debug(f"Video auto-learn fallback: {e}")
         self.learner.learn_from_video(title, url, key_points, components, tips)
-        return {"status": "learned", "title": title, "knowledge_count": len(self.learner.learnings.get("video_knowledge", []))}
+        return {
+            "status": "learned",
+            "title": title,
+            "url": url,
+            "key_points_count": len(key_points),
+            "components_found": components[:10],
+            "tips_found": tips[:10],
+            "total_knowledge": len(self.learner.learnings.get("video_knowledge", [])),
+        }
+
+    async def queue_video(self, url: str) -> Dict[str, Any]:
+        entry = {"url": url, "queued_at": datetime.now().isoformat(), "status": "pending"}
+        self.video_queue.append(entry)
+        self._save_video_queue()
+        return {"status": "queued", "url": url, "queue_position": len(self.video_queue)}
+
+    async def process_video_queue(self) -> Dict[str, Any]:
+        processed = []
+        for entry in self.video_queue:
+            if entry.get("status") == "pending":
+                try:
+                    result = await self.learn_from_video(entry["url"])
+                    entry["status"] = "done"
+                    entry["result"] = result
+                    processed.append(result)
+                except Exception as e:
+                    entry["status"] = "failed"
+                    entry["error"] = str(e)
+        self._save_video_queue()
+        return {"processed": len(processed), "results": processed}
 
     async def analyze_image(self, image_description: str) -> Dict[str, Any]:
         result = {
             "description": image_description,
             "identified_components": [],
             "suggested_category": "coding",
+            "ai_analysis": None,
             "suggested_build": None,
+            "tips": [],
         }
         desc_lower = image_description.lower()
         found = []
@@ -1227,7 +1509,27 @@ class CyberdeckAgent:
         for did, display in DISPLAY_DATABASE.items():
             if any(kw in desc_lower for kw in display["name"].lower().split()):
                 found.append({"type": "Display", "id": did, "name": display["name"]})
+        for kid, kb in KEYBOARD_DATABASE.items():
+            if any(kw in desc_lower for kw in kb["name"].lower().split()):
+                found.append({"type": "Keyboard", "id": kid, "name": kb["name"]})
+        for cid, cooler in COOLING_DATABASE.items():
+            if any(kw in desc_lower for kw in cooler["name"].lower().split()):
+                found.append({"type": "Cooling", "id": cid, "name": cooler["name"]})
         result["identified_components"] = found
+        try:
+            from ai_providers import get_provider
+            provider = get_provider("groq")
+            if provider:
+                prompt = (
+                    f"Analyze this cyberdeck description and identify components, category, and give build tips:\n\n"
+                    f"{image_description}\n\n"
+                    f"Respond in JSON format with: components (list), category (string), tips (list of strings), "
+                    f"compatibility_issues (list), suggested_upgrades (list)"
+                )
+                response = provider.generate(prompt)
+                result["ai_analysis"] = response
+        except Exception as e:
+            logger.debug(f"Image analysis AI fallback: {e}")
         return result
 
     async def generate_ideas(self, category: str = None) -> List[Dict[str, str]]:
@@ -1392,15 +1694,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
             "learned_videos": len(self.learner.learnings.get("video_knowledge", [])),
             "learned_tips": len(self.learner.learnings.get("tips_learned", [])),
             "flaws_fixed": len(self.learner.learnings.get("flaws_fixed", [])),
-            "categories": list(CATEGORY_DEFAULTS.keys()),
+            "categories": list(CATEGORY_DEFAULTS.keys()) + ["custom (user-named)"],
             "tiers": ["beginner", "intermediate", "advanced"],
             "sbc_count": len(SBC_DATABASE),
             "display_count": len(DISPLAY_DATABASE),
             "keyboard_count": len(KEYBOARD_DATABASE),
+            "cooling_count": len(COOLING_DATABASE),
+            "video_queue": len([v for v in self.video_queue if v.get("status") == "pending"]),
         }
 
     def get_categories(self) -> Dict[str, Dict[str, Any]]:
-        return {k: {"name": v["name"], "description": v["description"], "budget_range": v["budget_range"]} for k, v in CATEGORY_DEFAULTS.items()}
+        return {k: {"name": v["name"], "description": v["description"], "budget_range": v["budget_range"], "cooling": v.get("cooling", [])} for k, v in CATEGORY_DEFAULTS.items()}
 
     def get_sbc_for_category(self, category: str) -> List[Dict[str, Any]]:
         cat_config = CATEGORY_DEFAULTS.get(category, {})

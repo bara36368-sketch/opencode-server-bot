@@ -6049,36 +6049,124 @@ async def main():
                             if not prompt_text:
                                 await send(chat, "Usage: /cyberdeck build <description>\nExample: /cyberdeck build I want a budget writerdeck under $100")
                                 continue
-                            await send(chat, "🔧 Building your cyberdeck...")
-                            build_result = await agent.build_from_prompt(prompt_text)
-                            build = build_result.get("build", build_result)
+                            await send(chat, "🔧 Building your cyberdeck with full compatibility check...")
+                            build_result = await agent.build_from_prompt(prompt_text, user_id=uid)
+                            build = build_result
                             if build.get("error"):
                                 await send(chat, f"❌ Build failed: {build['error']}")
                                 continue
-                            lines = [f"🔧 **{build.get('name', 'Custom Cyberdeck')}**\n"]
-                            lines.append(f"📂 Category: {build.get('category', 'custom')}")
-                            lines.append(f"💰 Budget: {build.get('budget', 'any')}")
-                            lines.append(f"⭐ Tier: {build.get('tier_name', 'custom')}")
+                            lines = [f"🔧 **{build.get('category_name', 'Custom Cyberdeck')}**\n"]
+                            lines.append(f"📂 Category: `{build.get('category', 'custom')}`")
+                            lines.append(f"⭐ Tier: **{build.get('tier', 'intermediate').upper()}**")
                             lines.append("")
                             comps = build.get("components", {})
                             if comps:
-                                lines.append("**Components:**")
-                                for cat, info in comps.items():
-                                    if isinstance(info, dict):
-                                        name = info.get("name", "N/A")
-                                        price = info.get("price", "?")
-                                        lines.append(f"  {cat}: {name} (${price})")
-                                    else:
-                                        lines.append(f"  {cat}: {info}")
+                                lines.append("**Components (Most Powerful Per Category):**")
+                                db_map = {"sbc": "SBC", "display": "Display", "keyboard": "Keyboard", "power": "Power", "enclosure": "Enclosure", "os": "OS", "cooling": "Cooling"}
+                                for cat, val in comps.items():
+                                    if cat == "extras":
+                                        lines.append(f"  Extras: {', '.join(val) if isinstance(val, list) else val}")
+                                    elif cat in db_map:
+                                        db = {"sbc": "SBC_DATABASE", "display": "DISPLAY_DATABASE", "keyboard": "KEYBOARD_DATABASE", "power": "POWER_DATABASE", "enclosure": "ENCLOSURE_DATABASE", "cooling": "COOLING_DATABASE"}.get(cat)
+                                        name = val
+                                        price = "?"
+                                        if db:
+                                            try:
+                                                from cyberdeck_agent import SBC_DATABASE, DISPLAY_DATABASE, KEYBOARD_DATABASE, POWER_DATABASE, ENCLOSURE_DATABASE, COOLING_DATABASE
+                                                db_obj = {"sbc": SBC_DATABASE, "display": DISPLAY_DATABASE, "keyboard": KEYBOARD_DATABASE, "power": POWER_DATABASE, "enclosure": ENCLOSURE_DATABASE, "cooling": COOLING_DATABASE}[db]
+                                                data = db_obj.get(val, {})
+                                                name = data.get("name", val)
+                                                price = data.get("price", "?")
+                                            except Exception:
+                                                pass
+                                        lines.append(f"  {db_map[cat]}: **{name}** (${price})")
                                 lines.append("")
-                            bom = build.get("bom", {})
-                            if bom and "total" in bom:
-                                lines.append(f"💵 **Total Cost: ${bom['total']}**")
-                                lines.append(f"💵 Budget Remaining: ${bom.get('budget_remaining', '?')}")
-                            if build.get("compatibility_issues"):
-                                lines.append("\n⚠️ **Compatibility Issues:**")
-                                for issue in build["compatibility_issues"]:
+                            compat = build.get("compatibility", {})
+                            if compat.get("compatible"):
+                                lines.append("✅ **All components compatible**")
+                            elif compat.get("issues"):
+                                lines.append("⚠️ **Compatibility issues (auto-fixed):**")
+                                for issue in compat["issues"]:
                                     lines.append(f"  • {issue}")
+                            lines.append("")
+                            bom = build.get("bom", [])
+                            if bom:
+                                total = 0
+                                essential_items = []
+                                for item in bom:
+                                    if item.get("essential") and item.get("type") != "TOTAL ESTIMATED":
+                                        essential_items.append(f"  • {item['item']} — ${item['price']}")
+                                        total += item.get("price", 0)
+                                    elif not item.get("essential") and item.get("price", 0) > 0:
+                                        essential_items.append(f"  • {item['item']} — ${item['price']} (optional)")
+                                        total += item.get("price", 0)
+                                lines.append(f"🧾 **Bill of Materials** ({len(essential_items)} items)")
+                                lines.extend(essential_items)
+                                lines.append(f"\n💵 **Estimated Total: ${total}**")
+                            cooling_plan = build.get("cooling_plan", {})
+                            if cooling_plan:
+                                lines.append(f"\n❄️ **Cooling:** {cooling_plan.get('cooler', 'N/A')}")
+                                lines.append(f"  {cooling_plan.get('recommendation', '')}")
+                            tips = build.get("tips", [])
+                            if tips:
+                                lines.append(f"\n💡 **Tips** ({len(tips)} learned):")
+                                for tip in tips[:5]:
+                                    lines.append(f"  • {tip}")
+                            soldering = build.get("soldering_notes", {})
+                            if soldering:
+                                lines.append(f"\n🔧 **Soldering:** {'Required' if soldering.get('required') else 'Optional'} ({soldering.get('skill_level', 'basic')})")
+                                lines.append(f"  {soldering.get('recommendation', '')}")
+                            enhancements = build.get("optional_enhancements", [])
+                            if enhancements:
+                                lines.append(f"\n⬆️ **Optional Enhancements:**")
+                                for enh in enhancements[:4]:
+                                    lines.append(f"  • {enh.get('name', '')} — ${enh.get('price', '?')} ({enh.get('difficulty', '')})")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "custom":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /cyberdeck custom <category_name> <description>\nExample: /cyberdeck custom \"Robotics Lab\" Mobile robotics with camera and servos\nYou name it, AI fills everything with best components.")
+                                continue
+                            cat_name = parts[2].strip('"').strip("'")
+                            desc = " ".join(parts[3:])
+                            await send(chat, f"🔧 Building custom category: **{cat_name}**...")
+                            build_result = await agent.build_from_prompt(desc, user_id=uid, custom_category_name=cat_name)
+                            build = build_result
+                            if build.get("error"):
+                                await send(chat, f"❌ Build failed: {build['error']}")
+                                continue
+                            lines = [f"🔧 **Custom: {cat_name}**\n"]
+                            lines.append(f"📂 Detected as: `{build.get('category', 'custom')}`")
+                            lines.append(f"⭐ Tier: **{build.get('tier', 'intermediate').upper()}**")
+                            lines.append("")
+                            comps = build.get("components", {})
+                            if comps:
+                                lines.append("**Components (AI-Selected Most Powerful):**")
+                                db_map = {"sbc": "SBC", "display": "Display", "keyboard": "Keyboard", "power": "Power", "enclosure": "Enclosure", "os": "OS", "cooling": "Cooling"}
+                                for cat, val in comps.items():
+                                    if cat in db_map:
+                                        name = val
+                                        price = "?"
+                                        try:
+                                            from cyberdeck_agent import SBC_DATABASE, DISPLAY_DATABASE, KEYBOARD_DATABASE, POWER_DATABASE, ENCLOSURE_DATABASE, COOLING_DATABASE
+                                            db_obj = {"sbc": SBC_DATABASE, "display": DISPLAY_DATABASE, "keyboard": KEYBOARD_DATABASE, "power": POWER_DATABASE, "enclosure": ENCLOSURE_DATABASE, "cooling": COOLING_DATABASE}[cat]
+                                            data = db_obj.get(val, {})
+                                            name = data.get("name", val)
+                                            price = data.get("price", "?")
+                                        except Exception:
+                                            pass
+                                        lines.append(f"  {db_map[cat]}: **{name}** (${price})")
+                                lines.append("")
+                            compat = build.get("compatibility", {})
+                            if compat.get("compatible"):
+                                lines.append("✅ **All components compatible**")
+                            cooling_plan = build.get("cooling_plan", {})
+                            if cooling_plan:
+                                lines.append(f"❄️ **Cooling:** {cooling_plan.get('cooler', 'N/A')}")
+                            bom = build.get("bom", [])
+                            if bom:
+                                total = sum(item.get("price", 0) for item in bom if item.get("essential"))
+                                lines.append(f"💵 **Estimated Total: ${total}**")
                             await send(chat, "\n".join(lines))
 
                         elif sub == "categories":
@@ -6108,6 +6196,9 @@ async def main():
                                 continue
                             comp_type = parts[2]
                             category = parts[3] if len(parts) > 3 else "coding"
+                            if comp_type not in ("sbc", "display", "keyboard", "power", "enclosure", "os", "cooling"):
+                                await send(chat, "Types: sbc, display, keyboard, power, enclosure, os, cooling")
+                                continue
                             result = await agent.pick_components(comp_type, category)
                             if "error" in result:
                                 await send(chat, f"❌ {result['error']}")
@@ -6284,38 +6375,82 @@ async def main():
                             else:
                                 await send(chat, "No build history yet. Use /cyberdeck build to create your first build!")
 
+                        elif sub == "queue":
+                            url = parts[2] if len(parts) > 2 else ""
+                            if not url:
+                                await send(chat, "Usage: /cyberdeck queue <youtube_url>\nQueues video for background learning (processes while you're offline/online).")
+                                continue
+                            result = await agent.queue_video(url)
+                            await send(chat, f"🎬 **Video queued!**\nURL: {result['url']}\nPosition: #{result['queue_position']}\n\nIt will be learned automatically. Use /cyberdeck process-queue to process now.")
+
+                        elif sub == "process-queue":
+                            await send(chat, "🎬 Processing video queue...")
+                            result = await agent.process_video_queue()
+                            lines = [f"🎬 **Queue Processed:** {result['processed']} videos\n"]
+                            for r in result.get("results", []):
+                                if isinstance(r, dict):
+                                    lines.append(f"• **{r.get('title', 'Unknown')}** — {r.get('key_points_count', 0)} key points, {len(r.get('components_found', []))} components")
+                            await send(chat, "\n".join(lines) if len(lines) > 1 else "No pending videos in queue.")
+
+                        elif sub == "cooling":
+                            from cyberdeck_agent import COOLING_DATABASE
+                            lines = ["❄️ **Cooling Systems:**\n"]
+                            lines.append("**Active (Fans):**")
+                            for cid, cooler in COOLING_DATABASE.items():
+                                if cooler.get("type") in ("fan", "fan_heatsink_combo", "custom_fan"):
+                                    lines.append(f"  • **{cooler['name']}** — ${cooler['price']} ({cooler.get('cooling_power', '?')})")
+                                    lines.append(f"    Best for: {', '.join(cooler.get('best_for', [])[:3])}")
+                            lines.append("\n**Passive (Heatsinks):**")
+                            for cid, cooler in COOLING_DATABASE.items():
+                                if cooler.get("type") in ("passive_heatsink", "heat_spreader", "thermal_interface"):
+                                    mat = cooler.get("material", "compound")
+                                    lines.append(f"  • **{cooler['name']}** — ${cooler['price']} ({mat})")
+                            lines.append("\n💡 Pi 5 needs active cooling. Copper > Aluminum (401 vs 205 W/mK).")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "analyze":
+                            await send(chat, "📸 **Send me a photo** of a cyberdeck or electronics project and I'll analyze it!\n\nI can identify components, suggest upgrades, check compatibility, and recommend the best category.\n\nTip: Reply to a photo with `/cyberdeck analyze`")
+
                         elif sub == "status":
                             status = agent.get_status()
-                            lines = ["🔧 **Cyberdeck Agent Status:**\n"]
-                            lines.append(f"Knowledge Base: {status.get('knowledge_base', {})}")
-                            lines.append(f"Build History: {status.get('build_history', 0)} builds")
-                            lines.append(f"Learning Entries: {status.get('learning_entries', 0)}")
+                            lines = ["🔧 **Cyberdeck Agent v2.0 Status:**\n"]
+                            lines.append(f"Version: {status.get('version', '?')}")
+                            lines.append(f"Total Builds: {status.get('total_builds', 0)}")
+                            lines.append(f"Learned from Videos: {status.get('learned_videos', 0)}")
+                            lines.append(f"Tips Learned: {status.get('learned_tips', 0)}")
                             lines.append(f"Flaws Fixed: {status.get('flaws_fixed', 0)}")
-                            lines.append(f"Compatibility Issues: {status.get('compatibility_issues_fixed', 0)}")
+                            lines.append(f"Categories: {len(status.get('categories', []))} (including custom)")
+                            lines.append(f"Components: {status.get('sbc_count', 0)} SBCs, {status.get('display_count', 0)} displays, {status.get('keyboard_count', 0)} keyboards, {status.get('cooling_count', 0)} coolers")
+                            lines.append(f"Video Queue: {status.get('video_queue', 0)} pending")
                             await send(chat, "\n".join(lines))
 
                         else:
-                            await send(chat, "🔧 **Cyberdeck Agent v3.7.0**\n\n"
+                            await send(chat, "🔧 **Cyberdeck Agent v2.0**\n\n"
                                 "**Build & Design:**\n"
-                                "  /cyberdeck build <description> — Build a custom cyberdeck\n"
-                                "  /cyberdeck categories — View all deck categories\n"
+                                "  /cyberdeck build <desc> — Build (auto-detect category, most powerful parts)\n"
+                                "  /cyberdeck custom <name> <desc> — Custom category (AI fills everything)\n"
+                                "  /cyberdeck categories — View all 9 categories + cooling\n"
                                 "  /cyberdeck tiers — View budget tiers\n"
-                                "  /cyberdeck pick <type> [category] — Pick best component\n"
+                                "  /cyberdeck pick <type> [category] — Pick best component (sbc/display/keyboard/power/enclosure/os/cooling)\n"
                                 "  /cyberdeck compat <sbc> <display> — Check compatibility\n"
-                                "  /cyberdeck bom <description> — Generate bill of materials\n"
-                                "  /cyberdeck tutorial <description> — Get assembly tutorial\n"
-                                "  /cyberdeck upgrade <description> — Suggest upgrades\n\n"
+                                "  /cyberdeck bom <desc> — Bill of materials\n"
+                                "  /cyberdeck tutorial <desc> — Word-by-word assembly guide\n"
+                                "  /cyberdeck upgrade <desc> — Suggest upgrades\n"
+                                "  /cyberdeck cooling — View cooling options (fans, heatsinks, aluminum, copper)\n\n"
                                 "**Research & Learn:**\n"
                                 "  /cyberdeck search <query> — Search for parts\n"
-                                "  /cyberdeck watch <url> — Learn from YouTube/TikTok video\n"
-                                "  /cyberdeck analyze — Analyze a cyberdeck photo\n"
+                                "  /cyberdeck watch <url> — Learn from YouTube/TikTok video (auto-learns components & tips)\n"
+                                "  /cyberdeck queue <url> — Queue video for offline learning\n"
+                                "  /cyberdeck process-queue — Process queued videos\n"
+                                "  /cyberdeck analyze — Analyze a cyberdeck photo (AI vision)\n"
                                 "  /cyberdeck code <task> — Generate electronics code\n"
                                 "  /cyberdeck ideas — Get cyberdeck ideas\n\n"
                                 "**History & Info:**\n"
                                 "  /cyberdeck list — View build history\n"
                                 "  /cyberdeck status — Agent status\n\n"
-                                "Component types: sbc, display, keyboard, power, enclosure, os\n"
-                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation-piece")
+                                "Component types: sbc, display, keyboard, power, enclosure, os, cooling\n"
+                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation-piece\n"
+                                "Custom: /cyberdeck custom <any_name> <description>")
 
                     except Exception as e:
                         await send(chat, f"Cyberdeck error: {str(e)[:200]}")

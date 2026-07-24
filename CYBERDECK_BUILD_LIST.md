@@ -181,7 +181,26 @@ A cyberdeck is a personal portable computer built by hand. It rejects the polish
 /cyberdeck categories          — View all 9 categories with details
 /cyberdeck build <category>    — Build a deck for a specific category
 /cyberdeck pick sbc <category> — Pick the best SBC for a category
+/cyberdeck custom <name> <description> — Create a custom category (AI fills everything)
 ```
+
+### Custom Categories
+The agent supports **user-defined custom categories**. Just provide a name and description, and the AI fills in the best components, cooling, enclosure, OS, and accessories.
+
+**Examples:**
+- `/cyberdeck custom "Robotics Lab" Mobile robotics platform with camera and servos`
+- `/cyberdeck custom "Ham Radio" Portable ham radio with SDR and antenna`
+- `/cyberdeck custom "Digital Art" Portable creative workstation with stylus support`
+- `/cyberdeck custom "Weather Station" Outdoor weather monitoring with sensors`
+- `/cyberdeck custom "Drone Ground Station" Portable UAV control with video downlink`
+
+**How it works:**
+1. User provides a category name (any name)
+2. Agent detects the closest built-in category for component selection
+3. Agent selects the most powerful components (Pi 5 16GB, best display, etc.)
+4. Agent adds cooling, enclosure, OS, and accessories
+5. Agent generates full BOM, tutorial, tips, and compatibility check
+6. All components are validated for compatibility before delivery
 
 ---
 
@@ -568,6 +587,50 @@ Since Jay Doscher's Recovery Kit (2019), Pelican cases are the standard:
 - USB-C 3.1 left-angled 90°
 - Micro SD to micro SD extension cable
 - USB-C panel mount cables
+
+---
+
+## COOLING SYSTEMS
+
+Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and enclosed builds trap heat. Choose based on your SBC and build style.
+
+### Active Cooling (Fans)
+| Cooler | Size | Noise | Cooling Power | Price | Best For |
+|--------|------|-------|---------------|-------|----------|
+| **Raspberry Pi Active Cooler (Official)** | Pi 5 specific | Quiet | Very High | $12 | Pi 5 (best option) |
+| **30mm Active Fan** | 30x30x10mm | Moderate | High | $10 | Pi 5, Jetson, Orange Pi |
+| **40mm USB Fan** | 40x40x10mm | Moderate | High | $8 | Pi 4, Pi 5, any SBC |
+| **3D Printed Fan Shroud + 30mm Fan** | Custom | Moderate | High | $5 | Any SBC (custom directed airflow) |
+
+### Passive Cooling (Heatsinks)
+| Cooler | Material | Thermal Conductivity | Price | Best For |
+|--------|----------|---------------------|-------|----------|
+| **Copper Heatsink (Pi 5)** | Copper | 401 W/mK | $15 | Pi 5 8/16GB (best passive) |
+| **Aluminum Heatsink (Pi 5)** | Aluminum | 205 W/mK | $8 | Pi 5, Pi 4 (budget option) |
+| **Copper Heat Spreader Plate** | Copper | 401 W/mK | $6 | Any SBC (spreads heat evenly) |
+| **Premium Thermal Paste (Arctic MX-6)** | Compound | 12.5 W/mK | $8 | All (essential for any setup) |
+
+### Cooling Recommendations by Category
+- **Coding / Security / AI**: Active cooler mandatory — Pi 5 under sustained load hits 70°C+ without cooling
+- **Gaming**: Active fan recommended — emulation is CPU-intensive
+- **Writerdeck**: Passive heatsink sufficient — e-ink + low-power SBC generates minimal heat
+- **Media**: Passive heatsink fine — mostly idle with occasional decode bursts
+- **Survival**: Copper heatsink preferred — no moving parts, reliable in field conditions
+- **Conversation Piece**: Fan shroud 3D printed — directed airflow + custom aesthetics
+
+### Thermal Guidelines
+- **Safe zone**: Below 60°C — no throttling, long component life
+- **Warning zone**: 60–70°C — add or improve cooling
+- **Danger zone**: 70–80°C — throttling begins, reduce load or upgrade cooling
+- **Critical**: Above 80°C — immediate shutdown risk, stop what you're doing
+
+### Cooling Tips
+1. **Always apply thermal paste** between CPU and heatsink/cooler — don't skip this
+2. **Copper > Aluminum** for thermal conductivity (401 vs 205 W/mK) — worth the extra $7
+3. **The Pi 5 Official Active Cooler** is the quietest and most effective — it's PWM controlled
+4. **Add ventilation holes** to enclosed builds — sealed cases trap heat
+5. **Monitor CPU temp** with `vcgencmd measure_temp` or a custom script
+6. **Aluminum heatsinks** are fine for Pi 4 and below — the Pi 5 needs more
 
 ---
 

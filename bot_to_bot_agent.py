@@ -1202,7 +1202,7 @@ class BotToBotManager:
 
     def get_status(self) -> Dict[str, Any]:
         return {
-            "version": "3.7.0",
+            "version": "3.7.1",
             "agents": self.orchestrator.list_agents(),
             "active_tasks": len([s for s in self.state_manager.states.values() if s.status == TaskStatus.PROCESSING]),
             "total_messages": len(self.message_bus.message_log),
