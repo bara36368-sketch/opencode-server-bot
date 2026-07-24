@@ -1,7 +1,8 @@
 {
-  "version": "3.4.1",
-  "updated": "2026-07-23",
+  "version": "3.5.0",
+  "updated": "2026-07-24",
   "experimental": [
+    "Multi-Agent System -- /agent status/list/info/run/pipeline/parallel -- Bot-to-Bot Agent orchestration with specialized AI agents collaborating on complex tasks",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
     "Scheduled Cron -- recurring AI prompts with /cron and web page change monitoring with /monitor",
     "Social Search -- search Reddit (/reddit), Hacker News (/hn), or all at once (/social)",
@@ -34,6 +35,14 @@
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)"
   ],
   "whats_new": {
+    "3.5.0": [
+      "Multi-Agent System -- /agent status/list/info/run/pipeline/parallel -- Bot-to-Bot Agent orchestration with specialized AI agents (Triage, Research, Analysis, Writing, Coding) collaborating on complex tasks",
+      "Sequential Pipeline -- /agent pipeline research,analysis,writing <message> -- chain agents for multi-step workflows",
+      "Parallel Execution -- /agent parallel research,analysis <message> -- run multiple agents simultaneously",
+      "Agent Registry -- register custom agents with capabilities, prompts, and routing rules",
+      "Loop Prevention -- built-in message depth limiting to prevent infinite bot-to-bot loops",
+      "State Management -- track task progress across agent interactions"
+    ],
     "3.4.0": [
       "Mini Apps \u2014 full HTML dashboards and tools inside Telegram. /miniapp status/pages/data/url to manage. /experimental enable mini-apps to activate. Web App inline buttons, menu button integration, web_app_data handling, HMAC-SHA256 validation.",
       "Telegram WebApp JS SDK integration \u2014 theme-aware UI, responsive design, sendData() for bot communication"
@@ -198,6 +207,7 @@
     "3.3.119": [],
     "3.3.120": [],
     "3.3.121": [],
-    "3.4.122": []
+    "3.4.122": [],
+    "3.4.123": []
   }
 }

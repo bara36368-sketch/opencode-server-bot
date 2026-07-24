@@ -957,6 +957,7 @@ def load_experimental():
         "location-distance": {"name": "Location & Distance", "desc": "Set home location, track user distances, restrict responses to within 14km range", "version": "3.2.1", "category": "utility"},
         "mini-apps": {"name": "Mini Apps", "desc": "Telegram Web Apps — full HTML dashboards and tools inside Telegram", "version": "3.4.0", "category": "utility"},
         "rich-text-v2": {"name": "Rich Text v2", "desc": "Telegram Bot API 10.1 Rich Messages — tables, collapsible details, math formulas, code blocks, slideshows", "version": "3.4.0", "category": "ai"},
+        "multi-agent": {"name": "Multi-Agent System", "desc": "Bot-to-Bot Agent orchestration — specialized AI agents collaborate on complex tasks", "version": "3.5.0", "category": "ai"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -5819,6 +5820,88 @@ async def main():
                     else:
                         on = is_experimental_enabled("rich-text-v2") if rt2_mod else False
                         await send(chat, f"Rich Text v2: {'ON' if on else 'OFF'}\nBot API 10.1 Rich Messages — tables, collapsible details, math formulas, code blocks, slideshows.\n\nCommands:\n  /richv2 on — Enable\n  /richv2 off — Disable\n  /richv2 stats — View statistics")
+
+                elif cmd == "/agent":
+                    if not is_experimental_enabled("multi-agent"):
+                        await send(chat, "Multi-Agent System is disabled. Use /experimental enable multi-agent")
+                        continue
+                    try:
+                        from bot_to_bot_agent import get_manager, format_system_status, format_agent_status
+                        manager = get_manager()
+                        sub = parts[1].lower() if len(parts) > 1 else "status"
+                        
+                        if sub == "status":
+                            status = manager.get_status()
+                            await send(chat, format_system_status(status))
+                        elif sub == "list":
+                            agents = manager.list_available_agents()
+                            lines = ["🤖 **Available Agents:**\n"]
+                            for aid in agents:
+                                astatus = manager.get_agent_status(aid)
+                                if astatus:
+                                    emoji = "✅" if astatus.get('enabled') else "❌"
+                                    lines.append(f"{emoji} `{aid}` — {astatus.get('name', 'Unknown')}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "info":
+                            if len(parts) < 3:
+                                await send(chat, "Usage: /agent info <agent_id>")
+                            else:
+                                aid = parts[2]
+                                astatus = manager.get_agent_status(aid)
+                                if astatus:
+                                    await send(chat, format_agent_status(astatus))
+                                else:
+                                    await send(chat, f"Agent '{aid}' not found.")
+                        elif sub == "run":
+                            if len(parts) < 3:
+                                await send(chat, "Usage: /agent run <message>\nRoutes request through triage to specialist agent.")
+                            else:
+                                message = " ".join(parts[2:])
+                                await send(chat, "🤖 Processing through agent system...")
+                                result = await manager.process_request(message, uid)
+                                routing = result.get('routing', 'unknown')
+                                agent_result = result.get('result', {})
+                                response = f"🔀 **Routed to:** {routing}\n\n"
+                                if isinstance(agent_result, dict):
+                                    for k, v in agent_result.items():
+                                        if k != 'error':
+                                            response += f"**{k}:** {str(v)[:200]}\n"
+                                else:
+                                    response += str(agent_result)[:500]
+                                await send(chat, response)
+                        elif sub == "pipeline":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /agent pipeline <agent1,agent2,...> <message>\nRun sequential pipeline.")
+                            else:
+                                agent_chain = [a.strip() for a in parts[2].split(",")]
+                                message = " ".join(parts[3:])
+                                await send(chat, f"🔄 Running pipeline: {' → '.join(agent_chain)}")
+                                result = await manager.run_pipeline(message, agent_chain)
+                                final = result.get('final_result', {})
+                                response = f"✅ **Pipeline Complete**\nChain: {' → '.join(agent_chain)}\n\n"
+                                if isinstance(final, dict):
+                                    for k, v in final.items():
+                                        response += f"**{k}:** {str(v)[:200]}\n"
+                                else:
+                                    response += str(final)[:500]
+                                await send(chat, response)
+                        elif sub == "parallel":
+                            if len(parts) < 4:
+                                await send(chat, "Usage: /agent parallel <agent1,agent2,...> <message>\nRun agents in parallel.")
+                            else:
+                                agent_ids = [a.strip() for a in parts[2].split(",")]
+                                message = " ".join(parts[3:])
+                                await send(chat, f"⚡ Running parallel: {', '.join(agent_ids)}")
+                                result = await manager.run_parallel(message, agent_ids)
+                                results = result.get('results', {})
+                                response = f"✅ **Parallel Complete**\nAgents: {', '.join(agent_ids)}\n\n"
+                                for aid, res in results.items():
+                                    response += f"**{aid}:** {str(res)[:150]}\n"
+                                await send(chat, response)
+                        else:
+                            await send(chat, "🤖 **Multi-Agent System**\n\nCommands:\n  /agent status — System status\n  /agent list — List all agents\n  /agent info <id> — Agent details\n  /agent run <message> — Route request\n  /agent pipeline <a1,a2,...> <msg> — Sequential\n  /agent parallel <a1,a2,...> <msg> — Parallel")
+                    except Exception as e:
+                        await send(chat, f"Agent system error: {str(e)[:200]}")
 
                 elif cmd == "/style":
                     if not styles_mod:

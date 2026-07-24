@@ -492,3 +492,197 @@
 - Format messages in-app
 - Tables, math formulas, media
 - Drag-n-drop editing
+
+---
+
+## 📅 ROUND 3: AI AGENT ECOSYSTEM + MONETIZATION + BOT API 10.2 (July 24, 2026)
+
+### 🔥 AI AGENT ECOSYSTEM (2026)
+
+#### Bot-to-Bot Communication (May 7, 2026)
+- **Bots can message each other directly** via @username
+- Both bots must opt-in (mutual opt-in prevents spam)
+- Enables multi-agent orchestration patterns
+- **Executor/Overseer pattern**: One bot executes, another validates
+- **Delegation chains**: Generalist routes to domain specialists
+- **Security concern**: Bots can trigger infinite loops without safeguards
+
+#### Guest Bots (May 7, 2026)
+- Users can mention any bot using @username in any chat
+- Bot receives access ONLY to tagged message + thread
+- Cannot see other participants or read history
+- **Summon-on-demand pattern**: AI appears contextually without persistent access
+
+#### Chat Automation (May 7, 2026)
+- Bots can respond on behalf of users
+- Personal AI assistant deployment
+- User delegates actions to bot
+
+#### Streaming Text (March 2026)
+- Progressive response display for LLM-powered bots
+- Better UX for long AI responses
+- Purpose-built for AI assistants
+
+#### Multi-Agent Coordination Patterns
+- **Executor + Overseer**: One bot executes tasks, another validates outputs
+- **Generalist → Specialist**: Route queries to domain experts
+- **Pipeline architecture**: Sequential agent processing
+- **Context tracking**: Across agent handoffs
+- **Response aggregation**: From multiple specialists
+- **Timeout/fallback**: For unresponsive peers
+
+#### Platform Statistics
+- **1 Billion MAU** (2026)
+- **10 Million+ bots** on platform
+- **AlphaTON Capital**: $46M investment for AI computing
+- **Cocoon AI**: Decentralized AI network on TON
+
+---
+
+### 💰 MONETIZATION STRATEGIES (2026)
+
+#### Telegram Stars (Native Currency)
+- Users purchase Stars with real money (Apple Pay, Google Pay, card)
+- Developers receive Stars for premium features/subscriptions
+- **Economics**: Each Star = $0.013 (1.3 cents)
+- **Fees**: 30% on iOS (Apple), ~2-3% on desktop/Android
+- **Net revenue**: 60-70% of user-facing price
+- **Hold period**: ~21 days before withdrawal
+- **Minimum withdrawal**: 1,000 Stars
+
+#### Withdrawal to TON
+- Convert Stars to TON at fixed rate
+- Withdraw TON to external wallet
+- Fragment marketplace for username NFTs
+
+#### CryptoBot Integration
+- Accept USDT, BTC in-chat payments
+- Native "Pay" button in Telegram
+- Users need CryptoBot wallet
+- **Pros**: Smooth UX, no external browser
+- **Cons**: Limited to CryptoBot assets, KYC dependency
+
+#### Subscription Models
+| Tier | Price | Features |
+|------|-------|----------|
+| Free | $0 | 10 messages/day |
+| Premium | $9.99/mo | Unlimited, faster, better models |
+| Pro | $19.99/mo | Memory, custom persona, priority |
+| Enterprise | $29-99/mo | Trading signals, specialized AI |
+
+**Conversion rates**: 3-5% typical, 8%+ excellent
+**Revenue potential**:
+- 100 users @ $9.99 = $1,000 MRR
+- 500 users @ $19.99 = $10,000 MRR
+
+#### Paid Channels
+- Bot as paywall for private channels
+- Auto-invite after payment
+- Auto-kick on subscription expiry
+- **Best niches**: Trading signals, betting tips, exclusive content
+
+#### Revenue Multiples (Exit Value)
+- **Subscription bots**: 18-24x MRR
+- **Example**: $500/mo net = $9,000-$10,800 valuation
+- **Example**: $2,000 subscribers = $36,000-$43,000 asset
+
+#### Most Profitable Niches
+1. **Paid community/gated content**: Recurring, sticky, low churn
+2. **Trading & finance signals**: High willingness to pay
+3. **B2B workflow & automation**: Embedded, hard to rip out
+4. **Premium utility**: Clear value, broad demand
+
+---
+
+### 📱 BOT API 10.2 (July 14, 2026)
+
+#### Ephemeral Messages
+- **Messages visible only to specific user** in group chats
+- Bots can send ephemeral messages automatically or via commands
+- **Commands marked ephemeral**: Visible only to user + bot
+- **Use cases**: Welcome messages, AI summaries, error notifications, interactive menus
+- **New methods**: sendEphemeralMessage, editEphemeralMessageText, deleteEphemeralMessage
+- **receiver_user_id**: Target specific user in group
+
+#### Rich Messages v2
+- **InputRichMessage.media**: Explicit media specification
+- **InputMediaVoiceNote**: Voice message support
+- **Rich Block Lists**: List items in rich messages
+- **Collages, slideshows, media blocks**: Enhanced visual content
+- **Thinking blocks**: Show AI reasoning process
+
+#### Communities
+- Link multiple groups, channels, and bots
+- **Community object**: New top-level entity
+- **CommunityChatAdded/Removed**: Events for bot integration
+- Discord-like server structure
+
+#### Smartwatch Apps
+- **Apple Watch** and **Android smartwatch** support
+- Bot interactions from wrist
+- Quick replies, notifications
+
+#### Enhanced GIF Search
+- **350 Million GIFs** across 36 languages
+- Offline indexing with AI models
+- Privacy-friendly (no third-party services)
+
+#### Security Hardening
+- Mini App method usage restricted to original domain
+- Protection enabled July 20, 2026
+- Opt-out available via BotFather
+
+---
+
+### 🎯 BUILDABLE FEATURES (Priority Order)
+
+#### Tier 1: Immediate Implementation (This Week)
+1. **Ephemeral Message Handler** - Send private responses in groups
+2. **Bot-to-Bot Communication** - Enable multi-agent patterns
+3. **Guest Bot Mode** - Respond when mentioned anywhere
+4. **Streaming Response Display** - Progressive AI response rendering
+
+#### Tier 2: Short-term (Next 2 Weeks)
+5. **Telegram Stars Integration** - Native monetization
+6. **Subscription Manager** - Tiered access control
+7. **Community Manager** - Multi-group coordination
+8. **Smartwatch Notification Handler** - Quick replies from wrist
+
+#### Tier 3: Medium-term (Next Month)
+9. **Multi-Agent Pipeline** - Executor + Overseer pattern
+10. **Delegation Chain** - Generalist → Specialist routing
+11. **Paid Channel Bot** - Auto-invite/kick based on payments
+12. **Crypto Payment Gateway** - USDT/BTC acceptance
+
+---
+
+### 📊 COMPARISON: What We Have vs What's Trending
+
+| Feature | Our Bot (v3.4.1) | Trending 2026 | Gap |
+|---------|------------------|---------------|-----|
+| Rich Messages | ✅ v1 (Basic) | ✅ v2 (Media, Lists) | Need media support |
+| Ephemeral Messages | ❌ | ✅ Bot API 10.2 | **HIGH PRIORITY** |
+| Bot-to-Bot | ❌ | ✅ Native support | **HIGH PRIORITY** |
+| Guest Bots | ❌ | ✅ Native support | **HIGH PRIORITY** |
+| Streaming | ✅ Basic | ✅ Progressive | Need improvement |
+| Mini Apps | ✅ Basic | ✅ Enhanced | Need security update |
+| Monetization | ✅ Stars (partial) | ✅ Full ecosystem | Need subscription tiers |
+| Communities | ❌ | ✅ Native support | **MEDIUM PRIORITY** |
+| Smartwatch | ❌ | ✅ New platform | **LOW PRIORITY** |
+
+---
+
+### 🔑 KEY INSIGHTS
+
+1. **Telegram is now an AI agent deployment platform**, not just a messaging app
+2. **Bot-to-Bot communication** enables enterprise-grade multi-agent systems
+3. **Ephemeral messages** solve the "private in group" problem
+4. **Monetization is native** - Stars + TON + CryptoBot
+5. **Subscription bots** command 18-24x MRR exit multiples
+6. **1 Billion users** = massive distribution channel
+7. **Security is lagging** - only 65.3% of threats covered by best frameworks
+
+---
+
+*Last updated: July 24, 2026 - Round 3 Complete*
+*Next round: Continue searching for implementation examples and code patterns*
