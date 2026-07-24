@@ -241,6 +241,11 @@ except Exception:
     ma_mod = None
 
 try:
+    import rich_text_v2 as rt2_mod
+except Exception:
+    rt2_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -951,6 +956,7 @@ def load_experimental():
         "new-research-features": {"name": "New Research Features", "desc": "Streaming text, OCR document scanner, real-time translation", "version": "3.2.0", "category": "research"},
         "location-distance": {"name": "Location & Distance", "desc": "Set home location, track user distances, restrict responses to within 14km range", "version": "3.2.1", "category": "utility"},
         "mini-apps": {"name": "Mini Apps", "desc": "Telegram Web Apps — full HTML dashboards and tools inside Telegram", "version": "3.4.0", "category": "utility"},
+        "rich-text-v2": {"name": "Rich Text v2", "desc": "Telegram Bot API 10.1 Rich Messages — tables, collapsible details, math formulas, code blocks, slideshows", "version": "3.4.0", "category": "ai"},
     }
     changed = False
     for fid, fdef in defaults.items():
@@ -2407,6 +2413,16 @@ async def send(chat, text, parse_mode=None, receiver_user=None):
             r = await rich_mod.send_rich(c, bot_token, chat, raw, receiver_user)
             if r and r.get("ok"):
                 return r
+        except Exception:
+            pass
+
+    rich_v2_ok = rt2_mod and is_experimental_enabled("rich-text-v2") and len(raw) > 50 and len(raw) < 8000
+    if rich_v2_ok:
+        try:
+            rich_data = rt2_mod.format_rich_response(raw)
+            if rich_data and rich_data.get("text"):
+                raw = rich_data["text"]
+                parse_mode = rich_data.get("parse_mode", "HTML")
         except Exception:
             pass
 
@@ -5778,6 +5794,31 @@ async def main():
                     elif sub == "status" or sub == "":
                         on = is_experimental_enabled("rich-messages") if rich_mod else False
                         await send(chat, f"Rich Messages: {'ON' if on else 'OFF'}\nConverts AI markdown into Telegram's native rich blocks (tables, code, headings, collapsible details).\nUse /rich on or /rich off to toggle.")
+
+                elif cmd == "/richv2":
+                    if not rt2_mod:
+                        await send(chat, "Rich Text v2 module not available.")
+                        continue
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    if sub == "on":
+                        fid = "rich-text-v2"
+                        if fid not in experimental_features:
+                            experimental_features[fid] = {"enabled": True, "name": "Rich Text v2", "desc": "Bot API 10.1 Rich Messages — tables, collapsible details, math, code, slideshows", "version": "3.4.0", "category": "ai"}
+                        experimental_features[fid]["enabled"] = True
+                        save_experimental()
+                        await send(chat, "✅ Rich Text v2 ON. AI output will use Bot API 10.1 rich formatting.")
+                    elif sub == "off":
+                        fid = "rich-text-v2"
+                        if fid in experimental_features:
+                            experimental_features[fid]["enabled"] = False
+                            save_experimental()
+                        await send(chat, "Rich Text v2 OFF.")
+                    elif sub == "stats":
+                        stats = rt2_mod.get_rich_v2().get_stats()
+                        await send(chat, f"📊 Rich Text v2 Stats:\n  Enabled: {stats.get('enabled', False)}\n  Messages richified: {stats.get('messages_richified', 0)}\n  Blocks used: {stats.get('blocks_used', 0)}")
+                    else:
+                        on = is_experimental_enabled("rich-text-v2") if rt2_mod else False
+                        await send(chat, f"Rich Text v2: {'ON' if on else 'OFF'}\nBot API 10.1 Rich Messages — tables, collapsible details, math formulas, code blocks, slideshows.\n\nCommands:\n  /richv2 on — Enable\n  /richv2 off — Disable\n  /richv2 stats — View statistics")
 
                 elif cmd == "/style":
                     if not styles_mod:

@@ -1,5 +1,5 @@
 {
-  "version": "3.4.0",
+  "version": "3.4.1",
   "updated": "2026-07-23",
   "experimental": [
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -197,6 +197,7 @@
     "3.3.118": [],
     "3.3.119": [],
     "3.3.120": [],
-    "3.3.121": []
+    "3.3.121": [],
+    "3.4.122": []
   }
 }
