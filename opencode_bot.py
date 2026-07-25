@@ -6455,6 +6455,293 @@ async def main():
                     except Exception as e:
                         await send(chat, f"Cyberdeck error: {str(e)[:200]}")
 
+                elif cmd == "/iot":
+                    try:
+                        from iot_control import handle_iot_command, get_iot_manager
+                        sub = parts[1].lower() if len(parts) > 1 else ""
+                        if sub == "add" and len(parts) >= 4:
+                            name = parts[2]
+                            dtype = parts[3]
+                            ip = parts[4] if len(parts) > 4 else ""
+                            mgr = get_iot_manager()
+                            device = mgr.add_device(name, dtype, ip)
+                            await send(chat, f"✅ Device added: {device.name}\nID: `{device.device_id}`\nType: {device.device_type.value}")
+                        elif sub == "list":
+                            mgr = get_iot_manager()
+                            devices = mgr.list_devices()
+                            if not devices:
+                                await send(chat, "No devices. Use /iot add <name> <type> [ip]")
+                            else:
+                                lines = ["📡 **Devices:**\n"]
+                                for d in devices:
+                                    icon = "🟢" if d.status == "online" else "🔴"
+                                    lines.append(f"{icon} `{d.device_id}` — {d.name} ({d.device_type.value})")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "status":
+                            device_id = parts[2] if len(parts) > 2 else None
+                            mgr = get_iot_manager()
+                            if device_id:
+                                s = mgr.get_device_status(device_id)
+                                if "error" in s:
+                                    await send(chat, f"❌ {s['error']}")
+                                else:
+                                    icon = "🟢" if s["status"] == "online" else "🔴"
+                                    await send(chat, f"{icon} **{s['name']}** (`{s['device_id']}`)\n\nType: {s['type']}\nStatus: {s['status']}\nPins: {len(s['pins'])}\nAlerts: {s['alerts']}\nSchedules: {s['schedules']}")
+                            else:
+                                statuses = mgr.get_all_status()
+                                if not statuses:
+                                    await send(chat, "No devices. Use /iot add")
+                                else:
+                                    lines = ["📊 **Device Status:**\n"]
+                                    for st in statuses:
+                                        icon = "🟢" if st["status"] == "online" else "🔴"
+                                        lines.append(f"{icon} **{st['name']}** — {st['type']} | Pins: {len(st['pins'])}")
+                                    await send(chat, "\n".join(lines))
+                        elif sub == "pin" and len(parts) >= 4:
+                            device_id = parts[2]
+                            try:
+                                pin = int(parts[3])
+                                state = int(parts[4]) if len(parts) > 4 else 0
+                            except ValueError:
+                                await send(chat, "Pin and state must be numbers.")
+                                continue
+                            mgr = get_iot_manager()
+                            ok = mgr.set_pin(device_id, pin, state)
+                            await send(chat, f"✅ Pin {pin} → {'HIGH ⚡' if state else 'LOW ⚫'}" if ok else "❌ Device not found.")
+                        elif sub == "sensor" and len(parts) >= 4:
+                            device_id = parts[2]
+                            stype = parts[3]
+                            value = float(parts[4]) if len(parts) > 4 else None
+                            mgr = get_iot_manager()
+                            if value is not None:
+                                unit = parts[5] if len(parts) > 5 else ""
+                                mgr.add_sensor_reading(device_id, stype, value, unit)
+                                await send(chat, f"✅ Reading: {stype} = {value}{unit}")
+                            else:
+                                v = mgr.simulate_reading(device_id, stype)
+                                await send(chat, f"✅ Simulated {stype}: {v}")
+                        elif sub == "simulate" and len(parts) >= 4:
+                            mgr = get_iot_manager()
+                            v = mgr.simulate_reading(parts[2], parts[3])
+                            await send(chat, f"✅ Simulated {parts[3]}: {v}")
+                        elif sub == "logs":
+                            device_id = parts[2] if len(parts) > 2 else None
+                            mgr = get_iot_manager()
+                            logs = mgr.get_logs(device_id)
+                            if not logs:
+                                await send(chat, "No logs.")
+                            else:
+                                lines = ["📋 **Recent Activity:**\n"]
+                                for log in logs[-10:]:
+                                    ts = datetime.fromtimestamp(log["time"]).strftime("%H:%M:%S")
+                                    lines.append(f"`{ts}` {log['action']}: {log['details']}")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "help":
+                            from iot_control import build_iot_commands
+                            await send(chat, build_iot_commands())
+                        else:
+                            from iot_control import build_iot_commands
+                            await send(chat, build_iot_commands())
+                    except Exception as e:
+                        await send(chat, f"IoT error: {str(e)[:200]}")
+
+                elif cmd == "/edu":
+                    try:
+                        from education_games import handle_education_command, get_education_manager
+                        sub = parts[1].lower() if len(parts) > 1 else ""
+                        user_id = str(uid)
+                        mgr = get_education_manager()
+
+                        if sub == "quiz":
+                            if len(parts) > 2 and parts[2] == "answer":
+                                if len(parts) < 4:
+                                    await send(chat, "Usage: /edu quiz answer <0-3>")
+                                    continue
+                                try:
+                                    ans = int(parts[3])
+                                except ValueError:
+                                    await send(chat, "Answer must be 0-3.")
+                                    continue
+                                correct, feedback, done = mgr.answer_quiz(user_id, ans)
+                                await send(chat, feedback)
+                            else:
+                                quiz, first_q = mgr.start_quiz(user_id)
+                                lines = [f"📝 **{quiz.title}**\n"]
+                                q = quiz.questions[0]
+                                lines.append(f"Q1: {q.question}")
+                                for i, opt in enumerate(q.options):
+                                    lines.append(f"  {i}. {opt}")
+                                lines.append(f"\nAnswer: /edu quiz answer <0-3>")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "wordle":
+                            game = mgr.start_wordle(user_id)
+                            await send(chat, f"🔤 **Wordle** ({len(game.word)} letters)\n\nGuess: /edu guess <word>\n🟩=correct 🟨=wrong position ⬜=not in word")
+                        elif sub == "guess":
+                            if len(parts) < 3:
+                                await send(chat, "Usage: /edu guess <word>")
+                                continue
+                            result, feedback, done = mgr.guess_wordle(user_id, parts[2])
+                            await send(chat, feedback)
+                        elif sub == "hangman":
+                            category = parts[2] if len(parts) > 2 else None
+                            game = mgr.start_hangman(user_id, category)
+                            display = " ".join("_" for _ in game.word)
+                            await send(chat, f"🎭 **Hangman** — {game.category}\n\nWord: `{display}` ({len(game.word)} letters)\nGuess: /edu hguess <letter>")
+                        elif sub == "hguess":
+                            if len(parts) < 3:
+                                await send(chat, "Usage: /edu hguess <letter>")
+                                continue
+                            display, feedback, done = mgr.guess_hangman(user_id, parts[2])
+                            await send(chat, feedback)
+                        elif sub == "math":
+                            difficulty = parts[2] if len(parts) > 2 else "medium"
+                            problem = mgr.generate_math(difficulty)
+                            await send(chat, f"🔢 **Math** ({difficulty})\n\n**{problem.expression}** = ?\n\nAnswer: /edu mathanswer <number>")
+                        elif sub == "mathanswer":
+                            if len(parts) < 3:
+                                await send(chat, "Usage: /edu mathanswer <number>")
+                                continue
+                            try:
+                                ans = float(parts[2])
+                            except ValueError:
+                                await send(chat, "Enter a number.")
+                                continue
+                            profile = mgr.get_profile(user_id)
+                            profile.math_solved += 1
+                            profile.add_xp(5, "math_attempt")
+                            mgr._save_data()
+                            await send(chat, f"✅ Submitted! Your answer: {ans}")
+                        elif sub == "code":
+                            difficulty = parts[2] if len(parts) > 2 else None
+                            challenge = mgr.get_code_challenge(difficulty)
+                            hints = "\n".join(f"💡 {h}" for h in challenge.hints[:2])
+                            await send(chat, f"💻 **{challenge.title}** ({challenge.difficulty.value})\n\n{challenge.description}\n\nHints:\n{hints}")
+                        elif sub == "addcards":
+                            text = " ".join(parts[2:])
+                            entries = [line.split("|") for line in text.split("\n") if "|" in line]
+                            cards = [(e[0].strip(), e[1].strip(), e[2].strip() if len(e) > 2 else "general") for e in entries if len(e) >= 2]
+                            count = mgr.add_flashcards(user_id, cards)
+                            await send(chat, f"✅ Added {count} flashcards!")
+                        elif sub == "review":
+                            cards = mgr.get_review_cards(user_id)
+                            if not cards:
+                                await send(chat, "No cards due! 🎉")
+                            else:
+                                card = cards[0]
+                                await send(chat, f"🃏 **Flashcard** ({card.category})\n\n**Q:** {card.front}\n\nRate: /edu review good or /edu review bad")
+                        elif sub == "top":
+                            board = mgr.get_leaderboard()
+                            medals = ["🥇", "🥈", "🥉"]
+                            lines = ["🏆 **Leaderboard:**\n"]
+                            for i, p in enumerate(board):
+                                medal = medals[i] if i < 3 else f"{i+1}."
+                                lines.append(f"{medal} **{p.username or p.user_id}** — Lv.{p.level} | {p.xp} XP")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "stats":
+                            stats = mgr.get_stats(user_id)
+                            await send(chat, f"📊 **Stats:**\n\nLevel: {stats['level']} ({stats['xp']} XP)\n📝 Quizzes: {stats['quizzes_correct']}/{stats['quizzes_taken']}\n🔤 Wordle: {stats['wordle_wins']} wins\n🔢 Math: {stats['math_solved']} solved\n💻 Code: {stats['code_solved']} solved\n🏅 Achievements: {len(stats['achievements'])}")
+                        elif sub == "achievements":
+                            handle_result = await asyncio.get_event_loop().run_in_executor(None, lambda: handle_education_command(update, context))
+                            await send(chat, handle_result)
+                        else:
+                            from education_games import build_education_commands
+                            await send(chat, build_education_commands())
+                    except Exception as e:
+                        await send(chat, f"Education error: {str(e)[:200]}")
+
+                elif cmd == "/fin":
+                    try:
+                        from finance_crypto import handle_finance_command, get_finance_manager
+                        sub = parts[1].lower() if len(parts) > 1 else ""
+                        user_id = str(uid)
+                        mgr = get_finance_manager()
+
+                        if sub == "price" and len(parts) >= 3:
+                            symbol = parts[2].upper()
+                            price = mgr.get_price(symbol)
+                            if price is None:
+                                await send(chat, f"❌ Unknown: {symbol}")
+                            else:
+                                from finance_crypto import POPULAR_CRYPTOS
+                                name = POPULAR_CRYPTOS.get(symbol, {}).get("name", symbol)
+                                rank = list(mgr.get_prices(POPULAR_CRYPTOS.keys()).keys()).index(symbol) + 1 if symbol in mgr.get_prices(POPULAR_CRYPTOS.keys()) else "?"
+                                await send(chat, f"💰 **{name}** ({symbol})\n\nPrice: **${price:,.2f}**\nRank: #{rank}")
+                        elif sub == "market":
+                            overview = mgr.get_market_overview()
+                            lines = ["📊 **Top 10 Cryptos:**\n"]
+                            for item in overview["top_cryptos"]:
+                                lines.append(f"**{item['symbol']}** ({item['name']}) — ${item['price']:,.2f}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "convert" and len(parts) >= 5:
+                            try:
+                                amount = float(parts[2])
+                            except ValueError:
+                                await send(chat, "Amount must be a number.")
+                                continue
+                            result = mgr.convert_currency(amount, parts[3].upper(), parts[4].upper())
+                            await send(chat, f"💱 {amount:,.2f} {parts[3].upper()} = **{result:,.2f} {parts[4].upper()}**" if result else "❌ Unknown currency.")
+                        elif sub == "buy" and len(parts) >= 5:
+                            try:
+                                qty = float(parts[3])
+                                price = float(parts[4])
+                            except ValueError:
+                                await send(chat, "Quantity and price must be numbers.")
+                                continue
+                            mgr.add_to_portfolio(user_id, parts[2].upper(), qty, price)
+                            await send(chat, f"✅ Bought {qty} {parts[2].upper()} at ${price:,.2f} = ${qty*price:,.2f}")
+                        elif sub == "sell" and len(parts) >= 5:
+                            try:
+                                qty = float(parts[3])
+                                price = float(parts[4])
+                            except ValueError:
+                                await send(chat, "Quantity and price must be numbers.")
+                                continue
+                            ok, msg = mgr.sell_from_portfolio(user_id, parts[2].upper(), qty, price)
+                            await send(chat, f"✅ {msg}" if ok else f"❌ {msg}")
+                        elif sub == "portfolio":
+                            await send(chat, mgr.get_portfolio_summary(user_id))
+                        elif sub == "transactions":
+                            await send(chat, mgr.get_transactions(user_id))
+                        elif sub == "alert" and len(parts) >= 5:
+                            symbol = parts[2].upper()
+                            condition = parts[3].lower()
+                            try:
+                                target = float(parts[4])
+                            except ValueError:
+                                await send(chat, "Target price must be a number.")
+                                continue
+                            msg = " ".join(parts[5:]) if len(parts) > 5 else ""
+                            mgr.add_alert(user_id, symbol, condition, target, msg)
+                            await send(chat, f"✅ Alert: {symbol} {condition} ${target:,.2f}")
+                        elif sub == "alerts":
+                            profile = mgr.get_profile(user_id)
+                            if not profile.alerts:
+                                await send(chat, "No alerts.")
+                            else:
+                                lines = ["🔔 **Alerts:**\n"]
+                                for a in profile.alerts:
+                                    lines.append(f"`{a.alert_id[-6:]}` — {a.asset} {a.condition} ${a.target_value:,.2f}")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "watch" and len(parts) >= 3:
+                            ok = mgr.add_to_watchlist(user_id, parts[2].upper())
+                            await send(chat, f"✅ Added {parts[2].upper()} to watchlist." if ok else f"⚠️ Already watching {parts[2].upper()}.")
+                        elif sub == "unwatch" and len(parts) >= 3:
+                            ok = mgr.remove_from_watchlist(user_id, parts[2].upper())
+                            await send(chat, f"✅ Removed {parts[2].upper()}." if ok else f"❌ Not in watchlist.")
+                        elif sub == "watchlist":
+                            await send(chat, mgr.get_watchlist_display(user_id))
+                        elif sub == "info" and len(parts) >= 3:
+                            info = mgr.get_crypto_info(parts[2])
+                            if info:
+                                await send(chat, f"ℹ️ **{info['name']}** ({info['symbol']})\n\nPrice: ${info['price']:,.2f}")
+                            else:
+                                await send(chat, f"❌ Unknown: {parts[2]}")
+                        else:
+                            from finance_crypto import build_finance_commands
+                            await send(chat, build_finance_commands())
+                    except Exception as e:
+                        await send(chat, f"Finance error: {str(e)[:200]}")
+
                 elif cmd == "/style":
                     if not styles_mod:
                         await send(chat, "AI Styles module not available.")
