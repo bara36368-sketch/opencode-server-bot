@@ -1,9 +1,0 @@
-{
-  "name": "whatsapp-bot-sidecar",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc13",
-    "qrcode-terminal": "^0.12.0"
-  }
-}

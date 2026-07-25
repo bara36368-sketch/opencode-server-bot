@@ -1,0 +1,92 @@
+[
+  {
+    "category": "security",
+    "tier": "intermediate",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:20:26.784052"
+  },
+  {
+    "category": "survival",
+    "tier": "advanced",
+    "sbc": "pi5_8gb",
+    "timestamp": "2026-07-25T11:20:39.228224"
+  },
+  {
+    "category": "writerdeck",
+    "tier": "beginner",
+    "sbc": "pi_zero_2w",
+    "timestamp": "2026-07-25T11:20:39.246555"
+  },
+  {
+    "category": "ai",
+    "tier": "advanced",
+    "sbc": "jetson_orin_nano",
+    "timestamp": "2026-07-25T11:20:39.265178"
+  },
+  {
+    "category": "security",
+    "tier": "advanced",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:20:49.523103"
+  },
+  {
+    "category": "coding",
+    "tier": "intermediate",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:26:33.297113"
+  },
+  {
+    "category": "coding",
+    "tier": "intermediate",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:26:52.935779"
+  },
+  {
+    "category": "writerdeck",
+    "tier": "intermediate",
+    "sbc": "pi_zero_2w",
+    "timestamp": "2026-07-25T11:26:53.000840"
+  },
+  {
+    "category": "security",
+    "tier": "intermediate",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:26:53.019924"
+  },
+  {
+    "category": "gaming",
+    "tier": "intermediate",
+    "sbc": "pi5_8gb",
+    "timestamp": "2026-07-25T11:26:53.040919"
+  },
+  {
+    "category": "research",
+    "tier": "intermediate",
+    "sbc": "pi5_8gb",
+    "timestamp": "2026-07-25T11:26:53.057284"
+  },
+  {
+    "category": "ai",
+    "tier": "intermediate",
+    "sbc": "jetson_orin_nano",
+    "timestamp": "2026-07-25T11:26:53.074004"
+  },
+  {
+    "category": "survival",
+    "tier": "intermediate",
+    "sbc": "pi5_8gb",
+    "timestamp": "2026-07-25T11:26:53.090040"
+  },
+  {
+    "category": "media",
+    "tier": "intermediate",
+    "sbc": "pi5_4gb",
+    "timestamp": "2026-07-25T11:26:53.119617"
+  },
+  {
+    "category": "coding",
+    "tier": "intermediate",
+    "sbc": "pi5_16gb",
+    "timestamp": "2026-07-25T11:26:53.167058"
+  }
+]

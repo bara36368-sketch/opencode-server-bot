@@ -1,0 +1,131 @@
+{
+  "video_knowledge": [],
+  "tips_learned": [],
+  "flaws_fixed": [],
+  "user_preferences": {},
+  "component_discoveries": [],
+  "build_insights": [
+    {
+      "build": {
+        "category": "security",
+        "sbc": "pi5_16gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:20:26.784951"
+    },
+    {
+      "build": {
+        "category": "survival",
+        "sbc": "pi5_8gb",
+        "tier": "advanced"
+      },
+      "learned_at": "2026-07-25T11:20:39.229150"
+    },
+    {
+      "build": {
+        "category": "writerdeck",
+        "sbc": "pi_zero_2w",
+        "tier": "beginner"
+      },
+      "learned_at": "2026-07-25T11:20:39.247308"
+    },
+    {
+      "build": {
+        "category": "ai",
+        "sbc": "jetson_orin_nano",
+        "tier": "advanced"
+      },
+      "learned_at": "2026-07-25T11:20:39.265976"
+    },
+    {
+      "build": {
+        "category": "security",
+        "sbc": "pi5_16gb",
+        "tier": "advanced"
+      },
+      "learned_at": "2026-07-25T11:20:49.524076"
+    },
+    {
+      "build": {
+        "category": "coding",
+        "sbc": "pi5_16gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:33.297929"
+    },
+    {
+      "build": {
+        "category": "coding",
+        "sbc": "pi5_16gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:52.936576"
+    },
+    {
+      "build": {
+        "category": "writerdeck",
+        "sbc": "pi_zero_2w",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.001672"
+    },
+    {
+      "build": {
+        "category": "security",
+        "sbc": "pi5_16gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.021183"
+    },
+    {
+      "build": {
+        "category": "gaming",
+        "sbc": "pi5_8gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.041882"
+    },
+    {
+      "build": {
+        "category": "research",
+        "sbc": "pi5_8gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.058255"
+    },
+    {
+      "build": {
+        "category": "ai",
+        "sbc": "jetson_orin_nano",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.074875"
+    },
+    {
+      "build": {
+        "category": "survival",
+        "sbc": "pi5_8gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.090978"
+    },
+    {
+      "build": {
+        "category": "media",
+        "sbc": "pi5_4gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.120978"
+    },
+    {
+      "build": {
+        "category": "coding",
+        "sbc": "pi5_16gb",
+        "tier": "intermediate"
+      },
+      "learned_at": "2026-07-25T11:26:53.168067"
+    }
+  ],
+  "chat_learnings": [],
+  "evolution_log": []
+}

@@ -18,3 +18,6 @@ whatsapp_qr.png
 .env
 ngrok.exe
 ngrok.zip
+setenv.sh
+providers.json
+whatsapp/

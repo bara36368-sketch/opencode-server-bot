@@ -37,6 +37,8 @@ class Tracer:
             self._stack[-1].children.append(span)
         self._stack.append(span)
         self.spans.append(span)
+        if len(self.spans) > 100:
+            self.spans = self.spans[-50:]
         log.info(f"TRACE start: {span_name} {attrs}")
         return span
     def end(self, span: Span, status="ok", **attrs):

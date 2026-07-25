@@ -1,0 +1,2403 @@
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 2.5s
+Reply: Hello again! It seems like we're starting a new conversation. What's new? Would ...
+Msg from 8585609360: How are you doing ?
+Processing: how
+Calling nvidia for: How are you doing ?
+nvidia API: 200
+smart_call: nvidia in 1.6s
+Reply: I'm doing well, thanks for asking! As a computer program, I don't have feelings ...
+Msg from 8585609360: /agents
+Processing: /agents
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 6.6s
+Reply: Hello again! It seems like we're starting fresh. Is there something specific you...
+Bot started
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 9.0s
+Reply: Hello again! It seems like we're starting a new conversation. What's on your min...
+Msg from 8585609360: Guys
+Processing: guys
+Calling nvidia for: Guys
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 12.7s
+Reply: Hello again! It seems like we're starting a new conversation. Is there something...
+Msg from 8585609360: Guys
+Processing: guys
+Calling nvidia for: Guys
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+Bot started
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 10.4s
+Reply: Hello again! It seems like we're back to the beginning. Is there something speci...
+Msg from 8585609360: Guys
+Processing: guys
+Calling nvidia for: Guys
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 10.1s
+Reply: Hello again! It seems like we're starting a new conversation. What's new? Would ...
+Msg from 8585609360: Guys
+Processing: guys
+Calling nvidia for: Guys
+nvidia API: 200
+smart_call: nvidia in 7.9s
+Reply: It looks like you're addressing a group. Since we're in a text-based conversatio...
+Msg from 8585609360: Test
+Processing: test
+Calling nvidia for: Test
+Bot started
+Msg from 8585609360: Test
+Processing: test
+Calling nvidia for: Test
+nvidia API: 200
+smart_call: nvidia in 5.1s
+Reply: Another test. Everything seems to be functioning as expected. If you're ready to...
+Msg from 8585609360: Test
+Processing: test
+Calling nvidia for: Test
+deepseek API: 402
+mistral API: 200
+smart_call: mistral in 26.5s
+Reply: Got it—this is another quick test. All systems are operational and ready for you...
+Msg from 8585609360: Hehel
+Processing: hehel
+Calling nvidia for: Hehel
+cerebras API: 404
+Reply: All providers failed. Errors:
+nvidia (cooldown)
+cerebras: Cerebras error: 404 - ...
+Msg from 8585609360: Oh hello
+Processing: oh
+Calling nvidia for: Oh hello
+mistral API: 200
+smart_call: mistral in 0.6s
+Reply: Hello again! 😊 How can I assist you today?...
+Msg from 8585609360: Hey there
+Processing: hey
+Calling nvidia for: Hey there
+mistral API: 200
+smart_call: mistral in 0.6s
+Reply: Hey! What's up? How can I help you today?...
+Msg from 8585609360: What's up?
+Processing: what's
+Calling nvidia for: What's up?
+groq API: 200
+smart_call: groq in 2.5s
+Reply: Not much! Just the usual. I'm here and ready to chat. How about you? Want to tal...
+Msg from 8585609360: Why are you so slow
+Processing: why
+Calling nvidia for: Why are you so slow
+mistral API: 200
+smart_call: mistral in 1.3s
+Reply: I apologize if my responses have felt slow! My speed can vary based on server lo...
+Msg from 8585609360: Finally you respond
+Processing: finally
+Calling nvidia for: Finally you respond
+mistral API: 200
+smart_call: mistral in 0.9s
+Reply: Phew! I’m back and ready to go—no more delays. What’s on your mind? Need help wi...
+Msg from 8585609360: Wai a sec
+Processing: wai
+Calling nvidia for: Wai a sec
+mistral API: 200
+smart_call: mistral in 1.1s
+Reply: No problem! Take your time—I’ll be right here when you’re ready. Just let me kno...
+Msg from 8719796050: /start
+Unauthorized: 8719796050
+Bot started
+Bot started
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+Msg from 8585609360: Hello
+Processing: hello
+Calling nvidia for: Hello
+nvidia API: 200
+smart_call: nvidia in 10.4s
+Reply: Hello again! We've had a bit of a conversation already, but I'm happy to start f...
+Msg from 8585609360: Why so slow
+Processing: why
+Calling nvidia for: Why so slow
+mistral API: 200
+smart_call: mistral in 27.3s
+Reply: Hi there! 😊 How can I help you today?...
+Msg from 8585609360: Why so slow
+Processing: why
+Calling nvidia for: Why so slow
+proxy-local API: 404
+Reply: All providers failed. Errors:
+nvidia (cooldown)
+proxy-local: Proxy-Local error: ...
+proxy-together API: 401
+sambanova API: 410
+Reply: All providers failed. Errors:
+nvidia: timeout
+proxy-together: Proxy-Together err...
+Bot started
+Msg from 8585609360: Test
+Processing: test
+Calling nvidia for: Test
+groq API: 200
+smart_call: groq in 25.5s
+Reply: Another test. All systems still go! If you're ready to move on from testing, I'm...
+Msg from 8585609360: Test
+Processing: test
+Calling nvidia for: Test
+groq API: 200
+smart_call: groq in 0.6s
+Reply: Test confirmed! Everything is working as expected. When you're ready to move bey...
+Msg from 8585609360: Ok your now fast respond
+Processing: ok
+Calling nvidia for: Ok your now fast respond
+sambanova API: 410
+openrouter API: 404
+Reply: All providers failed. Errors:
+nvidia (cooldown)
+sambanova: Sambanova error: 410 ...
+Bot started
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+smart_call: groq in 1.5s
+Reply:  Immediate response! You're putting my speed to the test, and I'm passing with f...
+Msg from 8585609360: 123
+Processing: 123
+Calling groq for: 123
+groq API: 200
+smart_call: groq in 0.3s
+Reply: Numbers! 123, received loud and clear! What's the next input?...
+Msg from 8585609360: Ok fast now yippe
+Processing: ok
+Calling groq for: Ok fast now yippe
+groq API: 200
+smart_call: groq in 0.7s
+Reply: Woo-hoo! Fast mode activated! Yippee indeed! Let's keep the momentum going! What...
+Bot started
+Msg from 8585609360: How a bout a game
+Processing: how
+Calling groq for: How a bout a game
+groq API: 200
+smart_call: groq in 0.6s
+Reply: A game sounds like a blast! What type of game are you in the mood for? We can pl...
+Msg from 8585609360: Of tag
+Processing: of
+Calling groq for: Of tag
+groq API: 200
+smart_call: groq in 0.7s
+Reply: IT'S TAG TIME!
+
+You're "it" first! Here's how we can play:
+
+1. I'll start by say...
+Msg from 8585609360: 3
+Processing: 3
+Calling groq for: 3
+groq API: 200
+smart_call: groq in 0.6s
+Reply: YOU CAN'T JUST TYPE A NUMBER!
+
+Remember, in this game of tag, you need to respon...
+Msg from 8585609360: No, You're It!!!!
+Processing: no,
+Calling groq for: No, You're It!!!!
+groq API: 200
+smart_call: groq in 0.4s
+Reply: NO, YOU'RE IT!!!!
+
+Ha ha, the game continues!
+
+Your turn again!...
+Msg from 8585609360: Oke
+Processing: oke
+Calling groq for: Oke
+groq API: 200
+smart_call: groq in 0.4s
+Reply: NO, YOU'RE IT!!!!
+
+You typed "Oke" instead of "No, YOU'RE it!" So, according to ...
+Msg from 8585609360: /clear
+Processing: /clear
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+smart_call: groq in 0.6s
+Reply: It seems like you're just checking if I'm working. I'm here and ready to help wi...
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+smart_call: groq in 0.7s
+Reply: Hello. It's nice to meet you. Is there something I can help you with or would yo...
+Msg from 8585609360: /help
+Processing: /help
+Msg from 8585609360: /effort
+Processing: /effort
+Bot started
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+smart_call: groq in 1.9s
+Reply: It looks like you're testing again. If you're ready to move forward, I can assis...
+groq API: 200
+smart_call: groq in 0.8s
+Reply: It looks like you're still testing. If you're ready to move forward, I can offer...
+Bot started
+Msg from 8585609360: 123
+Processing: 123
+Calling groq for: 123
+groq API: 200
+smart_call: groq in 1.1s
+Reply: It seems like you're inputting a numerical value. If you're looking for mathemat...
+Poll attempt 1/3 failed: ReadTimeout: 
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+Msg from 8585609360: Testing
+Processing: testing
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+Calling groq for: Testing
+groq API: 429
+deepseek API: 402
+groq API: 200
+smart_call: groq in 1.3s
+Reply: It seems like you're still in testing mode. If you're having fun trying out diff...
+groq API: 200
+smart_call: groq in 1.4s
+Reply: It seems like you're still in the testing phase. I'm here and ready to help when...
+cerebras API: 404
+Reply: All providers failed. Errors:
+groq: Groq error: 429 - {"error":{"message":"Rate ...
+Bot started
+Bot started
+Bot started
+Bot started
+vansrouter API: 200
+Poll attempt 1/3 failed: ReadTimeout: 
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+gateway: groq in 2.3s
+Reply: It seems like you're still in testing mode. I'll respond with a simple "Test suc...
+Msg from 8585609360: P
+Processing: p
+Calling groq for: P
+groq API: 200
+gateway: groq in 1.2s
+Reply: It seems like you've started with a single letter. I'll respond with a few possi...
+Msg from 8585609360: Off
+Processing: off
+Calling groq for: Off
+groq API: 200
+gateway: groq in 2.5s
+Reply: It seems like you've typed the word "Off". I'll respond with a few possibilities...
+Msg from 8585609360: On
+Processing: on
+Calling groq for: On
+groq API: 200
+gateway: groq in 1.1s
+Reply: It seems like you've typed the word "On". I'll respond with a few possibilities:...
+Msg from 8585609360: /effort
+Processing: /effort
+Msg from 8585609360: /normal
+Processing: /normal
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.3s
+Reply: Hello! It's great to finally have a chance to have a proper conversation with yo...
+Msg from 8585609360: /effor
+Processing: /effor
+Msg from 8585609360: /effort
+Processing: /effort
+Msg from 8585609360: /superhigh
+Processing: /superhigh
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.1s
+Reply: Hello again! It's great to see you're still here and ready to chat. I'm happy to...
+Msg from 8585609360: Create a prompt for ai agent like 10 ai Linked to 
+Processing: create
+Calling groq for: Create a prompt for ai agent like 10 ai Linked to 
+groq API: 200
+gateway: groq in 2.8s
+Reply: Here's a prompt for creating an AI agent architecture for automation using n8n:
+...
+Bot started
+Poll attempt 1/3 failed: ReadTimeout: 
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.5s
+Reply: Hello once more! I'm starting to feel like we're in a lovely loop of hellos. Whi...
+Msg from 8585609360: Working?
+Processing: working?
+Calling groq for: Working?
+groq API: 429
+bitrouter API: 200
+gateway: bitrouter in 3.1s
+Reply: Yes, everything is working perfectly! Thanks for checking in. I'm here and ready...
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+mistral API: 200
+gateway: mistral in 26.6s
+Reply: Hi there! 😊 It feels like we're playing a friendly game of "Hello Tag" now—you s...
+Msg from 8719796050: /start
+Processing: /start
+Bot started
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 2/3 failed: ConnectTimeout: 
+Poll attempt 3/3 failed: ConnectTimeout: 
+Poll error: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 2/3 failed: ConnectTimeout: 
+Poll attempt 3/3 failed: ReadTimeout: 
+Poll error: 
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectTimeout: 
+Poll error: 
+Poll attempt 1/3 failed: ConnectTimeout: 
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Msg from 8585609360: /start
+Processing: /start
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 0.9s
+Reply: Hello. It's nice to meet you. Is there something I can help you with or would yo...
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Bot started
+Poll attempt 1/3 failed: ReadError: 
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ReadTimeout: 
+Gateway running on http://0.0.0.0:4357
+Bot started
+Msg from 8585609360: /restart
+Processing: /restart
+Gateway running on http://0.0.0.0:4357
+Bot started
+Gateway running on http://0.0.0.0:4357
+Bot started
+Gateway running on http://0.0.0.0:4357
+Bot started
+Gateway running on http://0.0.0.0:4357
+Bot started
+Gateway running on http://0.0.0.0:4357
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Gateway running on http://0.0.0.0:4357
+Bot started
+OpenCode Bot v2 started
+Gateway running on http://0.0.0.0:4357
+Bot started
+OpenCode Bot v2 started
+Gateway running on http://0.0.0.0:4357
+Bot started
+OpenCode Bot v2 started
+Bot started
+OpenCode Bot v2 started
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 2/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 3/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll error: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: ConnectError: [Errno 11001] getaddrinfo failed
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Bot started
+OpenCode Bot v2 started
+Bot started
+OpenCode Bot v2 started
+Bot started
+OpenCode Bot v2 started
+Bot started
+Version changed: 2.0.0 -> 2.1.0
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+OpenCode Bot v2.1.0 started
+Bot started
+OpenCode Bot v2.1.0 started
+Bot started
+Version changed: 2.4.0 -> 2.7.1
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.4.0 -> v2.7.1 to 1 chats (type=big, features=16)
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.7.1 to 0 chats (type=big, features=16)
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.7.1 to 0 chats (type=big, features=16)
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.7.1 to 0 chats (type=big, features=16)
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.7.1 to 0 chats (type=big, features=16)
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+gateway: all failed, retrying in 10s
+freetokenfaucet API: 503
+gateway: freetokenfaucet in 3.4s
+Bot started
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Bot started
+OpenCode Bot v2.7.1 started
+AI Stack memory initialized
+Auto-check: version changed 2.7.1 -> 2.8.0
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.8.0 to 0 chats (type=big, features=20)
+Auto-check: version changed 2.7.1 -> 2.8.0
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.8.0 to 0 chats (type=big, features=20)
+Auto-check: version changed 2.7.1 -> 2.8.0
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.7.1 -> v2.8.0 to 0 chats (type=big, features=20)
+Auto-check: version changed ['2.8.89', []] -> 2.8.89
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v['2.8.89', []] -> v2.8.89 to 0 chats (type=big, features=13)
+Bot started
+OpenCode Bot v2.8.89 started
+AI Stack memory initialized
+Bot started
+Git commit changed: 6ae8905 -> 0630a00
+Auto-bumped: 2.8.89 -> ('2.8.90', []) (1 changes)
+Update announced: v2.8.89 -> v('2.8.90', []) to 0 chats (type=big, features=14)
+OpenCode Bot v('2.8.90', []) started
+AI Stack memory initialized
+Auto-check: version changed ['2.8.90', []] -> 2.8.90
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v['2.8.90', []] -> v2.8.90 to 0 chats (type=big, features=13)
+Auto-check: version changed ['2.8.96', []] -> 2.8.96
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v['2.8.96', []] -> v2.8.96 to 0 chats (type=big, features=13)
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Poll attempt 1/3 failed: RemoteProtocolError: Server disconnected without sending a response.
+Bot started
+AI Stack memory initialized
+startup: git commit changed b0e91a9 -> 8ba84a5
+startup: auto-bumped 2.8.96 -> ('2.8.102', [])
+Update announced: v2.8.96 -> v('2.8.102', []) to 0 chats (type=big, features=19)
+Bot v('2.8.102', []) started
+Msg from 8144081672: /start
+Processing: /start
+Msg from 8296311004: /start
+Processing: /start
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 0.6s
+Reply: Hello again. It seems like we're having a bit of a casual conversation so far. I...
+Auto-check: version changed ['2.8.102', []] -> 2.8.102
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v['2.8.102', []] -> v2.8.102 to 0 chats (type=big, features=13)
+Bot started
+AI Stack memory initialized
+Bot v2.8.102 started
+Auto-check: version changed 2.8.101 -> 2.8.102
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.8.101 -> v2.8.102 to 0 chats (type=big, features=13)
+Auto-check: version changed 2.8.102 -> unknown
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.8.102 -> vunknown to 0 chats (type=patch, features=0)
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 1 chats (type=big, features=27)
+Bot v2.8.102 started
+Auto-check: version changed 2.8.102 -> unknown
+TG API error: sendMessage {'ok': False, 'error_code': 404, 'description': 'Not Found'}
+Update announced: v2.8.102 -> vunknown to 0 chats (type=patch, features=0)
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Poll attempt 1/3 failed: ReadTimeout: 
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Poll error: cannot access local variable 'processed' where it is not associated with a value
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Auto-check: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+gateway: groq in 0.7s
+Reply: It seems like you're still testing. If you're satisfied that everything is worki...
+Auto-check: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 2.8.102
+Update announced: vunknown -> v2.8.102 to 0 chats (type=big, features=27)
+Bot v2.8.102 started
+Bot started
+AI Stack memory initialized
+startup: version changed unknown -> 3.2.0
+Msg from 8585609360: Testong
+Processing: testong
+Calling groq for: Testong
+groq API: 200
+gateway: groq in 1.1s
+Reply: It looks like you meant to type "Testing". Don't worry, typos happen. If you're ...
+Update announced: vunknown -> v3.2.0 to 1 chats (type=big, features=35)
+Bot v3.2.0 started
+Msg from 8585609360: P
+Processing: p
+Calling groq for: P
+groq API: 200
+gateway: groq in 0.6s
+Reply: A single letter "P". If you're trying to start a conversation or ask a question,...
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 0.5s
+Reply: It seems like you're still in testing mode. If you're ready to move on, I can su...
+Msg from 8585609360: P
+Processing: p
+Calling groq for: P
+groq API: 200
+gateway: groq in 0.6s
+Reply: Another "P". I'm starting to think you might be trying to type something, but it...
+cache: purged 4 stale entries (0 remain)
+Auto-check: version changed 3.2.0 -> 3.2.1
+Update announced: v3.2.0 -> v3.2.1 to 1 chats (type=big, features=28)
+Auto-check: git commit changed 15cb61a -> 9cf2575
+Auto-check: version bumped 3.2.1 -> ('3.2.111', [])
+Update announced: v3.2.1 -> v('3.2.111', []) to 0 chats (type=big, features=29)
+Bot started
+AI Stack memory initialized
+startup: version changed 3.2.1 -> 3.2.111
+Update announced: v3.2.1 -> v3.2.111 to 1 chats (type=big, features=28)
+Bot v3.2.111 started
+Bot started
+AI Stack memory initialized
+Bot v3.2.111 started
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 2.3s
+Reply: Hello again. I think we've established that our connection is working smoothly. ...
+Auto-check: version changed 3.2.111 -> 3.2.2
+Update announced: v3.2.111 -> v3.2.2 to 1 chats (type=big, features=28)
+Bot started
+AI Stack memory initialized
+startup: git commit changed 9cf2575 -> a98ec8b
+startup: auto-bumped 3.2.2 -> ('3.2.112', [])
+Update announced: v3.2.2 -> v('3.2.112', []) to 0 chats (type=big, features=29)
+Bot v('3.2.112', []) started
+Auto-check: version changed 3.2.2 -> 3.2.112
+Update announced: v3.2.2 -> v3.2.112 to 1 chats (type=big, features=28)
+Webhook setup error: 'Logger' object is not callable, falling back to polling
+Bot started
+AI Stack memory initialized
+startup: version changed 3.2.112 -> 3.3.0
+Update announced: v3.2.112 -> v3.3.0 to 1 chats (type=big, features=33)
+Bot v3.3.0 started
+Webhook mode active: https://crazily-defile-cradle.ngrok-free.dev
+Bot started
+AI Stack memory initialized
+startup: git commit changed f562628 -> 28f1095
+startup: auto-bumped 3.3.0 -> ('3.3.116', [])
+Update announced: v3.3.0 -> v('3.3.116', []) to 0 chats (type=big, features=31)
+Bot v('3.3.116', []) started
+Auto-check: version changed 3.3.0 -> 3.3.116
+Update announced: v3.3.0 -> v3.3.116 to 1 chats (type=big, features=29)
+Auto-check: git commit changed 28f1095 -> cdb3b91
+Auto-check: version bumped 3.3.116 -> ('3.3.117', [])
+Update announced: v3.3.116 -> v('3.3.117', []) to 0 chats (type=big, features=30)
+Auto-check: version changed 3.3.116 -> 3.3.117
+Update announced: v3.3.116 -> v3.3.117 to 1 chats (type=big, features=29)
+Auto-check: git commit changed cdb3b91 -> 947f247
+Auto-check: version bumped 3.3.117 -> ('3.3.118', [])
+Update announced: v3.3.117 -> v('3.3.118', []) to 0 chats (type=big, features=30)
+Auto-check: version changed 3.3.117 -> 3.3.118
+Update announced: v3.3.117 -> v3.3.118 to 1 chats (type=big, features=29)
+Bot started
+AI Stack memory initialized
+Bot v3.3.118 started
+Msg from 8585609360: Hallo
+Processing: hallo
+Calling groq for: Hallo
+groq API: 200
+gateway: groq in 0.6s
+Reply: Hallo! It's nice to see you're trying out different greetings. If you're ready t...
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+gateway: groq in 0.7s
+Reply: Another test. Don't worry, I'm still here and ready to help when you are. If you...
+Msg from 8585609360: 123
+Processing: 123
+Calling groq for: 123
+groq API: 429
+gateway: all failed, retrying in 10s (attempt 1/5)
+zenmux API: 403
+ovh API: 301
+gateway: all failed, retrying in 10s (attempt 2/5)
+hy3 API: 401
+gateway: all failed, retrying in 10s (attempt 3/5)
+groq API: 200
+gateway: groq in 0.6s
+Reply: It seems like you're mixing numbers and tests. If you're trying to send a code o...
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.3s
+Reply: Hello again! It's nice to see you're back to saying hello. If you're ready to st...
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 0.8s
+Reply: It looks like we're back to testing again. Don't worry, I'm still here and ready...
+Msg from 8585609360: Hellooii
+Processing: hellooii
+Calling groq for: Hellooii
+groq API: 200
+gateway: groq in 0.5s
+Reply: Hellooii back to you! It seems like you're adding a bit of flair to your greetin...
+Auto-check: git commit changed 947f247 -> 102c87c
+Auto-check: version bumped 3.3.118 -> ('3.3.119', [])
+Update announced: v3.3.118 -> v('3.3.119', []) to 0 chats (type=big, features=30)
+Auto-check: version changed 3.3.118 -> 3.3.119
+Update announced: v3.3.118 -> v3.3.119 to 1 chats (type=big, features=29)
+cache: purged 6 stale entries (0 remain)
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.1s
+Reply: Hello again. It's nice to see you're back and ready to start fresh. I've been wa...
+Auto-check: git commit changed 102c87c -> 7c40dd3
+Auto-check: version bumped 3.3.119 -> ('3.3.120', [])
+Update announced: v3.3.119 -> v('3.3.120', []) to 0 chats (type=big, features=30)
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 1.2s
+Reply: It seems like you're testing the waters again. Don't worry, I'm still here and r...
+Auto-check: version changed 3.3.119 -> 3.3.120
+Update announced: v3.3.119 -> v3.3.120 to 1 chats (type=big, features=29)
+Auto-check: git commit changed 7c40dd3 -> 46b1dbd
+Auto-check: version bumped 3.3.120 -> ('3.3.121', [])
+Update announced: v3.3.120 -> v('3.3.121', []) to 0 chats (type=big, features=30)
+Auto-check: version changed 3.3.120 -> 3.3.121
+Update announced: v3.3.120 -> v3.3.121 to 1 chats (type=big, features=29)
+cache: purged 2 stale entries (0 remain)
+Auto-check: version changed 3.3.121 -> 3.4.0
+Update announced: v3.3.121 -> v3.4.0 to 1 chats (type=big, features=32)
+Auto-check: git commit changed 46b1dbd -> b0f7574
+Auto-check: version bumped 3.4.0 -> ('3.4.122', [])
+Update announced: v3.4.0 -> v('3.4.122', []) to 0 chats (type=big, features=31)
+Auto-check: version changed 3.4.0 -> 3.4.122
+Update announced: v3.4.0 -> v3.4.122 to 1 chats (type=big, features=30)
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 1.1s
+Reply: Hello again. I see we're starting fresh once more. I'm ready to engage in a new ...
+cache: purged 1 stale entries (0 remain)
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 0.8s
+Reply: It looks like you're testing again. I'm still here and ready to respond. If you'...
+Msg from 8585609360: Ok thank you
+Processing: ok
+Calling groq for: Ok thank you
+groq API: 200
+gateway: groq in 0.8s
+Reply: You're welcome. It was a pleasure assisting you, even if it was just a series of...
+Msg from 8585609360: 👍
+Processing: 👍
+Calling groq for: 👍
+groq API: 429
+gateway: all failed, retrying in 10s (attempt 1/5)
+ovh API: 301
+freetokenfaucet API: 401
+gateway: freetokenfaucet in 3.9s
+Reply: Freetokenfaucet error: 401 - {"error":"UNAUTHORIZED","message":"Invalid TokenFau...
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+github API: 401
+zenmux-grok-4.5-free API: 403
+gateway: zenmux-grok-4.5-free in 4.1s
+Reply: Zenmux-Grok-4.5-Free error: 403 - {"error":{"code":"403","type":"access_denied",...
+cache: purged 2 stale entries (2 remain)
+cache: purged 2 stale entries (0 remain)
+Auto-check: version changed 3.4.122 -> 3.4.1
+Update announced: v3.4.122 -> v3.4.1 to 1 chats (type=big, features=30)
+Auto-check: git commit changed b0f7574 -> 89279a4
+Auto-check: version bumped 3.4.1 -> ('3.4.123', [])
+Update announced: v3.4.1 -> v('3.4.123', []) to 0 chats (type=big, features=31)
+Auto-check: version changed 3.4.1 -> 3.4.123
+Update announced: v3.4.1 -> v3.4.123 to 1 chats (type=big, features=30)
+Auto-check: version changed 3.4.123 -> 3.5.0
+Update announced: v3.4.123 -> v3.5.0 to 1 chats (type=big, features=37)
+Auto-check: git commit changed 89279a4 -> 33a350d
+Auto-check: version bumped 3.5.0 -> ('3.5.124', [])
+Update announced: v3.5.0 -> v('3.5.124', []) to 0 chats (type=big, features=32)
+Auto-check: version changed 3.5.0 -> 3.5.124
+Update announced: v3.5.0 -> v3.5.124 to 1 chats (type=big, features=31)
+Auto-check: version changed 3.5.124 -> 3.6.0
+Update announced: v3.5.124 -> v3.6.0 to 1 chats (type=big, features=31)
+Auto-check: git commit changed 33a350d -> 93547e1
+Auto-check: version bumped 3.6.0 -> ('3.6.125', [])
+Update announced: v3.6.0 -> v('3.6.125', []) to 0 chats (type=big, features=32)
+Auto-check: version changed 3.6.0 -> 3.6.125
+Update announced: v3.6.0 -> v3.6.125 to 1 chats (type=big, features=31)
+Auto-check: version changed 3.6.125 -> 3.7.0
+Update announced: v3.6.125 -> v3.7.0 to 1 chats (type=big, features=42)
+Auto-check: git commit changed 93547e1 -> 4ded512
+Auto-check: version bumped 3.7.0 -> ('3.7.126', [])
+Update announced: v3.7.0 -> v('3.7.126', []) to 0 chats (type=big, features=33)
+Auto-check: version changed 3.7.0 -> 3.7.126
+Update announced: v3.7.0 -> v3.7.126 to 1 chats (type=big, features=32)
+Auto-check: git commit changed 4ded512 -> 7943cef
+Auto-check: version bumped 3.7.126 -> ('3.7.127', [])
+Update announced: v3.7.126 -> v('3.7.127', []) to 0 chats (type=big, features=33)
+Auto-check: version changed 3.7.126 -> 3.7.127
+Update announced: v3.7.126 -> v3.7.127 to 1 chats (type=big, features=32)
+Auto-check: version changed 3.7.127 -> 3.7.128
+Update announced: v3.7.127 -> v3.7.128 to 1 chats (type=big, features=32)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Auto-check: git commit changed 7943cef -> 6392579
+Auto-check: version bumped 3.7.128 -> ('3.7.128', [])
+Update announced: v3.7.128 -> v('3.7.128', []) to 0 chats (type=big, features=33)
+Bot started
+AI Stack memory initialized
+startup: version changed 3.7.128 -> 3.7.133
+Update announced: v3.7.128 -> v3.7.133 to 1 chats (features=5, experimental=38)
+Bot v3.7.133 started
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 0.7s
+Reply: Hello again. It seems like we've come full circle. I'm glad to see you're back a...
+Msg from 8585609360: Bor
+Processing: bor
+Calling groq for: Bor
+groq API: 200
+gateway: groq in 0.4s
+Reply: It seems like you started to type something, but it got cut off. Was it "Boring"...
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: Testinv
+Processing: testinv
+Calling groq for: Testinv
+groq API: 200
+gateway: groq in 0.6s
+Reply: It looks like you're testing again with a slight typo ("Testinv" instead of "Tes...
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 0.7s
+Reply: Hello again! It seems like we're starting fresh once more. I'm ready to engage i...
+Msg from 8585609360: Hey
+Processing: hey
+Calling groq for: Hey
+groq API: 200
+gateway: groq in 0.7s
+Reply: Hey! It's great to see you're back and ready to chat. I'm here to listen and hel...
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+gateway: groq in 0.9s
+Reply: It looks like you're testing again. I'm happy to play along and respond to your ...
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 0.9s
+Reply: It seems like you're testing again. I'll keep responding and try to mix things u...
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: Hello
+Processing: hello
+Calling groq for: Hello
+groq API: 200
+gateway: groq in 0.8s
+Reply: Hello again! I'm starting to notice a pattern here. It seems like we're having a...
+Msg from 8585609360: Test
+Processing: test
+Calling groq for: Test
+groq API: 200
+gateway: groq in 1.0s
+Reply: It looks like we're back to testing again. I'm happy to play along and help you ...
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: Testing
+Processing: testing
+Calling groq for: Testing
+groq API: 200
+gateway: groq in 0.9s
+Reply: It looks like we're back to testing again. I'm happy to play along and respond t...
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Bot started
+AI Stack memory initialized
+Bot v3.7.133 started
+Msg from 8585609360: 123
+Processing: 123
+Calling groq for: 123
+groq API: 200
+gateway: groq in 0.8s
+Reply: It looks like you've entered a sequence of numbers: 123. I'm curious, is there s...
+SEND to chat=8585609360: It looks like you've entered a sequence of numbers: 123. I'm curious, is there s...
+SEND result: ok=True error=none
+Msg from 8585609360: Test 123
+Processing: test
+Calling groq for: Test 123
+groq API: 200
+gateway: groq in 1.1s
+Reply: It seems like you're combining "Test" with the numbers "123". I'm happy to play ...
+SEND to chat=8585609360: It seems like you're combining "Test" with the numbers "123". I'm happy to play ...
+SEND result: ok=True error=none
+Msg from 8585609360: test123
+Processing: test123
+Calling groq for: test123
+groq API: 200
+gateway: groq in 0.9s
+Reply: It seems like you've combined "test" with the numbers "123" again. I'll continue...
+SEND to chat=8585609360: It seems like you've combined "test" with the numbers "123" again. I'll continue...
+SEND result: ok=True error=none

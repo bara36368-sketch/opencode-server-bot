@@ -328,6 +328,27 @@
       "version": "3.2.1",
       "category": "utility",
       "enabled": false
+    },
+    "mini-apps": {
+      "name": "Mini Apps",
+      "desc": "Telegram Web Apps \u2014 full HTML dashboards and tools inside Telegram",
+      "version": "3.4.0",
+      "category": "utility",
+      "enabled": false
+    },
+    "rich-text-v2": {
+      "name": "Rich Text v2",
+      "desc": "Telegram Bot API 10.1 Rich Messages \u2014 tables, collapsible details, math formulas, code blocks, slideshows",
+      "version": "3.4.0",
+      "category": "ai",
+      "enabled": false
+    },
+    "multi-agent": {
+      "name": "Multi-Agent System",
+      "desc": "Bot-to-Bot Agent orchestration \u2014 specialized AI agents collaborate on complex tasks",
+      "version": "3.5.0",
+      "category": "ai",
+      "enabled": false
     }
   }
 }

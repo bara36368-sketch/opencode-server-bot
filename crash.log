@@ -1,0 +1,117 @@
+============================================================
+OpenCode Bot Diagnostic Report
+Time: 2026-07-19 17:20:56
+Python: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+Platform: win32
+============================================================
+
+SUMMARY: 95 passed, 0 FAILED, 3 warnings
+
+============================================================
+WARNINGS (3)
+============================================================
+[2026-07-19 17:20:56] [runner] runner.py: fuser is Linux-only (guarded OK); pkill is Linux-only (guarded OK); No signal handling for graceful shutdown
+[2026-07-19 17:20:56] [data] memory.json (Memory store): Not found
+[2026-07-19 17:20:56] [data] token_usage.json (Token usage): Not found
+
+============================================================
+ALL PASSED (95)
+============================================================
+[syntax] _check.py: OK
+[syntax] ai_stack_combined.py: OK
+[syntax] ai_stack_reference.py: OK
+[syntax] bot_features.py: OK
+[syntax] diagnose.py: OK
+[syntax] img2text.py: OK
+[syntax] opencode_bot.py: OK
+[syntax] pyrit_attacks.py: OK
+[syntax] register_webhook.py: OK
+[syntax] runner.py: OK
+[syntax] test_bot.py: OK
+[syntax] web_gateway.py: OK
+[syntax] webhook_app.py: OK
+[syntax] whatsapp_bot.py: OK
+[syntax] wsgi.py: OK
+[stdlib] asyncio: OK
+[stdlib] json: OK
+[stdlib] os: OK
+[stdlib] time: OK
+[stdlib] re: OK
+[stdlib] hashlib: OK
+[stdlib] html: OK
+[stdlib] copy: OK
+[stdlib] random: OK
+[stdlib] urllib: OK
+[stdlib] uuid: OK
+[stdlib] io: OK
+[stdlib] traceback: OK
+[stdlib] sys: OK
+[stdlib] threading: OK
+[stdlib] subprocess: OK
+[stdlib] inspect: OK
+[stdlib] glob: OK
+[stdlib] signal: OK
+[stdlib] shutil: OK
+[stdlib] base64: OK
+[third_party] httpx: OK
+[third_party] aiohttp: OK
+[json] agents.json: OK
+[json] deepseek_workflow.json: OK
+[json] experimental.json: OK
+[json] mods.json: OK
+[json] n8n_hierarchical_agents.json: OK
+[json] providers.json: OK
+[json] sessions.json: OK
+[json] synoxcloud_ai_models.json: OK
+[json] synoxcloud_endpoints.json: OK
+[json] version.json: OK
+[json] version_state.json: OK
+[bf_stub] vision_analyze: OK
+[bf_stub] get_photo_url: OK
+[bf_stub] voice_to_text: OK
+[bf_stub] text_to_speech: OK
+[bf_stub] translate: OK
+[bf_stub] web_search: OK
+[bf_stub] youtube_transcript: OK
+[bf_stub] run_code: OK
+[bf_stub] fetch_url: OK
+[bf_stub] auto_context: OK
+[bf_stub] summarize_conversation: OK
+[bf_stub] image_generate: OK
+[bf_stub] qr_encode: OK
+[bf_stub] qr_decode_from_url: OK
+[bf_stub] extract_text_from_file: OK
+[bf_stub] parse_spreadsheet: OK
+[version] version.json: OK
+[version] version_state.json: OK
+[version] experimental.json: OK
+[web_gateway] httpx guard: OK
+[web_gateway] MCP tools: OK
+[web_gateway] provider_roles: OK
+[web_gateway] overall: OK
+[providers] providers.json: OK
+[sessions] sessions.json: OK
+[data] mods.json (Moderators): OK
+[data] bot.log (Bot log): OK
+[bot_main] send: OK
+[bot_main] call_provider: OK
+[bot_main] smart_call: OK
+[bot_main] main: OK
+[bot_main] tg: OK
+[bot_main] announce_update: OK
+[bot_main] auto_version_checker: OK
+[bot_main] _safe_track_usage: OK
+[bot_main] _BfStub class: OK
+[bot_main] datetime import: OK
+[bot_main] aiohttp import: OK
+[perms] opencode_bot.py: OK
+[perms] web_gateway.py: OK
+[perms] runner.py: OK
+[perms] bot_features.py: OK
+[perms] version.json: OK
+[perms] version_state.json: OK
+[perms] experimental.json: OK
+[perms] mods.json: OK
+2026-07-23 18:35:59 - bot crashed (exit 0), restarting...
+2026-07-23 18:37:20 - bot crashed (exit 0), restarting...
+2026-07-25 11:35:21 - bot crashed (exit 0), restarting...

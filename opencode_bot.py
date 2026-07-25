@@ -135,130 +135,87 @@ except Exception as _bf_err:
         pass
     bf = _BfStub()
 
-try:
-    import ai_stack_reference as stack_ref
-except Exception:
-    stack_ref = None
+_modules_to_lazy = {
+    "stack_ref": "ai_stack_reference",
+    "ai_stack": "ai_stack_combined",
+    "kg_mod": "knowledge_graph",
+    "market_mod": "agent_marketplace",
+    "vid_mod": "video_generator",
+    "guard_mod": "guardian",
+    "rich_mod": "rich_message",
+    "styles_mod": "ai_styles",
+    "pollplus_mod": "poll_plus",
+    "pw_mod": "paywall",
+    "ca_mod": "content_automation",
+    "an_mod": "analytics",
+    "safety_mod": "safety_moderation",
+    "dev_mod": "coding_dev",
+    "ai_int_mod": "ai_intelligence",
+    "comm_mod": "community_engagement",
+    "auto_mod": "automation_productivity",
+    "sec_mod": "security_api",
+    "nf_mod": "new_features",
+    "loc_mod": "location_distance",
+    "ma_mod": "mini_app",
+    "rt2_mod": "rich_text_v2",
+    "cv_mod": "computer_vision",
+    "n8n_mod": "n8n_workflow",
+}
+class _LazyProxy:
+    def __init__(self, mod_name):
+        self._mod_name = mod_name
+        self._mod = None
+        self._failed = False
+    def _load(self):
+        if self._mod is None and not self._failed:
+            try:
+                import importlib
+                self._mod = importlib.import_module(self._mod_name)
+            except Exception:
+                self._failed = True
+        return self._mod
+    def __getattr__(self, name):
+        m = self._load()
+        if m is None:
+            raise AttributeError(name)
+        return getattr(m, name)
+    def __repr__(self):
+        m = self._load()
+        return repr(m) if m else f"<lazy module {self._mod_name} (failed)>"
+    def __bool__(self):
+        return self._load() is not None
+    def __call__(self, *a, **kw):
+        m = self._load()
+        if m is None:
+            raise RuntimeError(f"Module {self._mod_name} not available")
+        return m(*a, **kw)
 
-try:
-    import ai_stack_combined as ai_stack
-except Exception:
-    ai_stack = None
-
-try:
-    import knowledge_graph as kg_mod
-except Exception:
-    kg_mod = None
-
-try:
-    import agent_marketplace as market_mod
-except Exception:
-    market_mod = None
-
-try:
-    import video_generator as vid_mod
-except Exception:
-    vid_mod = None
-
-try:
-    import guardian as guard_mod
-except Exception:
-    guard_mod = None
-
-try:
-    import rich_message as rich_mod
-except Exception:
-    rich_mod = None
-
-try:
-    import ai_styles as styles_mod
-except Exception:
-    styles_mod = None
-
-try:
-    import poll_plus as pollplus_mod
-except Exception:
-    pollplus_mod = None
-
-try:
-    import paywall as pw_mod
-except Exception:
-    pw_mod = None
-
-try:
-    import content_automation as ca_mod
-except Exception:
-    ca_mod = None
-
-try:
-    import analytics as an_mod
-except Exception:
-    an_mod = None
-
-try:
-    import safety_moderation as safety_mod
-except Exception:
-    safety_mod = None
-
-try:
-    import coding_dev as dev_mod
-except Exception:
-    dev_mod = None
-
-try:
-    import ai_intelligence as ai_int_mod
-except Exception:
-    ai_int_mod = None
-
-try:
-    import community_engagement as comm_mod
-except Exception:
-    comm_mod = None
-
-try:
-    import automation_productivity as auto_mod
-except Exception:
-    auto_mod = None
-
-try:
-    import security_api as sec_mod
-except Exception:
-    sec_mod = None
-
-try:
-    import new_features as nf_mod
-except Exception:
-    nf_mod = None
-
-try:
-    import location_distance as loc_mod
-except Exception:
-    loc_mod = None
-
-try:
-    import mini_app as ma_mod
-except Exception:
-    ma_mod = None
-
-try:
-    import rich_text_v2 as rt2_mod
-except Exception:
-    rt2_mod = None
-
-try:
-    import computer_vision as cv_mod
-except Exception:
-    cv_mod = None
-
-try:
-    import n8n_workflow as n8n_mod
-except Exception:
-    n8n_mod = None
+for _var, _mod in _modules_to_lazy.items():
+    globals()[_var] = _LazyProxy(_mod)
 
 try:
     import aiohttp
 except Exception:
     aiohttp = None
+
+class _LazyModule:
+    def __init__(self, name, attr_name=None):
+        self._name = name
+        self._attr = attr_name or name
+        self._mod = None
+    def _load(self):
+        if self._mod is None:
+            import importlib
+            self._mod = importlib.import_module(self._name)
+        return self._mod
+    def __getattr__(self, name):
+        return getattr(self._load(), name)
+    def __bool__(self):
+        try:
+            self._load()
+            return True
+        except Exception:
+            return False
 
 def _safe_track_usage(uid, agent, provider):
     global bf
@@ -278,6 +235,10 @@ def _check_rate_limit(key, max_calls=5, window=60):
     if key not in _rate_limits:
         _rate_limits[key] = []
     _rate_limits[key] = [t for t in _rate_limits[key] if t > window_start]
+    if len(_rate_limits) > 100:
+        for k in list(_rate_limits.keys()):
+            if not _rate_limits[k] or _rate_limits[k][-1] < window_start:
+                del _rate_limits[k]
     if len(_rate_limits[key]) >= max_calls:
         return False
     _rate_limits[key].append(now)
@@ -290,7 +251,7 @@ async def get_http():
     if _http is None or _http.is_closed:
         _http = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=10, read=60, write=30, pool=10),
-            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20, keepalive_expiry=30),
             http2=False,
         )
     return _http
@@ -2410,10 +2371,8 @@ async def send(chat, text, parse_mode=None, receiver_user=None):
         log(f"dedup: skipped duplicate send to {chat}")
         return {"ok": True, "dedup": True}
     _sent_cache[key] = now
-    if len(_sent_cache) > 500:
-        for k in list(_sent_cache.keys()):
-            if now - _sent_cache[k] > 10:
-                del _sent_cache[k]
+    if len(_sent_cache) > 200:
+        _sent_cache.clear()
 
     rich_ok = rich_mod and is_experimental_enabled("rich-messages") and rich_mod.has_rich_content(raw) and len(raw) < 5000
 
@@ -2964,6 +2923,7 @@ async def main():
     load_token_usage()
     load_experimental()
     load_bridges()
+    import gc; gc.collect()
 
     token_warn = sum(1 for cfg in bridges.values() for t in cfg.get("targets", []) if t.get("bot_token"))
     if token_warn:
