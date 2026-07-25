@@ -6301,7 +6301,7 @@ async def main():
 
                         elif sub == "status":
                             status = agent.get_status()
-                            lines = ["🔧 **Cyberdeck Agent v4.0 Status:**\n"]
+                            lines = ["🔧 **Cyberdeck Agent v4.1 Status:**\n"]
                             lines.append(f"Version: {status.get('version', '?')}")
                             lines.append(f"Total Builds: {status.get('total_builds', 0)}")
                             lines.append(f"Videos Learned: {status.get('videos_learned', 0)}")
@@ -6431,10 +6431,91 @@ async def main():
                             lines.append(f"  Wires: {status.get('wire_count', 0)}")
                             lines.append(f"  Connectivity: {status.get('connectivity_count', 0)}")
                             lines.append(f"  OS Options: {status.get('os_count', 0)}")
+                            lines.append(f"  Styles: {status.get('styles_count', 0)}")
+                            lines.append(f"  Custom PCBs: {status.get('custom_pcb_count', 0)}")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "3d":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            color = parts[3] if len(parts) > 3 else "black"
+                            style = parts[4] if len(parts) > 4 else "futuristic"
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            model = agent.generate_3d_model(build, color, style)
+                            lines = ["🎨 **3D Model Generated:**\n"]
+                            lines.append(f"Style: {model.get('style', style)}")
+                            lines.append(f"Color: {model.get('color', color)}")
+                            lines.append(f"Dimensions: {model.get('dimensions', 'N/A')}")
+                            lines.append(f"\n**OpenSCAD Code:**\n```{model.get('openscad_code', 'N/A')[:1000]}```")
+                            lines.append(f"\n💡 Copy the code to OpenSCAD and render to get STL file.")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "specs":
+                            comp_id = parts[2] if len(parts) > 2 else ""
+                            if not comp_id:
+                                await send(chat, "Usage: /cyberdeck specs <component_id>\nExample: /cyberdeck specs pi5_16gb")
+                                continue
+                            details = agent.get_component_details(comp_id)
+                            if not details:
+                                await send(chat, f"❌ Component `{comp_id}` not found.")
+                                continue
+                            lines = [f"📋 **{details.get('name', comp_id)}**\n"]
+                            for key, val in details.items():
+                                if key != "name":
+                                    lines.append(f"  {key.replace('_', ' ').title()}: {val}")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "video":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            video = agent.generate_build_video(build)
+                            lines = ["🎬 **Build Video Script:**\n"]
+                            lines.append(f"Title: {video.get('title', 'Cyberdeck Build')}")
+                            lines.append(f"Scenes: {len(video.get('scenes', []))}")
+                            lines.append(f"Duration: {video.get('estimated_duration', 'N/A')}")
+                            for scene in video.get("scenes", [])[:5]:
+                                lines.append(f"\n**Scene {scene.get('scene', '?')}: {scene.get('name', '')}**")
+                                lines.append(f"  Camera: {scene.get('camera', '')}")
+                                lines.append(f"  Narration: {scene.get('narration', '')[:100]}")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "pcb-custom":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            issues = build.get("compatibility", {}).get("issues", [])
+                            pcb = agent.suggest_custom_pcb(issues)
+                            lines = ["🔌 **Custom PCB Suggestion:**\n"]
+                            if pcb:
+                                lines.append(f"Template: {pcb.get('name', 'N/A')}")
+                                lines.append(f"Purpose: {pcb.get('purpose', '')}")
+                                lines.append(f"Complexity: {pcb.get('complexity', '')}")
+                                lines.append(f"Cost: {pcb.get('estimated_cost', '?')}")
+                            else:
+                                lines.append("✅ No custom PCB needed — all components compatible!")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "styles":
+                            from cyberdeck_agent import STYLE_PRESETS
+                            lines = ["🎨 **3D Model Styles:**\n"]
+                            for style_id, style_info in STYLE_PRESETS.items():
+                                lines.append(f"**{style_info.get('name', style_id)}** (`{style_id}`)")
+                                lines.append(f"  Colors: {', '.join(style_info.get('colors', [])[:5])}")
+                                lines.append(f"  Screws: {style_info.get('screws', 'hidden')}")
+                                lines.append(f"  Wiring: {style_info.get('wiring', 'hidden')}")
+                                lines.append("")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "risk":
+                            lines = ["⚠️ **Component Risk Levels:**\n"]
+                            from cyberdeck_agent import SBC_DATABASE, DISPLAY_DATABASE, POWER_DATABASE
+                            for db_name, db in [("SBC", SBC_DATABASE), ("Display", DISPLAY_DATABASE), ("Power", POWER_DATABASE)]:
+                                for cid, comp in db.items():
+                                    risk = comp.get("risk_level", "unknown")
+                                    emoji = "🟢" if risk == "minimal" else "🟡" if risk == "low" else "🟠" if risk == "medium" else "🔴" if risk == "high" else "⚪"
+                                    lines.append(f"{emoji} **{comp.get('name', cid)}** ({db_name}): {risk}")
                             await send(chat, "\n".join(lines))
 
                         else:
-                            await send(chat, "🔧 **Cyberdeck Agent v4.0**\n\n"
+                            await send(chat, "🔧 **Cyberdeck Agent v4.1**\n\n"
                                 "**Build & Design:**\n"
                                 "  /cyberdeck build <desc> — Build (auto-detect category, most powerful parts)\n"
                                 "  /cyberdeck custom <name> <desc> — Custom category (AI fills everything)\n"
@@ -6449,11 +6530,16 @@ async def main():
                                 "  /cyberdeck pack <desc> — Generate build pack (image+video+text)\n"
                                 "  /cyberdeck flaws <desc> — Run flaw detection\n"
                                 "  /cyberdeck optimize <desc> — Optimize build for cost/performance\n"
+                                "  /cyberdeck 3d <desc> [color] [style] — Generate 3D model (OpenSCAD)\n"
+                                "  /cyberdeck video <desc> — Generate build video script\n"
+                                "  /cyberdeck pcb-custom <desc> — Suggest custom PCB for compatibility\n"
                                 "  /cyberdeck cooling — View cooling options\n"
                                 "  /cyberdeck pcb — View PCB/carrier board database\n"
                                 "  /cyberdeck wires — View wire/cable database\n"
                                 "  /cyberdeck connectivity — View WiFi/LAN/LoRa/cellular database\n"
-                                "  /cyberdeck stats — Component database statistics\n\n"
+                                "  /cyberdeck stats — Component database statistics\n"
+                                "  /cyberdeck styles — View 3D model styles\n"
+                                "  /cyberdeck risk — View component risk levels\n\n"
                                 "**Research & Learn:**\n"
                                 "  /cyberdeck search <query> — Search for parts\n"
                                 "  /cyberdeck search-web <query> — Search YouTube/TikTok/GitHub/web\n"
@@ -6463,13 +6549,15 @@ async def main():
                                 "  /cyberdeck analyze — Analyze a cyberdeck photo (AI vision)\n"
                                 "  /cyberdeck code <task> — Generate electronics code\n"
                                 "  /cyberdeck ideas [category] — Get cyberdeck ideas\n"
+                                "  /cyberdeck specs <id> — Detailed component specs\n"
                                 "  /cyberdeck learn — View agent learnings\n\n"
                                 "**History & Info:**\n"
                                 "  /cyberdeck list — View build history\n"
-                                "  /cyberdeck status — Agent status (v4.0)\n\n"
+                                "  /cyberdeck status — Agent status (v4.1)\n\n"
                                 "Types: sbc, display, keyboard, power, enclosure, cooling, pcb, wire_signal, wire_power, os\n"
-                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation\n"
-                                "Custom: /cyberdeck custom <any_name> <description>")
+                                "Styles: futuristic, retro, industrial, minimal, steampunk, cyberpunk\n"
+                                "Sizes: small (compact), big (full power)\n"
+                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation, retro, maker, ham-radio, field-repair")
 
                     except Exception as e:
                         await send(chat, f"Cyberdeck error: {str(e)[:200]}")

@@ -1,5 +1,5 @@
 """
-Cyberdeck Agent v4.0 — Full-featured cyberdeck builder, learner, and evolution engine.
+Cyberdeck Agent v4.1 — Full-featured cyberdeck builder, learner, and evolution engine.
 Watches videos, analyzes images, builds from prompts, picks best components,
 validates compatibility, generates tutorials, and gets smarter over time.
 
@@ -13,6 +13,16 @@ New in v4.0:
   - Pack generation (image+video+text)
   - BuildOptimizer flaw detection
   - WiFi/LAN enforced in every build
+
+New in v4.1:
+  - 3D Model Color Picker + Downloadable STL (OpenSCAD generation)
+  - Detailed Component Specs (type, size, resolution, refresh rate, brightness, interface, power)
+  - Waterproof + Battery Charging Components (IP65/IP67 enclosures, TP4056, BQ25895, USB-C PD)
+  - Size Preference (Small vs Big builds)
+  - 3D Model Style presets (futuristic, retro, industrial, minimal, steampunk, cyberpunk)
+  - Video Creation (step-by-step build tutorial video scripts)
+  - Custom PCB for backward compatibility (HDMI-to-DSI, USB-C power, GPIO expansion)
+  - Component Risk Levels (minimal, low, medium, high)
 """
 import os, json, time, logging, hashlib, re, base64
 from datetime import datetime
@@ -20,7 +30,7 @@ from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-VERSION = "4.0.0"
+VERSION = "4.1.0"
 LEARNINGS_FILE = "cyberdeck_learnings.json"
 BUILD_HISTORY_FILE = "cyberdeck_build_history.json"
 VIDEO_QUEUE_FILE = "cyberdeck_video_queue.json"
@@ -60,7 +70,195 @@ TIERS = {
 }
 
 # ============================================================
-# CATEGORY SYSTEM — enhanced with full component slots
+# STYLE PRESETS — 3D model design rules per style
+# ============================================================
+STYLE_PRESETS = {
+    "futuristic": {
+        "name": "Futuristic",
+        "description": "Sleek curves, smooth surfaces, LED accent channels, minimal seams",
+        "default_color": "#1a1a2e",
+        "accent_color": "#00f0ff",
+        "screw_style": "hidden",
+        "surface": "smooth",
+        "vent_style": "slim slits",
+        "led_channels": True,
+        "fillet_radius": 4,
+        "wire_visibility": "hidden",
+        "bezel_style": "razor thin",
+        "enclosure_notes": "Use rounded corners, integrated light pipes for LEDs, flush-mount display",
+    },
+    "retro": {
+        "name": "Retro",
+        "description": "Boxy shapes, visible screws, beige/grey palette, CRT-inspired curves",
+        "default_color": "#c0b19a",
+        "accent_color": "#8b7355",
+        "screw_style": "exposed Phillips",
+        "surface": "textured matte",
+        "vent_style": "rectangular slots",
+        "led_channels": False,
+        "fillet_radius": 1,
+        "wire_visibility": "hidden",
+        "bezel_style": "thick rounded",
+        "enclosure_notes": "Use angular shapes, embossed labels, vintage feel with 80s aesthetics",
+    },
+    "industrial": {
+        "name": "Industrial",
+        "description": "Exposed hardware, functional design, labeled ports, rugged feel",
+        "default_color": "#2d2d2d",
+        "accent_color": "#ff6600",
+        "screw_style": "exposed hex",
+        "surface": "brushed texture",
+        "vent_style": "perforated grill",
+        "led_channels": False,
+        "fillet_radius": 2,
+        "wire_visibility": "partially exposed",
+        "bezel_style": "thick functional",
+        "enclosure_notes": "Use visible standoffs, labeled cutouts, modular panel design",
+    },
+    "minimal": {
+        "name": "Minimal",
+        "description": "Clean lines, no visible hardware, seamless, monochrome",
+        "default_color": "#f5f5f5",
+        "accent_color": "#333333",
+        "screw_style": "hidden (snap-fit)",
+        "surface": "smooth matte",
+        "vent_style": "hidden bottom vents",
+        "led_channels": False,
+        "fillet_radius": 6,
+        "wire_visibility": "completely hidden",
+        "bezel_style": "uniform thin",
+        "enclosure_notes": "Seamless design, no visible screws, magnet-attached lid, clean cable routing",
+    },
+    "steampunk": {
+        "name": "Steampunk",
+        "description": "Brass accents, riveted panels, gear decorations, Victorian industrial",
+        "default_color": "#5c3a1e",
+        "accent_color": "#b8860b",
+        "screw_style": "exposed rivets",
+        "surface": "leather-textured panels",
+        "vent_style": "decorative grills",
+        "led_channels": False,
+        "fillet_radius": 2,
+        "wire_visibility": "braided copper exposed",
+        "bezel_style": "ornate brass frame",
+        "enclosure_notes": "Add gear decorations, brass corner protectors, leather grip patches, pressure gauge cutout",
+    },
+    "cyberpunk": {
+        "name": "Cyberpunk",
+        "description": "Exposed PCB, neon accents, asymmetric, aggressive angles, glitch aesthetic",
+        "default_color": "#0d0d0d",
+        "accent_color": "#ff00ff",
+        "screw_style": "exposed hex (neon washers)",
+        "surface": "carbon fiber texture",
+        "vent_style": "aggressive angular",
+        "led_channels": True,
+        "fillet_radius": 1,
+        "wire_visibility": "neon-colored exposed",
+        "bezel_style": "asymmetric angular",
+        "enclosure_notes": "Asymmetric cuts, exposed PCB edges, neon LED strips, holographic stickers",
+    },
+}
+
+# ============================================================
+# CUSTOM PCB TEMPLATES — backward compatibility adapter boards
+# ============================================================
+CUSTOM_PCB_TEMPLATES = {
+    "hdmi_to_dsi_adapter": {
+        "name": "HDMI-to-DSI Adapter Board",
+        "description": "Converts HDMI output to DSI ribbon cable input for displays that only have DSI",
+        "use_case": "When SBC only has HDMI but display requires DSI, or vice versa",
+        "components_needed": ["HDMI receiver chip (TFP401)", "DSI transmitter", "PCB board", "FFC connectors"],
+        "difficulty": "advanced",
+        "estimated_cost": "$15-$30",
+        "compatibility_issues_solved": ["HDMI SBC + DSI-only display", "Pi Zero + official Pi DSI screen"],
+        "schematic_notes": "TFP401 HDMI receiver -> parallel RGB -> bridge chip -> DSI output. Requires careful signal routing.",
+    },
+    "usbc_power_board": {
+        "name": "USB-C PD Power Delivery Board",
+        "description": "Negotiates USB-C PD voltage (5V/9V/12V/15V/20V) and converts to 5V stable for SBC",
+        "use_case": "When using USB-C PD power sources with SBCs that need stable 5V",
+        "components_needed": ["USB-C PD sink controller (FUSB302 or STUSB4500)", "Buck converter", "USB-C PD trigger IC", "Capacitors", "PCB"],
+        "difficulty": "intermediate",
+        "estimated_cost": "$5-$15",
+        "compatibility_issues_solved": ["USB-C PD source + Pi 5 5V/5A requirement", "Non-standard power sources"],
+        "schematic_notes": "STUSB4500 PD sink -> requests 20V/3A -> buck converter -> 5V/5A output. Add USB-C input and 5V barrel/USB output.",
+    },
+    "gpio_expansion": {
+        "name": "GPIO Expansion & Level Shifter Board",
+        "description": "Expands 40-pin GPIO with level shifting (3.3V<->5V), screw terminals, and ESD protection",
+        "use_case": "When connecting 5V sensors/peripherals to 3.3V SBC GPIO",
+        "components_needed": ["TXS0108E level shifter", "ESD protection diodes", "Screw terminals", "PCB", "Pin header"],
+        "difficulty": "beginner",
+        "estimated_cost": "$3-$8",
+        "compatibility_issues_solved": ["5V sensors on 3.3V GPIO", "Multiple I2C devices with different voltages"],
+        "schematic_notes": "40-pin header passthrough -> TXS0108E bidirectional level shifters -> screw terminal blocks. Add 100nF caps per channel.",
+    },
+    "power_management": {
+        "name": "Integrated Power Management Board",
+        "description": "Combines battery charging (TP4056), boost converter (5V), low-voltage cutoff, and power switch",
+        "use_case": "Custom battery builds that need charge, discharge, and protection in one board",
+        "components_needed": ["TP4056 charger IC", "MT3608 boost converter", "DW01A protection IC", "MOSFET", "slide switch", "PCB"],
+        "difficulty": "intermediate",
+        "estimated_cost": "$5-$12",
+        "compatibility_issues_solved": ["Custom battery pack + SBC power needs", "No integrated charging in enclosure"],
+        "schematic_notes": "LiPo/Li-ion -> TP4056 charge -> DW01A protection -> MT3608 boost to 5V -> slide switch -> SBC. LED indicators for charge status.",
+    },
+    "display_adapter_multi": {
+        "name": "Multi-Interface Display Adapter",
+        "description": "Routes HDMI, SPI, or I2C display signals through a single FPC connector",
+        "use_case": "When display interface doesn't match SBC output and you want a clean single-cable solution",
+        "components_needed": ["FPC connectors (various pinouts)", "Signal routing traces", "ESD protection", "PCB"],
+        "difficulty": "advanced",
+        "estimated_cost": "$8-$20",
+        "compatibility_issues_solved": ["Mixed display interfaces", "Clean single-cable display routing in custom enclosures"],
+        "schematic_notes": "Input FPC (from SBC) -> routing board -> output FPC (to display). Passive routing only, no active conversion.",
+    },
+    "retro_gamepad_hat": {
+        "name": "Retro Gamepad HAT",
+        "description": "GPIO-based gamepad with D-pad, ABXY buttons, analog stick, and audio amp",
+        "use_case": "Gaming cyberdecks that need integrated controls without USB",
+        "components_needed": ["Analog joystick module", "Tactile buttons", "MAX98357A audio amp", "Speaker", "PCB", "Passive components"],
+        "difficulty": "intermediate",
+        "estimated_cost": "$10-$20",
+        "compatibility_issues_solved": ["Gaming builds without USB gamepad", "Need integrated controls in handheld form factor"],
+        "schematic_notes": "GPIO -> ADC for joystick (MCP3008 via SPI), buttons -> direct GPIO with pull-ups, MAX98357A I2S audio output.",
+    },
+}
+
+# ============================================================
+# SIZE PREFERENCES — small vs big build profiles
+# ============================================================
+SIZE_PROFILES = {
+    "small": {
+        "name": "Compact / Portable",
+        "description": "Minimal footprint, lighter weight, less power draw, shorter battery life",
+        "max_sbc": "pi_zero_2w",
+        "preferred_sbcs": ["pi_zero_2w", "orange_pi_zero3", "pi5_4gb"],
+        "max_display_size": 5,
+        "preferred_displays": ["hdmi_5inch", "oled_1_3inch", "eink_4_2inch"],
+        "preferred_keyboards": ["bt_keyboard", "bbq20kbd", "thumb_keyboard"],
+        "preferred_enclosures": ["pelican_1150", "pelican_1200", "3d_printed"],
+        "max_weight_grams": 500,
+        "power_budget_watts": 10,
+        "preferred_power": ["pisugar3_plus", "pimoroni_lipo_shim", "power_bank_20000"],
+    },
+    "big": {
+        "name": "Full Power / Desktop Replacement",
+        "description": "Maximum performance, larger screen, heavier, more battery capacity",
+        "min_sbc": "pi5_8gb",
+        "preferred_sbcs": ["pi5_16gb", "orange_pi_5_plus", "jetson_orin_nano", "lattepanda_3_delta"],
+        "min_display_size": 7,
+        "preferred_displays": ["hdmi_10inch", "hdmi_7inch_1024", "sunlight_readable_7"],
+        "preferred_keyboards": ["mech_60", "keychron_k12", "vintage_keyboard", "corne_split"],
+        "preferred_enclosures": ["pelican_1450", "pelican_1400", "3d_printed_vented"],
+        "min_weight_grams": 800,
+        "power_budget_watts": 30,
+        "preferred_power": ["ups_h5180", "geekworm_x1200", "custom_18650_x6"],
+    },
+}
+
+# ============================================================
+# CATEGORY SYSTEM — enhanced with full component slots + v4.1 fields
 # ============================================================
 CATEGORIES = {
     "coding": {
@@ -70,6 +268,7 @@ CATEGORIES = {
         "best_cooling": "active_fan", "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat",
         "best_wire": "silicon_26awg", "upgrade_path": "NVMe SSD > 16GB RAM > Active cooling > Dual screens",
         "estimated_cost": "$400-$800", "aesthetic": "Industrial with exposed screws",
+        "default_color": "#2d2d2d", "default_style": "industrial", "size_preference": "big",
     },
     "writerdeck": {
         "name": "Writerdeck", "description": "Distraction-free writing, journaling, note-taking",
@@ -79,6 +278,7 @@ CATEGORIES = {
         "best_pcb": "penkesu_pcb", "best_wire": "silicon_26awg",
         "upgrade_path": "E-ink 7.5\" > Split keyboard > Longer battery > Bluetooth",
         "estimated_cost": "$150-$350", "aesthetic": "Minimal, clean, retro",
+        "default_color": "#f5f5f5", "default_style": "minimal", "size_preference": "small",
     },
     "security": {
         "name": "Security & Pentesting", "description": "Network analysis, red team, RF exploration",
@@ -87,6 +287,7 @@ CATEGORIES = {
         "best_cooling": "active_fan", "best_connectivity": "awus036ach", "best_pcb": "waveshare_phat",
         "best_wire": "silicon_26awg", "upgrade_path": "HackRF One > RTL-SDR > LTE modem > Dual WiFi adapters",
         "estimated_cost": "$500-$1200", "aesthetic": "Military black, tactical",
+        "default_color": "#1a1a1a", "default_style": "cyberpunk", "size_preference": "big",
     },
     "gaming": {
         "name": "Retro Gaming & Media", "description": "Emulation, retro gaming, media playback",
@@ -96,6 +297,7 @@ CATEGORIES = {
         "best_connectivity": "cat6_flat", "best_pcb": "adafruit_phat", "best_wire": "silicon_26awg",
         "upgrade_path": "NVMe storage > Better speakers > Larger screen > Bluetooth controllers",
         "estimated_cost": "$200-$400", "aesthetic": "Retro, neon, arcade",
+        "default_color": "#1a1a2e", "default_style": "cyberpunk", "size_preference": "small",
     },
     "research": {
         "name": "Field Research", "description": "Fieldwork, data collection, offline reference",
@@ -105,6 +307,7 @@ CATEGORIES = {
         "best_pcb": "waveshare_phat", "best_wire": "silicon_18awg",
         "upgrade_path": "Solar panel > LTE modem > Larger battery > Weatherproofing",
         "estimated_cost": "$400-$700", "aesthetic": "Rugged, utilitarian",
+        "default_color": "#3d5c3a", "default_style": "industrial", "size_preference": "big",
     },
     "ai": {
         "name": "AI & Machine Learning", "description": "Local AI inference, LLM hosting, computer vision",
@@ -114,6 +317,7 @@ CATEGORIES = {
         "best_pcb": "jetson_carrier", "best_wire": "silicon_24awg",
         "upgrade_path": "NVMe SSD > More RAM > GPU acceleration > Larger display",
         "estimated_cost": "$600-$1500", "aesthetic": "Futuristic, LED accent",
+        "default_color": "#1a1a2e", "default_style": "futuristic", "size_preference": "big",
     },
     "survival": {
         "name": "Survival & Off-Grid", "description": "Emergency computing, off-grid comms, disaster preparedness",
@@ -123,6 +327,7 @@ CATEGORIES = {
         "best_connectivity": "lora_module", "best_pcb": "waveshare_phat", "best_wire": "silicon_18awg",
         "upgrade_path": "LTE modem > More solar capacity > External battery > Ham radio",
         "estimated_cost": "$400-$900", "aesthetic": "Military green, rugged",
+        "default_color": "#4a5d23", "default_style": "industrial", "size_preference": "big",
     },
     "media": {
         "name": "Media Center", "description": "Music, movies, streaming, media playback",
@@ -132,6 +337,7 @@ CATEGORIES = {
         "best_connectivity": "cat6_flat", "best_pcb": "adafruit_phat", "best_wire": "silicon_26awg",
         "upgrade_path": "NVMe storage > Better speakers > HDMI 2.1 > IR remote",
         "estimated_cost": "$200-$400", "aesthetic": "Sleek, modern",
+        "default_color": "#1a1a2e", "default_style": "minimal", "size_preference": "big",
     },
     "conversation-piece": {
         "name": "Conversation Piece / Cosplay", "description": "Aesthetic statement, cosplay prop, display piece",
@@ -141,6 +347,7 @@ CATEGORIES = {
         "best_connectivity": "cat6_flat", "best_pcb": "custom_neon_pcb", "best_wire": "silicon_26awg_neon",
         "upgrade_path": "RGB LEDs > Larger OLED > Sound module > More neon",
         "estimated_cost": "$200-$500", "aesthetic": "Cyberpunk, neon, exposed",
+        "default_color": "#0d0d0d", "default_style": "cyberpunk", "size_preference": "small",
     },
     "retro": {
         "name": "Retro Terminal", "description": "Vintage computing aesthetic, CRT look, ASCII art",
@@ -150,6 +357,7 @@ CATEGORIES = {
         "best_connectivity": "cat6_flat", "best_pcb": "adafruit_phat", "best_wire": "silicon_26awg",
         "upgrade_path": "CRT filter > Amber phosphor display > Mechanical typewriter keys",
         "estimated_cost": "$150-$350", "aesthetic": "Vintage, amber monochrome, dented metal",
+        "default_color": "#c0b19a", "default_style": "retro", "size_preference": "small",
     },
     "maker": {
         "name": "Maker / Hardware Hacking", "description": "Electronics workbench, GPIO projects, 3D printing controller",
@@ -159,6 +367,7 @@ CATEGORIES = {
         "best_pcb": "sparkfun_phat", "best_wire": "silicon_24awg",
         "upgrade_path": "3D printer > Logic analyzer > Oscilloscope > CNC mill",
         "estimated_cost": "$300-$600", "aesthetic": "Bare PCB, exposed wiring, functional",
+        "default_color": "#2d2d2d", "default_style": "industrial", "size_preference": "big",
     },
     "ham-radio": {
         "name": "Ham Radio Station", "description": "Amateur radio, HF/VHF/UHF, digital modes, APRS",
@@ -168,6 +377,7 @@ CATEGORIES = {
         "best_pcb": "waveshare_phat", "best_wire": "silicon_18awg",
         "upgrade_path": "External antenna tuner > HF transceiver > Rotator > Power amplifier",
         "estimated_cost": "$500-$1000", "aesthetic": "Amateur radio, functional, labeled",
+        "default_color": "#5c3a1e", "default_style": "steampunk", "size_preference": "big",
     },
     "field-repair": {
         "name": "Field Repair Kit", "description": "Diagnostic tools, network testing, hardware repair on the go",
@@ -177,6 +387,7 @@ CATEGORIES = {
         "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat", "best_wire": "silicon_24awg",
         "upgrade_path": "Multimeter integration > Thermal camera > Cable tester > Logic probe",
         "estimated_cost": "$350-$650", "aesthetic": "Toolbox, organized, labeled compartments",
+        "default_color": "#ff6600", "default_style": "industrial", "size_preference": "small",
     },
 }
 
@@ -184,35 +395,35 @@ CATEGORIES = {
 # SBC DATABASE
 # ============================================================
 SBC_DATABASE = {
-    "pi5_16gb": {"name": "Raspberry Pi 5 16GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "16GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 120, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Most powerful Pi", "16GB RAM for heavy workloads", "NVMe support", "Dual 4K HDMI"], "cons": ["Needs active cooling", "Requires official 27W PSU"], "best_for": ["coding", "security", "research", "ai"], "compatibility": ["ALL"]},
-    "pi5_8gb": {"name": "Raspberry Pi 5 8GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "8GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 80, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Great price/performance", "NVMe support", "Dual HDMI"], "cons": ["Needs active cooling"], "best_for": ["coding", "security", "research", "gaming", "media"], "compatibility": ["ALL"]},
-    "pi5_4gb": {"name": "Raspberry Pi 5 4GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "4GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 60, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Affordable Pi 5", "Good for media/light tasks"], "cons": ["4GB limits heavy workloads"], "best_for": ["media", "gaming"], "compatibility": ["ALL"]},
-    "pi4_8gb": {"name": "Raspberry Pi 4 8GB", "cpu": "BCM2711 Cortex-A72 @ 1.5GHz quad-core", "ram": "8GB LPDDR4", "gpu": "VideoCore VI", "storage": "MicroSD + USB SSD", "connectivity": "WiFi 5, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@30Hz)", "price": 55, "power_draw": "5V/3A USB-C (15W)", "form_factor": "85mm x 56mm", "pros": ["Mature ecosystem", "Huge community", "Cheap"], "cons": ["Older CPU", "No NVMe native"], "best_for": ["gaming", "media", "research"], "compatibility": ["ALL"]},
-    "orange_pi_5_plus": {"name": "Orange Pi 5 Plus 16GB", "cpu": "RK3588 Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6, BT 5.2, 2.5GbE, USB 3.0, USB 2.0", "gpio": "40-pin GPIO", "video_output": "HDMI 2.1 + USB-C DP", "price": 110, "power_draw": "5V/4A USB-C", "form_factor": "89mm x 56mm", "pros": ["More powerful than Pi 5", "NPU for AI", "2.5GbE", "eMMC + NVMe"], "cons": ["Smaller community", "Driver quirks"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"]},
-    "jetson_orin_nano": {"name": "NVIDIA Jetson Orin Nano 8GB", "cpu": "6-core Arm Cortex-A78AE", "ram": "8GB LPDDR5", "gpu": "1024-core NVIDIA Ampere + 32 Tensor Cores", "storage": "MicroSD + NVMe", "connectivity": "WiFi 5, BT 5.0, GbE, USB 3.2 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "HDMI 2.1 (4K@60Hz)", "price": 249, "power_draw": "7W-15W (configurable)", "form_factor": "100mm x 87mm", "pros": ["40 TOPS AI performance", "GPU + Tensor Cores", "Camera support", "Industrial"], "cons": ["Expensive", "Needs good cooling", "JetPack required"], "best_for": ["ai"], "compatibility": ["ALL"]},
-    "lattepanda_3_delta": {"name": "LattePanda 3 Delta 864", "cpu": "Intel N100 (4C/4T, 3.4GHz)", "ram": "8GB LPDDR5", "gpu": "Intel UHD Graphics", "storage": "eMMC 64GB + M.2 NVMe", "connectivity": "WiFi 6, BT 5.2, GbE, USB 3.2, USB-C", "gpio": "Arduino Leonardo co-processor", "video_output": "USB-C DP + HDMI 2.0", "price": 269, "power_draw": "5V/3A USB-C", "form_factor": "125mm x 78mm", "pros": ["Full x86 Windows/Linux", "Arduino co-processor", "NVMe"], "cons": ["Expensive", "More power draw", "Larger"], "best_for": ["coding", "research"], "compatibility": ["ALL"]},
-    "radxa_rock_5b": {"name": "Radxa Rock 5B 16GB", "cpu": "RK3588 Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6, BT 5.2, 2.5GbE, USB 3.0", "gpio": "40-pin GPIO", "video_output": "HDMI 2.1 + USB-C DP", "price": 120, "power_draw": "5V/4A USB-C", "form_factor": "89mm x 62mm", "pros": ["Powerful RK3588", "NVMe onboard", "2.5GbE", "NPU"], "cons": ["Boot quirks", "Smaller community than Pi"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"]},
-    "khadas_edge2": {"name": "Khadas Edge2 Pro 16GB", "cpu": "RK3588S Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6E, BT 5.3, GbE, USB 3.0", "gpio": "40-pin GPIO", "video_output": "USB-C DP + HDMI 2.1", "price": 140, "power_draw": "5V/4A USB-C", "form_factor": "82mm x 58mm", "pros": ["Premium build", "WiFi 6E", "Compact", "NVMe"], "cons": ["Expensive", "Accessories sold separately"], "best_for": ["ai", "coding", "research"], "compatibility": ["ALL"]},
-    "orange_pi_zero3": {"name": "Orange Pi Zero 3", "cpu": "Allwinner H618 Cortex-A53 quad-core", "ram": "4GB LPDDR4", "gpu": "Mali-G57 MC1", "storage": "MicroSD + eMMC", "connectivity": "WiFi 5, BT 5.1, GbE, USB 2.0 x2", "gpio": "26-pin GPIO header", "video_output": "Micro-HDMI (4K@60Hz)", "price": 20, "power_draw": "5V/2A USB-C", "form_factor": "65mm x 50mm", "pros": ["Ultra cheap", "4K HDMI", "Good Pi Zero alternative"], "cons": ["Smaller community", "No USB 3.0"], "best_for": ["writerdeck", "conversation", "gaming"], "compatibility": ["ALL"]},
-    "pi_zero_2w": {"name": "Raspberry Pi Zero 2 W", "cpu": "BCM2710A1 Cortex-A53 @ 1GHz quad-core", "ram": "512MB LPDDR2", "gpu": "VideoCore IV", "storage": "MicroSD", "connectivity": "WiFi (2.4GHz), BT 4.2, 1x USB OTG, mini-HDMI", "gpio": "40-pin GPIO header (unpopulated)", "video_output": "mini-HDMI (1080p)", "price": 15, "power_draw": "5V/2.5A micro-USB", "form_factor": "65mm x 30mm", "pros": ["Tiny", "Ultra cheap", "Low power", "Perfect for writerdeck"], "cons": ["512MB RAM limits multitasking", "mini-HDMI needs adapter"], "best_for": ["writerdeck", "conversation", "survival"], "compatibility": ["ALL"]},
-    "cm5": {"name": "Raspberry Pi CM5 16GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "16GB LPDDR4X", "gpu": "VideoCore VII", "storage": "eMMC + MicroSD + NVMe", "connectivity": "PCIe Gen 3 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 110, "power_draw": "5V/4A", "form_factor": "55mm x 40mm (module only)", "pros": ["Most powerful compute module", "Industrial grade", "NVMe", "eMMC"], "cons": ["Needs carrier board", "More complex"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"]},
-    "cm4": {"name": "Raspberry Pi CM4 8GB", "cpu": "BCM2711 Cortex-A72 @ 1.5GHz quad-core", "ram": "8GB LPDDR4", "gpu": "VideoCore VI", "storage": "eMMC + MicroSD", "connectivity": "PCIe Gen 2 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 55, "power_draw": "5V/3A", "form_factor": "55mm x 40mm (module only)", "pros": ["Mature ecosystem", "Cheap", "Lots of carrier boards"], "cons": ["Needs carrier board"], "best_for": ["gaming", "media", "writerdeck"], "compatibility": ["ALL"]},
+    "pi5_16gb": {"name": "Raspberry Pi 5 16GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "16GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 120, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Most powerful Pi", "16GB RAM for heavy workloads", "NVMe support", "Dual 4K HDMI"], "cons": ["Needs active cooling", "Requires official 27W PSU"], "best_for": ["coding", "security", "research", "ai"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "4K@60Hz per output", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "2x micro-HDMI, USB-C power", "power_consumption_w": 12, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "low"}},
+    "pi5_8gb": {"name": "Raspberry Pi 5 8GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "8GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 80, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Great price/performance", "NVMe support", "Dual HDMI"], "cons": ["Needs active cooling"], "best_for": ["coding", "security", "research", "gaming", "media"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "4K@60Hz per output", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "2x micro-HDMI, USB-C power", "power_consumption_w": 12, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "low"}},
+    "pi5_4gb": {"name": "Raspberry Pi 5 4GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "4GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 60, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "85mm x 56mm", "pros": ["Affordable Pi 5", "Good for media/light tasks"], "cons": ["4GB limits heavy workloads"], "best_for": ["media", "gaming"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "4K@60Hz per output", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "2x micro-HDMI, USB-C power", "power_consumption_w": 12, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "low"}},
+    "pi4_8gb": {"name": "Raspberry Pi 4 8GB", "cpu": "BCM2711 Cortex-A72 @ 1.5GHz quad-core", "ram": "8GB LPDDR4", "gpu": "VideoCore VI", "storage": "MicroSD + USB SSD", "connectivity": "WiFi 5, BT 5.0, GbE, USB 3.0 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@30Hz)", "price": 55, "power_draw": "5V/3A USB-C (15W)", "form_factor": "85mm x 56mm", "pros": ["Mature ecosystem", "Huge community", "Cheap"], "cons": ["Older CPU", "No NVMe native"], "best_for": ["gaming", "media", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "4K@30Hz per output", "refresh_rate_hz": 30, "brightness_nits": 0, "interface": "2x micro-HDMI, USB-C power", "power_consumption_w": 7, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "orange_pi_5_plus": {"name": "Orange Pi 5 Plus 16GB", "cpu": "RK3588 Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6, BT 5.2, 2.5GbE, USB 3.0, USB 2.0", "gpio": "40-pin GPIO", "video_output": "HDMI 2.1 + USB-C DP", "price": 110, "power_draw": "5V/4A USB-C", "form_factor": "89mm x 56mm", "pros": ["More powerful than Pi 5", "NPU for AI", "2.5GbE", "eMMC + NVMe"], "cons": ["Smaller community", "Driver quirks"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.1 4K@120Hz", "refresh_rate_hz": 120, "brightness_nits": 0, "interface": "HDMI 2.1, USB-C DP, USB-C power", "power_consumption_w": 15, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "jetson_orin_nano": {"name": "NVIDIA Jetson Orin Nano 8GB", "cpu": "6-core Arm Cortex-A78AE", "ram": "8GB LPDDR5", "gpu": "1024-core NVIDIA Ampere + 32 Tensor Cores", "storage": "MicroSD + NVMe", "connectivity": "WiFi 5, BT 5.0, GbE, USB 3.2 x2, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "HDMI 2.1 (4K@60Hz)", "price": 249, "power_draw": "7W-15W (configurable)", "form_factor": "100mm x 87mm", "pros": ["40 TOPS AI performance", "GPU + Tensor Cores", "Camera support", "Industrial"], "cons": ["Expensive", "Needs good cooling", "JetPack required"], "best_for": ["ai"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.1 4K@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.1, USB-C power", "power_consumption_w": 15, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "lattepanda_3_delta": {"name": "LattePanda 3 Delta 864", "cpu": "Intel N100 (4C/4T, 3.4GHz)", "ram": "8GB LPDDR5", "gpu": "Intel UHD Graphics", "storage": "eMMC 64GB + M.2 NVMe", "connectivity": "WiFi 6, BT 5.2, GbE, USB 3.2, USB-C", "gpio": "Arduino Leonardo co-processor", "video_output": "USB-C DP + HDMI 2.0", "price": 269, "power_draw": "5V/3A USB-C", "form_factor": "125mm x 78mm", "pros": ["Full x86 Windows/Linux", "Arduino co-processor", "NVMe"], "cons": ["Expensive", "More power draw", "Larger"], "best_for": ["coding", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.0 4K@30Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.0, USB-C DP, USB-C power", "power_consumption_w": 10, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "radxa_rock_5b": {"name": "Radxa Rock 5B 16GB", "cpu": "RK3588 Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6, BT 5.2, 2.5GbE, USB 3.0", "gpio": "40-pin GPIO", "video_output": "HDMI 2.1 + USB-C DP", "price": 120, "power_draw": "5V/4A USB-C", "form_factor": "89mm x 62mm", "pros": ["Powerful RK3588", "NVMe onboard", "2.5GbE", "NPU"], "cons": ["Boot quirks", "Smaller community than Pi"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.1 4K@120Hz", "refresh_rate_hz": 120, "brightness_nits": 0, "interface": "HDMI 2.1, USB-C DP, USB-C power", "power_consumption_w": 15, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "khadas_edge2": {"name": "Khadas Edge2 Pro 16GB", "cpu": "RK3588S Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4x", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe + MicroSD", "connectivity": "WiFi 6E, BT 5.3, GbE, USB 3.0", "gpio": "40-pin GPIO", "video_output": "USB-C DP + HDMI 2.1", "price": 140, "power_draw": "5V/4A USB-C", "form_factor": "82mm x 58mm", "pros": ["Premium build", "WiFi 6E", "Compact", "NVMe"], "cons": ["Expensive", "Accessories sold separately"], "best_for": ["ai", "coding", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.1 4K@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.1, USB-C DP, USB-C power", "power_consumption_w": 15, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "low", "failure_rate": "very_low"}},
+    "orange_pi_zero3": {"name": "Orange Pi Zero 3", "cpu": "Allwinner H618 Cortex-A53 quad-core", "ram": "4GB LPDDR4", "gpu": "Mali-G57 MC1", "storage": "MicroSD + eMMC", "connectivity": "WiFi 5, BT 5.1, GbE, USB 2.0 x2", "gpio": "26-pin GPIO header", "video_output": "Micro-HDMI (4K@60Hz)", "price": 20, "power_draw": "5V/2A USB-C", "form_factor": "65mm x 50mm", "pros": ["Ultra cheap", "4K HDMI", "Good Pi Zero alternative"], "cons": ["Smaller community", "No USB 3.0"], "best_for": ["writerdeck", "conversation", "gaming"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Micro-HDMI 4K@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Micro-HDMI, USB-C power", "power_consumption_w": 4, "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "fair", "community_usage": "medium", "failure_rate": "medium"}},
+    "pi_zero_2w": {"name": "Raspberry Pi Zero 2 W", "cpu": "BCM2710A1 Cortex-A53 @ 1GHz quad-core", "ram": "512MB LPDDR2", "gpu": "VideoCore IV", "storage": "MicroSD", "connectivity": "WiFi (2.4GHz), BT 4.2, 1x USB OTG, mini-HDMI", "gpio": "40-pin GPIO header (unpopulated)", "video_output": "mini-HDMI (1080p)", "price": 15, "power_draw": "5V/2.5A micro-USB", "form_factor": "65mm x 30mm", "pros": ["Tiny", "Ultra cheap", "Low power", "Perfect for writerdeck"], "cons": ["512MB RAM limits multitasking", "mini-HDMI needs adapter"], "best_for": ["writerdeck", "conversation", "survival"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "mini-HDMI 1080p@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "mini-HDMI, micro-USB power", "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "cm5": {"name": "Raspberry Pi CM5 16GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "16GB LPDDR4X", "gpu": "VideoCore VII", "storage": "eMMC + MicroSD + NVMe", "connectivity": "PCIe Gen 3 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 110, "power_draw": "5V/4A", "form_factor": "55mm x 40mm (module only)", "pros": ["Most powerful compute module", "Industrial grade", "NVMe", "eMMC"], "cons": ["Needs carrier board", "More complex"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Depends on carrier", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Depends on carrier board", "power_consumption_w": 12, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "high", "failure_rate": "low"}},
+    "cm4": {"name": "Raspberry Pi CM4 8GB", "cpu": "BCM2711 Cortex-A72 @ 1.5GHz quad-core", "ram": "8GB LPDDR4", "gpu": "VideoCore VI", "storage": "eMMC + MicroSD", "connectivity": "PCIe Gen 2 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 55, "power_draw": "5V/3A", "form_factor": "55mm x 40mm (module only)", "pros": ["Mature ecosystem", "Cheap", "Lots of carrier boards"], "cons": ["Needs carrier board"], "best_for": ["gaming", "media", "writerdeck"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Depends on carrier", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Depends on carrier board", "power_consumption_w": 7, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
 }
 
 # ============================================================
 # DISPLAY DATABASE
 # ============================================================
 DISPLAY_DATABASE = {
-    "hdmi_7inch_ips": {"name": "Waveshare 7\" HDMI IPS (1024x600)", "size": "7 inch", "resolution": "1024x600", "interface": "HDMI + USB-C touch", "price": 40, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["IPS wide angle", "Capacitive touch", "Cheap", "Bright"], "cons": ["Needs HDMI adapter for Pi Zero"], "best_for": ["ALL"]},
-    "hdmi_7inch_1024": {"name": "Waveshare 7\" HDMI IPS (1280x800)", "size": "7 inch", "resolution": "1280x800", "interface": "HDMI + USB-C touch", "price": 50, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Higher resolution", "Sharp text for coding"], "cons": ["Slightly more expensive"], "best_for": ["coding", "security", "research"]},
-    "hdmi_10inch": {"name": "Waveshare 10.1\" HDMI IPS (1920x1200)", "size": "10.1 inch", "resolution": "1920x1200", "interface": "HDMI + USB-C touch", "price": 80, "power_draw": "5V/1.5A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Large screen", "Full HD", "Good for media/AI", "IPS"], "cons": ["Larger enclosure needed", "More power draw"], "best_for": ["ai", "media", "research", "coding"]},
-    "waveshare_ultrawide_79": {"name": "Waveshare 7.9\" HDMI IPS Ultrawide (400x1280)", "size": "7.9 inch", "resolution": "400x1280", "interface": "HDMI + USB touch", "price": 55, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Unique ultrawide", "Great for terminal/code", "Touch"], "cons": ["Unusual resolution", "Niche use"], "best_for": ["coding", "security", "writerdeck"]},
-    "dsi_7inch": {"name": "Raspberry Pi Official 7\" DSI Touchscreen", "size": "7 inch", "resolution": "800x480", "interface": "DSI ribbon cable", "price": 60, "power_draw": "5V/0.5A via GPIO", "touch": True, "viewing_angle": "170 degrees", "pros": ["Official Pi accessory", "Direct DSI (no HDMI)", "GPIO pass-through"], "cons": ["Lower resolution", "Bulky bezel"], "best_for": ["coding", "gaming"]},
-    "eink_7inch": {"name": "Waveshare 7.5\" E-Ink (800x480)", "size": "7.5 inch", "resolution": "800x480", "interface": "SPI", "price": 70, "power_draw": "Near zero (static), ~15mA refresh", "touch": False, "viewing_angle": "180 degrees (full)", "pros": ["Sunlight readable", "Ultra low power", "Paper-like", "No eye strain"], "cons": ["Slow refresh", "No color", "No touch"], "best_for": ["writerdeck", "survival"]},
-    "eink_4_2inch": {"name": "Waveshare 4.2\" E-Ink (400x300)", "size": "4.2 inch", "resolution": "400x300", "interface": "SPI", "price": 30, "power_draw": "Near zero", "touch": False, "viewing_angle": "180 degrees", "pros": ["Tiny", "Ultra cheap", "Paper-like"], "cons": ["Small text", "Slow refresh", "No touch"], "best_for": ["writerdeck", "survival"]},
-    "oled_1_3inch": {"name": "SSD1306 1.3\" OLED (128x64)", "size": "1.3 inch", "resolution": "128x64", "interface": "I2C", "price": 8, "power_draw": "~10mA", "touch": False, "viewing_angle": "160 degrees", "pros": ["Tiny", "Ultra cheap", "Low power", "Great for status display"], "cons": ["Tiny", "Monochrome"], "best_for": ["conversation", "writerdeck"]},
-    "sunlight_readable_7": {"name": "Sunread 7\" Sunlight Readable (1024x600)", "size": "7 inch", "resolution": "1024x600", "interface": "HDMI + USB touch", "price": 120, "power_draw": "5V/2A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["1000 nits brightness", "Direct sunlight readable", "IPS"], "cons": ["Expensive", "Higher power draw"], "best_for": ["research", "survival"]},
-    "hdmi_5inch": {"name": "Waveshare 5\" HDMI IPS (800x480)", "size": "5 inch", "resolution": "800x480", "interface": "HDMI + USB touch", "price": 25, "power_draw": "5V/0.5A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Small", "Cheap", "Touch"], "cons": ["Low resolution"], "best_for": ["conversation", "writerdeck", "field-repair"]},
+    "hdmi_7inch_ips": {"name": "Waveshare 7\" HDMI IPS (1024x600)", "size": "7 inch", "resolution": "1024x600", "interface": "HDMI + USB-C touch", "price": 40, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["IPS wide angle", "Capacitive touch", "Cheap", "Bright"], "cons": ["Needs HDMI adapter for Pi Zero"], "best_for": ["ALL"], "display_type": "IPS", "screen_size_inches": 7, "refresh_rate_hz": 60, "brightness_nits": 350, "power_consumption_w": 5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "hdmi_7inch_1024": {"name": "Waveshare 7\" HDMI IPS (1280x800)", "size": "7 inch", "resolution": "1280x800", "interface": "HDMI + USB-C touch", "price": 50, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Higher resolution", "Sharp text for coding"], "cons": ["Slightly more expensive"], "best_for": ["coding", "security", "research"], "display_type": "IPS", "screen_size_inches": 7, "refresh_rate_hz": 60, "brightness_nits": 400, "power_consumption_w": 5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "high", "failure_rate": "very_low"}},
+    "hdmi_10inch": {"name": "Waveshare 10.1\" HDMI IPS (1920x1200)", "size": "10.1 inch", "resolution": "1920x1200", "interface": "HDMI + USB-C touch", "price": 80, "power_draw": "5V/1.5A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Large screen", "Full HD", "Good for media/AI", "IPS"], "cons": ["Larger enclosure needed", "More power draw"], "best_for": ["ai", "media", "research", "coding"], "display_type": "IPS", "screen_size_inches": 10.1, "refresh_rate_hz": 60, "brightness_nits": 400, "power_consumption_w": 7.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "waveshare_ultrawide_79": {"name": "Waveshare 7.9\" HDMI IPS Ultrawide (400x1280)", "size": "7.9 inch", "resolution": "400x1280", "interface": "HDMI + USB touch", "price": 55, "power_draw": "5V/1A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Unique ultrawide", "Great for terminal/code", "Touch"], "cons": ["Unusual resolution", "Niche use"], "best_for": ["coding", "security", "writerdeck"], "display_type": "IPS", "screen_size_inches": 7.9, "refresh_rate_hz": 60, "brightness_nits": 350, "power_consumption_w": 5, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "dsi_7inch": {"name": "Raspberry Pi Official 7\" DSI Touchscreen", "size": "7 inch", "resolution": "800x480", "interface": "DSI ribbon cable", "price": 60, "power_draw": "5V/0.5A via GPIO", "touch": True, "viewing_angle": "170 degrees", "pros": ["Official Pi accessory", "Direct DSI (no HDMI)", "GPIO pass-through"], "cons": ["Lower resolution", "Bulky bezel"], "best_for": ["coding", "gaming"], "display_type": "IPS", "screen_size_inches": 7, "refresh_rate_hz": 60, "brightness_nits": 300, "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "eink_7inch": {"name": "Waveshare 7.5\" E-Ink (800x480)", "size": "7.5 inch", "resolution": "800x480", "interface": "SPI", "price": 70, "power_draw": "Near zero (static), ~15mA refresh", "touch": False, "viewing_angle": "180 degrees (full)", "pros": ["Sunlight readable", "Ultra low power", "Paper-like", "No eye strain"], "cons": ["Slow refresh", "No color", "No touch"], "best_for": ["writerdeck", "survival"], "display_type": "E-Ink", "screen_size_inches": 7.5, "refresh_rate_hz": 1, "brightness_nits": 300, "power_consumption_w": 0.05, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "eink_4_2inch": {"name": "Waveshare 4.2\" E-Ink (400x300)", "size": "4.2 inch", "resolution": "400x300", "interface": "SPI", "price": 30, "power_draw": "Near zero", "touch": False, "viewing_angle": "180 degrees", "pros": ["Tiny", "Ultra cheap", "Paper-like"], "cons": ["Small text", "Slow refresh", "No touch"], "best_for": ["writerdeck", "survival"], "display_type": "E-Ink", "screen_size_inches": 4.2, "refresh_rate_hz": 1, "brightness_nits": 300, "power_consumption_w": 0.03, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "oled_1_3inch": {"name": "SSD1306 1.3\" OLED (128x64)", "size": "1.3 inch", "resolution": "128x64", "interface": "I2C", "price": 8, "power_draw": "~10mA", "touch": False, "viewing_angle": "160 degrees", "pros": ["Tiny", "Ultra cheap", "Low power", "Great for status display"], "cons": ["Tiny", "Monochrome"], "best_for": ["conversation", "writerdeck"], "display_type": "OLED", "screen_size_inches": 1.3, "refresh_rate_hz": 30, "brightness_nits": 150, "power_consumption_w": 0.05, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "sunlight_readable_7": {"name": "Sunread 7\" Sunlight Readable (1024x600)", "size": "7 inch", "resolution": "1024x600", "interface": "HDMI + USB touch", "price": 120, "power_draw": "5V/2A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["1000 nits brightness", "Direct sunlight readable", "IPS"], "cons": ["Expensive", "Higher power draw"], "best_for": ["research", "survival"], "display_type": "IPS", "screen_size_inches": 7, "refresh_rate_hz": 60, "brightness_nits": 1000, "power_consumption_w": 10, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "hdmi_5inch": {"name": "Waveshare 5\" HDMI IPS (800x480)", "size": "5 inch", "resolution": "800x480", "interface": "HDMI + USB touch", "price": 25, "power_draw": "5V/0.5A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Small", "Cheap", "Touch"], "cons": ["Low resolution"], "best_for": ["conversation", "writerdeck", "field-repair"], "display_type": "IPS", "screen_size_inches": 5, "refresh_rate_hz": 60, "brightness_nits": 300, "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
 }
 
 # ============================================================
@@ -235,58 +446,66 @@ KEYBOARD_DATABASE = {
 # POWER DATABASE
 # ============================================================
 POWER_DATABASE = {
-    "ups_h5180": {"name": "Waveshare UPS HAT B (5V/5A, 2x 18650)", "type": "UPS HAT", "capacity": "6000mAh (2x 18650)", "output": "5V/5A", "charge_time": "~3 hours", "runtime": "3-6 hours (depending on load)", "price": 30, "pros": ["Auto power switch", "Charges while running", "Battery level I2C", "Compact"], "cons": ["Batteries not included", "Adds height"], "best_for": ["coding", "security", "research", "ai"]},
-    "pisugar3_plus": {"name": "PiSugar 3 Plus (5000mAh)", "type": "SBC-mount battery", "capacity": "5000mAh", "output": "5V/3A", "charge_time": "~3 hours", "runtime": "3-6 hours", "price": 35, "pros": ["Sits under Pi Zero/3A+", "RTC clock", "Button control", "Compact"], "cons": ["Pi Zero only", "Limited capacity"], "best_for": ["writerdeck", "conversation", "survival"]},
-    "geekworm_x1200": {"name": "Geekworm X1200 UPS HAT (5V/5A, 4x 18650)", "type": "UPS HAT", "capacity": "12000mAh (4x 18650)", "output": "5V/5A", "charge_time": "~4 hours", "runtime": "6-12 hours", "price": 40, "pros": ["High capacity", "Auto switch", "Pi 5 compatible", "Safe shutdown"], "cons": ["Batteries not included", "Large footprint"], "best_for": ["coding", "security", "research", "ai"]},
-    "pimoroni_lipo_shim": {"name": "Pimoroni LiPo SHIM (2000mAh)", "type": "SBC-mount battery", "capacity": "2000mAh LiPo", "output": "5V/2.5A", "charge_time": "~2 hours", "runtime": "1-3 hours", "price": 15, "pros": ["Ultra thin", "Sits under Pi", "Button on/off", "Cheap"], "cons": ["Small capacity", "Low runtime"], "best_for": ["writerdeck", "conversation"]},
-    "power_bank_20000": {"name": "Anker 20000mAh Power Bank", "type": "USB power bank", "capacity": "20000mAh", "output": "5V/3A, 9V/2A, 12V/1.5A", "charge_time": "~6 hours", "runtime": "8-15 hours", "price": 35, "pros": ["High capacity", "USB-C PD", "No soldering", "Portable"], "cons": ["Bulky", "Not integrated"], "best_for": ["gaming", "media", "research", "coding"]},
-    "custom_18650_x6": {"name": "Custom 18650 x6 (BMS + Buck Converter)", "type": "Custom 6-cell", "capacity": "18000mAh", "output": "5V/5A (buck)", "charge_time": "~5 hours", "runtime": "10-20 hours", "price": 30, "pros": ["Massive capacity", "Field repairable", "Custom voltage"], "cons": ["Soldering required", "Needs BMS", "Larger"], "best_for": ["survival", "research", "security"]},
-    "solar_panel_18w": {"name": "TP-Link SolarGo 18W Panel + Battery Pack", "type": "Solar charging", "capacity": "20000mAh battery + 18W panel", "output": "5V/2.4A USB", "charge_time": "4-6 hours (sunlight)", "runtime": "Continuous (sunlight dependent)", "price": 50, "pros": ["Off-grid", "Sustainable", "Emergency power"], "cons": ["Weather dependent", "Slow charge"], "best_for": ["survival", "research"]},
+    "ups_h5180": {"name": "Waveshare UPS HAT B (5V/5A, 2x 18650)", "type": "UPS HAT", "capacity": "6000mAh (2x 18650)", "output": "5V/5A", "charge_time": "~3 hours", "runtime": "3-6 hours (depending on load)", "price": 30, "pros": ["Auto power switch", "Charges while running", "Battery level I2C", "Compact"], "cons": ["Batteries not included", "Adds height"], "best_for": ["coding", "security", "research", "ai"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "pisugar3_plus": {"name": "PiSugar 3 Plus (5000mAh)", "type": "SBC-mount battery", "capacity": "5000mAh", "output": "5V/3A", "charge_time": "~3 hours", "runtime": "3-6 hours", "price": 35, "pros": ["Sits under Pi Zero/3A+", "RTC clock", "Button control", "Compact"], "cons": ["Pi Zero only", "Limited capacity"], "best_for": ["writerdeck", "conversation", "survival"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "geekworm_x1200": {"name": "Geekworm X1200 UPS HAT (5V/5A, 4x 18650)", "type": "UPS HAT", "capacity": "12000mAh (4x 18650)", "output": "5V/5A", "charge_time": "~4 hours", "runtime": "6-12 hours", "price": 40, "pros": ["High capacity", "Auto switch", "Pi 5 compatible", "Safe shutdown"], "cons": ["Batteries not included", "Large footprint"], "best_for": ["coding", "security", "research", "ai"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "high", "failure_rate": "low"}},
+    "pimoroni_lipo_shim": {"name": "Pimoroni LiPo SHIM (2000mAh)", "type": "SBC-mount battery", "capacity": "2000mAh LiPo", "output": "5V/2.5A", "charge_time": "~2 hours", "runtime": "1-3 hours", "price": 15, "pros": ["Ultra thin", "Sits under Pi", "Button on/off", "Cheap"], "cons": ["Small capacity", "Low runtime"], "best_for": ["writerdeck", "conversation"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "high", "failure_rate": "low"}},
+    "power_bank_20000": {"name": "Anker 20000mAh Power Bank", "type": "USB power bank", "capacity": "20000mAh", "output": "5V/3A, 9V/2A, 12V/1.5A", "charge_time": "~6 hours", "runtime": "8-15 hours", "price": 35, "pros": ["High capacity", "USB-C PD", "No soldering", "Portable"], "cons": ["Bulky", "Not integrated"], "best_for": ["gaming", "media", "research", "coding"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "n/a", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "custom_18650_x6": {"name": "Custom 18650 x6 (BMS + Buck Converter)", "type": "Custom 6-cell", "capacity": "18000mAh", "output": "5V/5A (buck)", "charge_time": "~5 hours", "runtime": "10-20 hours", "price": 30, "pros": ["Massive capacity", "Field repairable", "Custom voltage"], "cons": ["Soldering required", "Needs BMS", "Larger"], "best_for": ["survival", "research", "security"], "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "varies", "driver_support": "n/a", "community_usage": "medium", "failure_rate": "medium"}},
+    "solar_panel_18w": {"name": "TP-Link SolarGo 18W Panel + Battery Pack", "type": "Solar charging", "capacity": "20000mAh battery + 18W panel", "output": "5V/2.4A USB", "charge_time": "4-6 hours (sunlight)", "runtime": "Continuous (sunlight dependent)", "price": 50, "pros": ["Off-grid", "Sustainable", "Emergency power"], "cons": ["Weather dependent", "Slow charge"], "best_for": ["survival", "research"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "n/a", "community_usage": "medium", "failure_rate": "low"}},
+    "tp4056_module": {"name": "TP4056 1A Li-Ion/LiPo Charger Module", "type": "Battery charging module", "capacity": "Charges single-cell Li-Ion/LiPo (3.7V)", "output": "N/A (charge only)", "charge_time": "~3 hours (2000mAh cell)", "runtime": "N/A (charging module)", "price": 1, "pros": ["Ultra cheap", "Built-in protection", "Micro-USB/USB-C input", "Status LEDs"], "cons": ["1A max charge rate", "Single cell only"], "best_for": ["ALL"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "n/a", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "bq25895_charger": {"name": "BQ25895 3A Fast Charger Board", "type": "Battery charging module", "capacity": "Charges 1-4 cell Li-Ion/LiPo (up to 16.8V)", "output": "N/A (charge only)", "charge_time": "~2 hours (2000mAh cell at 3A)", "runtime": "N/A (charging module)", "price": 8, "pros": ["Fast charging 3A", "Multi-cell support", "I2C monitoring", "USB-C PD compatible"], "cons": ["More complex setup", "Needs I2C config"], "best_for": ["ai", "coding", "security", "research"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "usbc_pd_board": {"name": "USB-C PD Trigger Board (5V/9V/12V/15V/20V)", "type": "Power delivery negotiation", "capacity": "N/A (voltage negotiation)", "output": "5V-20V @ 3A selectable", "charge_time": "N/A", "runtime": "N/A (passthrough)", "price": 5, "pros": ["Negotiates USB-C PD voltage", "Works with any PD adapter", "Compact", "No microcontroller needed"], "cons": ["Requires PD-capable adapter", "Fixed voltage per config"], "best_for": ["ALL"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "n/a", "community_usage": "medium", "failure_rate": "low"}},
+    "waterproof_battery_10000": {"name": "Waterproof Battery Pack 10000mAh (IP67)", "type": "Waterproof power bank", "capacity": "10000mAh", "output": "5V/2A USB-C", "charge_time": "~4 hours", "runtime": "4-8 hours", "price": 25, "pros": ["IP67 rated", "Shockproof", "USB-C", "Compact"], "cons": ["Moderate capacity", "Heavier than standard"], "best_for": ["survival", "research", "field-repair"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "n/a", "community_usage": "medium", "failure_rate": "low"}},
+    "solar_charger_28w": {"name": "Goal Zero Nomad 28 Solar Panel + Venture 30", "type": "Solar charging kit", "capacity": "7800mAh battery + 28W panel", "output": "5V/2.4A USB-A + USB-C", "charge_time": "3-5 hours (sunlight)", "runtime": "Continuous (sunlight dependent)", "price": 120, "pros": ["High efficiency panels", "Waterproof battery", "Charge two devices", "Proven brand"], "cons": ["Expensive", "Heavy panel"], "best_for": ["survival", "research"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "n/a", "community_usage": "high", "failure_rate": "very_low"}},
 }
 
 # ============================================================
 # ENCLOSURE DATABASE
 # ============================================================
 ENCLOSURE_DATABASE = {
-    "pelican_1450": {"name": "Pelican 1450 Case", "material": "Polypropylene", "dimensions": "350 x 250 x 160mm", "protection": "IP67 waterproof, crushproof, dustproof", "foam": "Pick-and-pluck foam interior", "price": 80, "pros": ["Ultimate protection", "Professional look", "Weatherproof"], "cons": ["Heavy", "Expensive", "Needs cutting"], "best_for": ["security", "survival", "research"]},
-    "pelican_1200": {"name": "Pelican 1200 Case", "material": "Polypropylene", "dimensions": "260 x 185 x 105mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 45, "pros": ["Compact Pelican", "Waterproof", "Good for small builds"], "cons": ["Limited space"], "best_for": ["writerdeck", "field-repair", "conversation"]},
-    "pelican_1150": {"name": "Pelican 1150 Case", "material": "Polypropylene", "dimensions": "235 x 165 x 85mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 35, "pros": ["Small Pelican", "Waterproof", "Cheap"], "cons": ["Tight fit for Pi 5"], "best_for": ["writerdeck", "conversation", "retro"]},
-    "pelican_1400": {"name": "Pelican 1400 Case", "material": "Polypropylene", "dimensions": "325 x 235 x 140mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 60, "pros": ["Smaller Pelican", "Waterproof", "Professional"], "cons": ["Needs foam cutting"], "best_for": ["research", "survival"]},
-    "3d_printed": {"name": "Custom 3D Printed Enclosure (PETG)", "material": "PETG / PLA / ABS", "dimensions": "Variable (custom fit)", "protection": "Basic splash-resistant", "price": 5, "pros": ["Fully customizable", "Cheap", "Fast iteration", "Open source designs"], "cons": ["Not waterproof", "Needs printer", "Weaker material"], "best_for": ["coding", "gaming", "media", "conversation", "writerdeck", "maker"]},
-    "3d_printed_cyberpunk": {"name": "3D Printed Cyberpunk Shell", "material": "PLA + Neon filament", "dimensions": "Variable", "protection": "Basic", "price": 10, "pros": ["Aesthetic", "LED cutouts", "Exposed screws", "Industrial look"], "cons": ["Fragile", "Needs finishing"], "best_for": ["conversation-piece", "retro"]},
-    "3d_printed_vented": {"name": "3D Printed Vented Enclosure", "material": "PETG / ABS", "dimensions": "Variable (with fan cutouts)", "protection": "Splash-resistant with vents", "price": 8, "pros": ["Airflow design", "Fan mounting", "Custom fit"], "cons": ["Less dust protection"], "best_for": ["ai", "coding"]},
-    "clockworkpi_uconsole": {"name": "ClockworkPi uConsole Case", "material": "Aluminum + Plastic", "dimensions": "Custom (uConsole form factor)", "protection": "Moderate", "price": 60, "pros": ["Integrated keyboard", "Screen mount", "SBC carrier built-in", "Premium feel"], "cons": ["uConsole-specific", "Limited SBC support"], "best_for": ["coding", "writerdeck"]},
-    "hackberry_pi_cm5": {"name": "HackberryPi CM5 Case", "material": "3D printed / Injection molded", "dimensions": "Handheld form factor", "protection": "Moderate", "price": 40, "pros": ["Handheld", "CM5 carrier built-in", "Keyboard integrated", "Portable"], "cons": ["CM5 only", "Small screen area"], "best_for": ["writerdeck", "coding", "conversation"]},
-    "apache_3800": {"name": "Apache 3800 (Harbor Freight)", "material": "Polypropylene", "dimensions": "360 x 260 x 140mm", "protection": "IP67", "foam": "Pick-and-pluck foam", "price": 30, "pros": ["Cheaper Pelican alternative", "Waterproof", "Solid"], "cons": ["Less premium feel"], "best_for": ["security", "research"]},
-    "found_object": {"name": "Found Object / Upcycled Enclosure", "material": "Vintage briefcase, ammo box, etc.", "dimensions": "Variable", "protection": "Varies", "price": 0, "pros": ["Free", "Unique character", "Sustainable", "Story"], "cons": ["Not purpose-built", "Needs modification"], "best_for": ["conversation", "gaming", "media", "retro"]},
+    "pelican_1450": {"name": "Pelican 1450 Case", "material": "Polypropylene", "dimensions": "350 x 250 x 160mm", "protection": "IP67 waterproof, crushproof, dustproof", "foam": "Pick-and-pluck foam interior", "price": 80, "pros": ["Ultimate protection", "Professional look", "Weatherproof"], "cons": ["Heavy", "Expensive", "Needs cutting"], "best_for": ["security", "survival", "research"], "waterproof_rating": "IP67", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "pelican_1200": {"name": "Pelican 1200 Case", "material": "Polypropylene", "dimensions": "260 x 185 x 105mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 45, "pros": ["Compact Pelican", "Waterproof", "Good for small builds"], "cons": ["Limited space"], "best_for": ["writerdeck", "field-repair", "conversation"], "waterproof_rating": "IP67", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "very_low"}},
+    "pelican_1150": {"name": "Pelican 1150 Case", "material": "Polypropylene", "dimensions": "235 x 165 x 85mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 35, "pros": ["Small Pelican", "Waterproof", "Cheap"], "cons": ["Tight fit for Pi 5"], "best_for": ["writerdeck", "conversation", "retro"], "waterproof_rating": "IP67", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "very_low"}},
+    "pelican_1400": {"name": "Pelican 1400 Case", "material": "Polypropylene", "dimensions": "325 x 235 x 140mm", "protection": "IP67 waterproof", "foam": "Pick-and-pluck foam", "price": 60, "pros": ["Smaller Pelican", "Waterproof", "Professional"], "cons": ["Needs foam cutting"], "best_for": ["research", "survival"], "waterproof_rating": "IP67", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "very_low"}},
+    "ip65_enclosure_150x100": {"name": "IP65 ABS Enclosure 150x100x60mm", "material": "ABS + Silicone gasket", "dimensions": "150 x 100 x 60mm", "protection": "IP65 dust-tight + water jets", "foam": "None (mounting bosses)", "price": 12, "pros": ["Cheap IP65", "Mounting bosses", "Cable glands included", "Lightweight"], "cons": ["Needs drilling for ports", "Not crushproof"], "best_for": ["survival", "research", "field-repair"], "waterproof_rating": "IP65", "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "medium", "failure_rate": "low"}},
+    "ip67_enclosure_aluminum": {"name": "IP67 Aluminum Enclosure 200x120x60mm", "material": "Die-cast aluminum + silicone gasket", "dimensions": "200 x 120 x 60mm", "protection": "IP67 waterproof, submersible", "foam": "Optional foam insert", "price": 25, "pros": ["Full IP67 submersion", "EMI shielding", "Heat dissipation", "Rugged"], "cons": ["Heavier", "Needs CNC/drilling", "Thermal management needed"], "best_for": ["security", "survival", "research"], "waterproof_rating": "IP67", "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "medium", "failure_rate": "low"}},
+    "ip68_poly_case": {"name": "IP68 Polycarbonate Case 250x180x100mm", "material": "Polycarbonate + EPDM gasket", "dimensions": "250 x 180 x 100mm", "protection": "IP68 permanent submersion", "foam": "Pick-and-pluck foam", "price": 40, "pros": ["IP68 rated (1m submersion)", "Transparent option available", "UV resistant", "Impact resistant"], "cons": ["Expensive", "Larger than needed for small builds"], "best_for": ["survival", "research", "field-repair"], "waterproof_rating": "IP68", "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "low", "failure_rate": "low"}},
+    "3d_printed": {"name": "Custom 3D Printed Enclosure (PETG)", "material": "PETG / PLA / ABS", "dimensions": "Variable (custom fit)", "protection": "Basic splash-resistant", "price": 5, "pros": ["Fully customizable", "Cheap", "Fast iteration", "Open source designs"], "cons": ["Not waterproof", "Needs printer", "Weaker material"], "best_for": ["coding", "gaming", "media", "conversation", "writerdeck", "maker"], "waterproof_rating": "None", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "n/a", "community_usage": "very_high", "failure_rate": "low"}},
+    "3d_printed_cyberpunk": {"name": "3D Printed Cyberpunk Shell", "material": "PLA + Neon filament", "dimensions": "Variable", "protection": "Basic", "price": 10, "pros": ["Aesthetic", "LED cutouts", "Exposed screws", "Industrial look"], "cons": ["Fragile", "Needs finishing"], "best_for": ["conversation-piece", "retro"], "waterproof_rating": "None", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "n/a", "community_usage": "high", "failure_rate": "low"}},
+    "3d_printed_vented": {"name": "3D Printed Vented Enclosure", "material": "PETG / ABS", "dimensions": "Variable (with fan cutouts)", "protection": "Splash-resistant with vents", "price": 8, "pros": ["Airflow design", "Fan mounting", "Custom fit"], "cons": ["Less dust protection"], "best_for": ["ai", "coding"], "waterproof_rating": "None", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "n/a", "community_usage": "high", "failure_rate": "low"}},
+    "clockworkpi_uconsole": {"name": "ClockworkPi uConsole Case", "material": "Aluminum + Plastic", "dimensions": "Custom (uConsole form factor)", "protection": "Moderate", "price": 60, "pros": ["Integrated keyboard", "Screen mount", "SBC carrier built-in", "Premium feel"], "cons": ["uConsole-specific", "Limited SBC support"], "best_for": ["coding", "writerdeck"], "waterproof_rating": "None", "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "medium", "failure_rate": "low"}},
+    "hackberry_pi_cm5": {"name": "HackberryPi CM5 Case", "material": "3D printed / Injection molded", "dimensions": "Handheld form factor", "protection": "Moderate", "price": 40, "pros": ["Handheld", "CM5 carrier built-in", "Keyboard integrated", "Portable"], "cons": ["CM5 only", "Small screen area"], "best_for": ["writerdeck", "coding", "conversation"], "waterproof_rating": "None", "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "medium", "failure_rate": "low"}},
+    "apache_3800": {"name": "Apache 3800 (Harbor Freight)", "material": "Polypropylene", "dimensions": "360 x 260 x 140mm", "protection": "IP67", "foam": "Pick-and-pluck foam", "price": 30, "pros": ["Cheaper Pelican alternative", "Waterproof", "Solid"], "cons": ["Less premium feel"], "best_for": ["security", "research"], "waterproof_rating": "IP67", "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "high", "failure_rate": "low"}},
+    "found_object": {"name": "Found Object / Upcycled Enclosure", "material": "Vintage briefcase, ammo box, etc.", "dimensions": "Variable", "protection": "Varies", "price": 0, "pros": ["Free", "Unique character", "Sustainable", "Story"], "cons": ["Not purpose-built", "Needs modification"], "best_for": ["conversation", "gaming", "media", "retro"], "waterproof_rating": "Varies", "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "n/a", "community_usage": "low", "failure_rate": "high"}},
 }
 
 # ============================================================
 # COOLING DATABASE
 # ============================================================
 COOLING_DATABASE = {
-    "pimoroni_fan_shim": {"name": "Pimoroni Fan Shim", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 10, "pros": ["No soldering", "GPIO controlled", "PWM", "Compact"], "cons": ["Pi-specific", "Takes GPIO pins"], "best_for": ["coding", "security", "research"]},
-    "geeekpi_active_cooler": {"name": "GeeekPi Active Cooler (for Pi 5)", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 8, "pros": ["Official connector", "Easy install", "Effective", "Cheap"], "cons": ["Fan noise"], "best_for": ["coding", "security", "research"]},
-    "active_fan": {"name": "Active Fan (Official Pi 5 Active Cooler)", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 5, "pros": ["Official", "Easy install", "Effective", "Cheap"], "cons": ["Fan noise"], "best_for": ["coding", "security", "research"]},
-    "noctua_40mm": {"name": "Noctua NF-A4x10 40mm Fan", "type": "Active (premium)", "cooling_power": "High", "noise": "Very Low", "price": 15, "pros": ["Ultra quiet", "Premium bearings", "Long life", "PWM control"], "cons": ["Needs mounting solution", "More expensive"], "best_for": ["ai", "coding", "writerdeck"]},
-    "active_fan_heatsink": {"name": "Active Fan + Heatsink Combo (ICE Tower)", "type": "Active + Passive", "cooling_power": "Very High", "noise": "Moderate", "price": 20, "pros": ["Best cooling", "Tower design", "Handles sustained loads"], "cons": ["Tall", "More expensive"], "best_for": ["ai", "coding"]},
-    "passive_heatsink": {"name": "Passive Heatsink (Aluminum/Copper)", "type": "Passive", "cooling_power": "Moderate", "noise": "Silent", "price": 8, "pros": ["Silent", "No moving parts", "Reliable"], "cons": ["Lower cooling capacity"], "best_for": ["writerdeck", "gaming", "media", "conversation", "survival"]},
+    "pimoroni_fan_shim": {"name": "Pimoroni Fan Shim", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 10, "pros": ["No soldering", "GPIO controlled", "PWM", "Compact"], "cons": ["Pi-specific", "Takes GPIO pins"], "best_for": ["coding", "security", "research"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "geeekpi_active_cooler": {"name": "GeeekPi Active Cooler (for Pi 5)", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 8, "pros": ["Official connector", "Easy install", "Effective", "Cheap"], "cons": ["Fan noise"], "best_for": ["coding", "security", "research"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "active_fan": {"name": "Active Fan (Official Pi 5 Active Cooler)", "type": "Active", "cooling_power": "High", "noise": "Moderate", "price": 5, "pros": ["Official", "Easy install", "Effective", "Cheap"], "cons": ["Fan noise"], "best_for": ["coding", "security", "research"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "noctua_40mm": {"name": "Noctua NF-A4x10 40mm Fan", "type": "Active (premium)", "cooling_power": "High", "noise": "Very Low", "price": 15, "pros": ["Ultra quiet", "Premium bearings", "Long life", "PWM control"], "cons": ["Needs mounting solution", "More expensive"], "best_for": ["ai", "coding", "writerdeck"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "active_fan_heatsink": {"name": "Active Fan + Heatsink Combo (ICE Tower)", "type": "Active + Passive", "cooling_power": "Very High", "noise": "Moderate", "price": 20, "pros": ["Best cooling", "Tower design", "Handles sustained loads"], "cons": ["Tall", "More expensive"], "best_for": ["ai", "coding"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "low"}},
+    "passive_heatsink": {"name": "Passive Heatsink (Aluminum/Copper)", "type": "Passive", "cooling_power": "Moderate", "noise": "Silent", "price": 8, "pros": ["Silent", "No moving parts", "Reliable"], "cons": ["Lower cooling capacity"], "best_for": ["writerdeck", "gaming", "media", "conversation", "survival"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
 }
 
 # ============================================================
 # PCB / CARRIER BOARD DATABASE
 # ============================================================
 PCB_DATABASE = {
-    "waveshare_phat": {"name": "Waveshare UPS HAT / Motor HAT / Sensor HAT", "type": "Pi HAT (stackable)", "pins": "40-pin GPIO passthrough", "compatibility": "Pi 5, Pi 4, Pi 3, CM4, CM5", "price_range": "$10-$35", "pros": ["Stackable", "Official form factor", "Huge range"], "cons": ["Pi-specific"], "best_for": ["coding", "security", "research", "gaming", "media", "maker"]},
-    "geekworm_nvme_hat": {"name": "Geekworm NVMe HAT for Raspberry Pi 5", "type": "NVMe adapter HAT", "pins": "40-pin GPIO passthrough + PCIe", "compatibility": "Pi 5 only", "price_range": "$15-$25", "pros": ["NVMe SSD support", "Fast storage", "Stackable", "Affordable"], "cons": ["Pi 5 only", "Needs NVMe SSD"], "best_for": ["coding", "ai", "security"]},
-    "pimoroni_fan_hat": {"name": "Pimoroni Fan SHIM HAT", "type": "Fan HAT", "pins": "3-pin GPIO", "compatibility": "Pi 5, Pi 4, Pi 3", "price_range": "$10", "pros": ["PWM fan control", "GPIO driven", "Compact"], "cons": ["Takes GPIO pins"], "best_for": ["coding", "security", "ai"]},
-    "jetson_carrier": {"name": "Jetson Orin Nano Developer Kit Carrier", "type": "Jetson carrier board", "pins": "40-pin GPIO + CSI camera", "compatibility": "Jetson Orin Nano only", "price_range": "Included with dev kit", "pros": ["Official carrier", "Camera support", "MIPI CSI"], "cons": ["Jetson-specific"], "best_for": ["ai"]},
-    "waveshare_cm5_carrier": {"name": "Waveshare CM5 IO Board", "type": "CM5 carrier", "pins": "Full 40-pin GPIO + M.2 + eMMC", "compatibility": "CM5 only", "price_range": "$25-$45", "pros": ["Full IO breakout", "M.2 slot", "Compact"], "cons": ["CM5 only"], "best_for": ["ai", "coding", "security"]},
-    "waveshare_cm4_carrier": {"name": "Waveshare CM4 IO Board", "type": "CM4 carrier", "pins": "Full 40-pin GPIO + M.2", "compatibility": "CM4 only", "price_range": "$20-$35", "pros": ["Full IO", "M.2 NVMe", "Compact"], "cons": ["CM4 only"], "best_for": ["gaming", "media", "writerdeck"]},
-    "adafruit_phat": {"name": "Adafruit pHAT / Bonnet", "type": "Pi HAT (small)", "pins": "26-pin GPIO (subset)", "compatibility": "Pi Zero, Pi 3, Pi 4, Pi 5", "price_range": "$10-$25", "pros": ["Ultra compact", "Great for Pi Zero", "I2C/SPI"], "cons": ["Small pin count"], "best_for": ["writerdeck", "conversation", "gaming", "media"]},
-    "penkesu_pcb": {"name": "Penkesu Computer PCB (Clamshell)", "type": "Custom clamshell PCB", "pins": "Pi Zero GPIO + e-ink + keyboard", "compatibility": "Pi Zero 2W only", "price_range": "$15-$25", "pros": ["Clamshell design", "E-ink integrated", "GBA SP hinges"], "cons": ["Pi Zero only", "Needs assembly"], "best_for": ["writerdeck"]},
-    "custom_neon_pcb": {"name": "Custom Neon LED PCB (WS2812B)", "type": "LED strip PCB", "pins": "3-wire (5V, GND, Data)", "compatibility": "ALL", "price_range": "$5-$15", "pros": ["Programmable RGB", "Cyberpunk aesthetic", "Any shape"], "cons": ["Power hungry", "Needs soldering"], "best_for": ["conversation-piece"]},
-    "sparkfun_phat": {"name": "SparkFun Qwiic HAT", "type": "I2C HAT", "pins": "Qwiic I2C connectors", "compatibility": "Pi 5, Pi 4, Pi 3, Zero", "price_range": "$10-$20", "pros": ["Solderless I2C", "Plug-and-play sensors", "Great ecosystem"], "cons": ["I2C only"], "best_for": ["research", "survival", "ai", "maker"]},
+    "waveshare_phat": {"name": "Waveshare UPS HAT / Motor HAT / Sensor HAT", "type": "Pi HAT (stackable)", "pins": "40-pin GPIO passthrough", "compatibility": "Pi 5, Pi 4, Pi 3, CM4, CM5", "price_range": "$10-$35", "pros": ["Stackable", "Official form factor", "Huge range"], "cons": ["Pi-specific"], "best_for": ["coding", "security", "research", "gaming", "media", "maker"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "geekworm_nvme_hat": {"name": "Geekworm NVMe HAT for Raspberry Pi 5", "type": "NVMe adapter HAT", "pins": "40-pin GPIO passthrough + PCIe", "compatibility": "Pi 5 only", "price_range": "$15-$25", "pros": ["NVMe SSD support", "Fast storage", "Stackable", "Affordable"], "cons": ["Pi 5 only", "Needs NVMe SSD"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "low"}},
+    "pimoroni_fan_hat": {"name": "Pimoroni Fan SHIM HAT", "type": "Fan HAT", "pins": "3-pin GPIO", "compatibility": "Pi 5, Pi 4, Pi 3", "price_range": "$10", "pros": ["PWM fan control", "GPIO driven", "Compact"], "cons": ["Takes GPIO pins"], "best_for": ["coding", "security", "ai"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "jetson_carrier": {"name": "Jetson Orin Nano Developer Kit Carrier", "type": "Jetson carrier board", "pins": "40-pin GPIO + CSI camera", "compatibility": "Jetson Orin Nano only", "price_range": "Included with dev kit", "pros": ["Official carrier", "Camera support", "MIPI CSI"], "cons": ["Jetson-specific"], "best_for": ["ai"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "very_low"}},
+    "waveshare_cm5_carrier": {"name": "Waveshare CM5 IO Board", "type": "CM5 carrier", "pins": "Full 40-pin GPIO + M.2 + eMMC", "compatibility": "CM5 only", "price_range": "$25-$45", "pros": ["Full IO breakout", "M.2 slot", "Compact"], "cons": ["CM5 only"], "best_for": ["ai", "coding", "security"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "medium", "failure_rate": "low"}},
+    "waveshare_cm4_carrier": {"name": "Waveshare CM4 IO Board", "type": "CM4 carrier", "pins": "Full 40-pin GPIO + M.2", "compatibility": "CM4 only", "price_range": "$20-$35", "pros": ["Full IO", "M.2 NVMe", "Compact"], "cons": ["CM4 only"], "best_for": ["gaming", "media", "writerdeck"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "medium", "failure_rate": "low"}},
+    "adafruit_phat": {"name": "Adafruit pHAT / Bonnet", "type": "Pi HAT (small)", "pins": "26-pin GPIO (subset)", "compatibility": "Pi Zero, Pi 3, Pi 4, Pi 5", "price_range": "$10-$25", "pros": ["Ultra compact", "Great for Pi Zero", "I2C/SPI"], "cons": ["Small pin count"], "best_for": ["writerdeck", "conversation", "gaming", "media"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "penkesu_pcb": {"name": "Penkesu Computer PCB (Clamshell)", "type": "Custom clamshell PCB", "pins": "Pi Zero GPIO + e-ink + keyboard", "compatibility": "Pi Zero 2W only", "price_range": "$15-$25", "pros": ["Clamshell design", "E-ink integrated", "GBA SP hinges"], "cons": ["Pi Zero only", "Needs assembly"], "best_for": ["writerdeck"], "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "low", "failure_rate": "medium"}},
+    "custom_neon_pcb": {"name": "Custom Neon LED PCB (WS2812B)", "type": "LED strip PCB", "pins": "3-wire (5V, GND, Data)", "compatibility": "ALL", "price_range": "$5-$15", "pros": ["Programmable RGB", "Cyberpunk aesthetic", "Any shape"], "cons": ["Power hungry", "Needs soldering"], "best_for": ["conversation-piece"], "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "community_usage": "medium", "failure_rate": "low"}},
+    "sparkfun_phat": {"name": "SparkFun Qwiic HAT", "type": "I2C HAT", "pins": "Qwiic I2C connectors", "compatibility": "Pi 5, Pi 4, Pi 3, Zero", "price_range": "$10-$20", "pros": ["Solderless I2C", "Plug-and-play sensors", "Great ecosystem"], "cons": ["I2C only"], "best_for": ["research", "survival", "ai", "maker"], "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"}},
 }
 
 # ============================================================
@@ -423,6 +642,7 @@ CONNECTIVITY_DATABASE = {
         "pros": ["Best WiFi adapter for pentesting", "Monitor mode + injection", "Dual-band", "External antenna", "Kali compatible"],
         "cons": ["Needs driver install", "USB dongle size"],
         "best_for": ["security", "coding", "research"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "awus036acs": {
         "name": "Alfa AWUS036ACS USB WiFi Adapter", "type": "USB WiFi Adapter",
@@ -433,6 +653,7 @@ CONNECTIVITY_DATABASE = {
         "monitor_mode": True, "packet_injection": True,
         "pros": ["Budget pentesting adapter", "Monitor mode", "Dual-band", "Compact"],
         "cons": ["Single external antenna"], "best_for": ["security", "coding"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "rtl_sdr": {
         "name": "RTL-SDR Blog V3 Dongle", "type": "SDR Receiver",
@@ -443,6 +664,7 @@ CONNECTIVITY_DATABASE = {
         "pros": ["ADS-B aircraft tracking", "Ham radio", "Satellite reception", "RF snooping", "Wide frequency range"],
         "cons": ["Receive only", "Needs antenna"],
         "best_for": ["security", "research", "survival", "ham-radio"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "hackrf_one": {
         "name": "Great Scott Gadgets HackRF One", "type": "SDR Transceiver",
@@ -453,6 +675,7 @@ CONNECTIVITY_DATABASE = {
         "pros": ["TX + RX capable", "Huge frequency range", "Industry standard", "HackRF compatible"],
         "cons": ["Expensive", "Full-duplex limited"],
         "best_for": ["security", "research", "ham-radio"],
+        "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "high", "failure_rate": "low"},
     },
     "ethernet_switch": {
         "name": "TP-Link TL-SG105 5-Port Gigabit Switch", "type": "Network Switch",
@@ -461,6 +684,7 @@ CONNECTIVITY_DATABASE = {
         "pros": ["Cheap", "5 ports", "Fanless", "Compact", "Plug and play"],
         "cons": ["Needs power adapter"],
         "best_for": ["security", "coding", "research"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "usb_ethernet": {
         "name": "USB-C to Ethernet Adapter (Gigabit)", "type": "USB Ethernet Adapter",
@@ -468,6 +692,7 @@ CONNECTIVITY_DATABASE = {
         "speed": "1000 Mbps", "connection": "USB-C / USB 3.0", "price": 15,
         "pros": ["Adds Ethernet to any SBC", "USB-C and USB-A options", "No driver needed"],
         "cons": ["Single port"], "best_for": ["ALL"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "cat6_cable": {
         "name": "Cat 6 Ethernet Cable (1m/3m/5m)", "type": "Ethernet Cable",
@@ -475,6 +700,7 @@ CONNECTIVITY_DATABASE = {
         "length_options": ["1m", "3m", "5m", "10m"], "price_range": "$3-$8",
         "pros": ["Future-proof", "Shielded options available", "Flat and round"],
         "cons": ["Bulkier than Cat 5e"], "best_for": ["ALL"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "cat6_flat": {
         "name": "Cat 6 Flat Ethernet Cable (1m)", "type": "Ethernet Cable",
@@ -482,6 +708,7 @@ CONNECTIVITY_DATABASE = {
         "length_options": ["1m", "2m", "3m"], "price_range": "$4-$8",
         "pros": ["Ultra thin", "Easy routing in enclosures", "Velcro tie included"],
         "cons": ["Less shielding"], "best_for": ["coding", "security", "gaming"],
+        "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "very_high", "failure_rate": "very_low"},
     },
     "lora_module": {
         "name": "Seeed Studio Wio-SX1262 LoRa Module", "type": "LoRa Radio Module",
@@ -489,6 +716,7 @@ CONNECTIVITY_DATABASE = {
         "range": "5-15km", "connection": "SPI + GPIO", "price": 20,
         "pros": ["Meshtastic compatible", "Long range", "Off-grid mesh networking", "Low power"],
         "cons": ["Needs antenna", "SPI wiring"], "best_for": ["survival", "research", "ham-radio"],
+        "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "medium", "failure_rate": "low"},
     },
     "lte_modem": {
         "name": "Quectel EC20 LTE Cat 4 Modem", "type": "Cellular Modem",
@@ -497,6 +725,7 @@ CONNECTIVITY_DATABASE = {
         "pros": ["4G LTE connectivity", "GPS included", "AT command support", "Industrial grade"],
         "cons": ["Needs SIM card", "Antenna required"],
         "best_for": ["survival", "research", "security"],
+        "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "community_usage": "medium", "failure_rate": "low"},
     },
     "wifi_antenna_pigtail": {
         "name": "SMA Pigtail Cable (RP-SMA / SMA)", "type": "Antenna Cable",
@@ -671,6 +900,36 @@ class ComponentDatabase:
                                  + len(PCB_DATABASE) + len(WIRE_DATABASE) + len(CONNECTIVITY_DATABASE)
                                  + len(OS_DATABASE)),
         }
+
+    @staticmethod
+    def get_component_details(component_id):
+        databases = {
+            "sbc": SBC_DATABASE, "display": DISPLAY_DATABASE, "keyboard": KEYBOARD_DATABASE,
+            "power": POWER_DATABASE, "enclosure": ENCLOSURE_DATABASE, "cooling": COOLING_DATABASE,
+            "pcb": PCB_DATABASE, "wire": WIRE_DATABASE, "connectivity": CONNECTIVITY_DATABASE,
+            "os": OS_DATABASE,
+        }
+        for db_name, db in databases.items():
+            if component_id in db:
+                comp = db[component_id]
+                details = {"id": component_id, "database": db_name, **comp}
+                details["specs"] = {
+                    "type": comp.get("display_type") or comp.get("type") or db_name,
+                    "size": comp.get("screen_size_inches") or comp.get("size") or comp.get("form_factor") or "N/A",
+                    "resolution": comp.get("resolution") or "N/A",
+                    "refresh_rate_hz": comp.get("refresh_rate_hz") or "N/A",
+                    "brightness_nits": comp.get("brightness_nits") or "N/A",
+                    "interface": comp.get("interface") or comp.get("connection") or comp.get("video_output") or "N/A",
+                    "power_consumption_w": comp.get("power_consumption_w") or comp.get("power_draw") or "N/A",
+                }
+                details["risk"] = {
+                    "level": comp.get("risk_level", "unknown"),
+                    "factors": comp.get("risk_factors", {}),
+                }
+                if comp.get("waterproof_rating"):
+                    details["specs"]["waterproof_rating"] = comp["waterproof_rating"]
+                return details
+        return {"error": f"Component '{component_id}' not found in any database"}
 
 
 # ============================================================
@@ -1546,9 +1805,11 @@ class PackGenerator:
 # ============================================================
 class BuildGenerator:
     @staticmethod
-    def build_for_category(category, tier="intermediate", custom_parts=None):
+    def build_for_category(category, tier="intermediate", custom_parts=None, size_preference=None):
         cat = CATEGORIES.get(category, CATEGORIES["coding"])
         tier_config = TIERS.get(tier, TIERS["intermediate"])
+        size_pref = size_preference or cat.get("size_preference", "big")
+        size_config = SIZE_PROFILES.get(size_pref, SIZE_PROFILES["big"])
         components = {
             "sbc": (custom_parts or {}).get("sbc") or cat["best_sbc"],
             "display": (custom_parts or {}).get("display") or cat["best_display"],
@@ -1562,6 +1823,31 @@ class BuildGenerator:
             "os": "raspberry_pi_os",
             "connectivity": (custom_parts or {}).get("connectivity") or cat.get("best_connectivity", "usb_ethernet"),
         }
+        if size_pref == "small":
+            small_swaps = {
+                "pi5_16gb": "pi5_4gb", "pi5_8gb": "pi_zero_2w",
+                "jetson_orin_nano": "pi5_8gb", "orange_pi_5_plus": "orange_pi_zero3",
+                "lattepanda_3_delta": "pi5_8gb", "radxa_rock_5b": "pi5_8gb",
+                "khadas_edge2": "pi5_8gb", "hdmi_10inch": "hdmi_5inch",
+                "hdmi_7inch_ips": "hdmi_5inch", "hdmi_7inch_1024": "hdmi_5inch",
+                "sunlight_readable_7": "hdmi_5inch", "mech_60": "bt_keyboard",
+                "ups_h5180": "pisugar3_plus", "geekworm_x1200": "pimoroni_lipo_shim",
+                "pelican_1450": "pelican_1200", "pelican_1400": "pelican_1200",
+                "active_fan_heatsink": "passive_heatsink", "active_fan": "passive_heatsink",
+            }
+            for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling"]:
+                if components[key] in small_swaps:
+                    components[key] = small_swaps[components[key]]
+        elif size_pref == "big":
+            big_swaps = {
+                "pi_zero_2w": "pi5_8gb", "orange_pi_zero3": "orange_pi_5_plus",
+                "hdmi_5inch": "hdmi_7inch_ips", "pisugar3_plus": "ups_h5180",
+                "pimoroni_lipo_shim": "ups_h5180", "bt_keyboard": "mech_60",
+                "pelican_1150": "pelican_1450", "pelican_1200": "pelican_1450",
+            }
+            for key in ["sbc", "display", "keyboard", "power", "enclosure"]:
+                if components[key] in big_swaps:
+                    components[key] = big_swaps[components[key]]
         if custom_parts:
             for k, v in custom_parts.items():
                 if v and k not in ("sbc", "display", "keyboard", "power", "enclosure", "cooling"):
@@ -1583,9 +1869,18 @@ class BuildGenerator:
         os_info = OS_DATABASE.get(components.get("os", "raspberry_pi_os"), {})
         connectivity_info = CONNECTIVITY_DATABASE.get(components.get("connectivity", "cat6_flat"), {})
         total_price = sum(x.get("price", 0) for x in [sbc_info, display_info, power_info, enclosure_info, cooling_info, connectivity_info])
+        cat_style = cat.get("default_style", "industrial")
+        cat_color = cat.get("default_color", "#2d2d2d")
+        style_preset = STYLE_PRESETS.get(cat_style, STYLE_PRESETS["industrial"])
+        is_portable = power_info.get("type", "") in ("SBC-mount battery", "USB power bank", "Custom 6-cell", "Solar charging")
+        charging_components = []
+        if is_portable and not any(pid in power_info.get("name", "").lower() for pid in ["ups hat", "h5180", "x1200"]):
+            charging_components.append({"id": "tp4056_module", **POWER_DATABASE["tp4056_module"]})
         build = {
             "category": cat["name"], "category_id": category,
             "tier": tier_config["name"], "tier_id": tier,
+            "style": cat_style, "color": cat_color,
+            "size_preference": size_pref, "size_profile": size_config["name"],
             "components": {
                 "sbc": {"id": components["sbc"], **sbc_info},
                 "display": {"id": components["display"], **display_info},
@@ -1598,16 +1893,18 @@ class BuildGenerator:
                 "wire_power": {"id": components.get("wire_power", ""), **wire_power},
                 "os": {"id": components.get("os", ""), **os_info},
                 "connectivity": {"id": components.get("connectivity", ""), **connectivity_info},
+                "charging": charging_components,
             },
             "compatibility": compat, "total_price_estimate": f"${total_price}",
             "aesthetic": cat.get("aesthetic", "Industrial"),
             "soldering_required": tier_config.get("soldering", "Optional"),
+            "style_preset": style_preset,
         }
         build = BuildOptimizer.auto_fix_build(build)
         return build
 
     @staticmethod
-    def build_from_prompt(prompt, tier="intermediate"):
+    def build_from_prompt(prompt, tier="intermediate", size_preference=None):
         prompt_lower = prompt.lower()
         matched_category = "coding"
         best_score = 0
@@ -1631,6 +1928,11 @@ class BuildGenerator:
             if score > best_score:
                 best_score = score
                 matched_category = cat
+        if not size_preference:
+            if "small" in prompt_lower or "compact" in prompt_lower or "lightweight" in prompt_lower or "mini" in prompt_lower or "pocket" in prompt_lower:
+                size_preference = "small"
+            elif "big" in prompt_lower or "full" in prompt_lower or "large" in prompt_lower or "desktop" in prompt_lower or "powerful" in prompt_lower:
+                size_preference = "big"
         custom_parts = {}
         size_match = re.search(r'(\d+\.?\d*)\s*(inch|")', prompt_lower)
         if size_match:
@@ -1658,6 +1960,13 @@ class BuildGenerator:
                     break
             if "enclosure" not in custom_parts:
                 custom_parts["enclosure"] = "pelican_1450"
+        if "waterproof" in prompt_lower or "ip65" in prompt_lower or "ip67" in prompt_lower or "ip68" in prompt_lower:
+            if "ip68" in prompt_lower:
+                custom_parts["enclosure"] = "ip68_poly_case"
+            elif "ip67" in prompt_lower:
+                custom_parts["enclosure"] = "ip67_enclosure_aluminum"
+            else:
+                custom_parts["enclosure"] = "ip65_enclosure_150x100"
         if "e-ink" in prompt_lower or "eink" in prompt_lower:
             custom_parts["display"] = "eink_7inch"
         if "solar" in prompt_lower:
@@ -1676,7 +1985,19 @@ class BuildGenerator:
             custom_parts["connectivity"] = "lora_module"
         if "alfa" in prompt_lower or "awus" in prompt_lower:
             custom_parts["connectivity"] = "awus036ach"
-        return BuildGenerator.build_for_category(matched_category, tier, custom_parts or None)
+        if "futuristic" in prompt_lower:
+            custom_parts["style"] = "futuristic"
+        if "retro" in prompt_lower and matched_category != "retro":
+            custom_parts["style"] = "retro"
+        if "steampunk" in prompt_lower:
+            custom_parts["style"] = "steampunk"
+        if "cyberpunk" in prompt_lower:
+            custom_parts["style"] = "cyberpunk"
+        if "minimal" in prompt_lower:
+            custom_parts["style"] = "minimal"
+        if "industrial" in prompt_lower:
+            custom_parts["style"] = "industrial"
+        return BuildGenerator.build_for_category(matched_category, tier, custom_parts or None, size_preference)
 
     @staticmethod
     def generate_bom(build):
@@ -1788,8 +2109,8 @@ class CyberdeckAgent:
         except Exception as e:
             logger.error(f"Failed to save build history: {e}")
 
-    async def build(self, description, tier="intermediate", custom_parts=None):
-        build = self.generator.build_from_prompt(description, tier)
+    async def build(self, description, tier="intermediate", custom_parts=None, size_preference=None):
+        build = self.generator.build_from_prompt(description, tier, size_preference)
         if custom_parts:
             for k, v in custom_parts.items():
                 if v and k in build["components"]:
@@ -1804,9 +2125,20 @@ class CyberdeckAgent:
         build["ideas"] = IdeaGenerator.generate(category=build.get("category_id"))
         build["cable_plan"] = CableRouter.generate_routing_plan(build)
         build["pack"] = PackGenerator.generate_pack(build)
+        build["component_details"] = {}
+        for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling", "connectivity"]:
+            comp = build["components"].get(key, {})
+            comp_id = comp.get("id", "")
+            if comp_id:
+                details = ComponentDatabase.get_component_details(comp_id)
+                if details and "error" not in details:
+                    build["component_details"][key] = details
         self.build_history.append({
             "category": build.get("category_id"), "tier": tier,
-            "sbc": build["components"]["sbc"]["id"], "timestamp": datetime.now().isoformat()})
+            "sbc": build["components"]["sbc"]["id"],
+            "style": build.get("style", "industrial"),
+            "size_preference": build.get("size_preference", "big"),
+            "timestamp": datetime.now().isoformat()})
         self._save_history()
         self.learner.learn_from_build({"category": build.get("category_id"), "sbc": build["components"]["sbc"]["id"], "tier": tier})
         if not build["compatibility"]["compatible"]:
@@ -1902,14 +2234,350 @@ class CyberdeckAgent:
     async def generate_pack(self, build):
         return PackGenerator.generate_pack(build)
 
-    async def optimize_build(self, build):
-        return BuildOptimizer.auto_fix_build(build)
+    async def generate_3d_model(self, build, color=None, style=None):
+        style_id = style or build.get("style", "industrial")
+        style_preset = STYLE_PRESETS.get(style_id, STYLE_PRESETS["industrial"])
+        model_color = color or style_preset["default_color"]
+        accent = style_preset["accent_color"]
+        sbc = build["components"].get("sbc", {})
+        display = build["components"].get("display", {})
+        enclosure = build["components"].get("enclosure", {})
+        sbc_form = sbc.get("form_factor", "85x56")
+        dims = re.findall(r'(\d+)', sbc_form)
+        sbc_x = int(dims[0]) if len(dims) > 0 else 85
+        sbc_y = int(dims[1]) if len(dims) > 1 else 56
+        enc_thickness = 3
+        fillet = style_preset.get("fillet_radius", 2)
+        vent_style = style_preset.get("vent_style", "slim slits")
+        screw_style = style_preset.get("screw_style", "hidden")
+        led_channels = style_preset.get("led_channels", False)
+        total_x = sbc_x + 30
+        total_y = sbc_y + 25
+        total_z = 25
+        screw_holes = ""
+        if screw_style.startswith("exposed"):
+            screw_holes = (
+                "for (pos = [[5,5], [%d,5], [5,%d], [%d,%d]]) {\n"
+                "        translate(pos) cylinder(d=3.2, h=%d, center=true);\n"
+                "    }" % (total_x - 5, total_y - 5, total_x - 5, total_y - 5, enc_thickness + 1)
+            )
+        else:
+            screw_holes = "// Hidden screw posts inside"
+        vent_code = ""
+        if vent_style == "slim slits":
+            vent_code = (
+                "for (i = [0 : 4 : %d]) {\n"
+                "        translate([i+5, 5, %d]) cube([2, %d, 1.5], center=false);\n"
+                "    }" % (total_x - 10, total_z - 1, total_y - 10)
+            )
+        else:
+            vent_code = (
+                "for (i = [0 : 6 : %d]) {\n"
+                "        translate([i+5, 5, %d]) cube([3, %d, 1.5], center=false);\n"
+                "    }" % (total_x - 10, total_z - 1, total_y - 10)
+            )
+        led_module = ""
+        led_use = ""
+        if led_channels:
+            led_module = (
+                "module led_channel() { translate([0, %d, %d]) cube([%d, 2, 1.5]); }"
+                % (total_y - 2, total_z - 1, total_x)
+            )
+            led_use = "led_channel();"
+        else:
+            led_module = "// No LED channels for this style"
+        cat_name = build.get("category", "cyberdeck")
+        sbc_name = sbc.get("name", "Unknown")
+        style_desc = style_preset.get("description", "")
+        openscad_code = (
+            "// Cyberdeck Enclosure - %s (%s style)\n"
+            "// Generated by Cyberdeck Agent v4.1\n"
+            "// Color: %s | Accent: %s\n"
+            "// SBC: %s (%s)\n"
+            "// Style: %s - %s\n"
+            "\n"
+            "$fn = 60;\n"
+            "\n"
+            "module enclosure_body() {\n"
+            "    color(\"%s\")\n"
+            "    minkowski() {\n"
+            "        cube([%d, %d, %d], center=false);\n"
+            "        sphere(r=%d);\n"
+            "    }\n"
+            "}\n"
+            "\n"
+            "module enclosure_lid() {\n"
+            "    color(\"%s\")\n"
+            "    translate([0, 0, %d])\n"
+            "    difference() {\n"
+            "        cube([%d, %d, %d], center=false);\n"
+            "        %s\n"
+            "    }\n"
+            "}\n"
+            "\n"
+            "module sbc_standoffs() {\n"
+            "    color(\"%s\")\n"
+            "    for (pos = [[5,5], [%d,5], [5,%d], [%d,%d]]) {\n"
+            "        translate(pos) cylinder(d=6, h=3, center=false);\n"
+            "        translate(pos) cylinder(d=2.5, h=5, center=false);\n"
+            "    }\n"
+            "}\n"
+            "\n"
+            "module display_window() {\n"
+            "    translate([5, %d, -1])\n"
+            "    cube([%d, 4, %d], center=false);\n"
+            "}\n"
+            "\n"
+            "module ventilation() {\n"
+            "    %s\n"
+            "}\n"
+            "\n"
+            "%s\n"
+            "\n"
+            "module full_enclosure() {\n"
+            "    difference() {\n"
+            "        union() {\n"
+            "            enclosure_body();\n"
+            "            sbc_standoffs();\n"
+            "        }\n"
+            "        display_window();\n"
+            "        ventilation();\n"
+            "        %s\n"
+            "    }\n"
+            "    enclosure_lid();\n"
+            "}\n"
+            "\n"
+            "full_enclosure();\n"
+        ) % (
+            cat_name, style_preset.get("name", style_id),
+            model_color, accent,
+            sbc_name, sbc_form,
+            style_id, style_desc,
+            model_color,
+            total_x - fillet * 2, total_y - fillet * 2, total_z - 1, fillet,
+            accent, total_z,
+            total_x, total_y, enc_thickness,
+            screw_holes,
+            accent,
+            sbc_x - 5, sbc_y - 5, sbc_x - 5, sbc_y - 5,
+            total_y - 5,
+            total_x - 10, enc_thickness + 2,
+            vent_code,
+            led_module,
+            led_use,
+        )
+        return {
+            "openscad_code": openscad_code,
+            "style": style_id,
+            "style_preset": style_preset,
+            "color": model_color,
+            "accent_color": accent,
+            "dimensions": {"x": total_x, "y": total_y, "z": total_z},
+            "sbc_clearance": {"x": sbc_x, "y": sbc_y},
+            "instructions": [
+                "1. Copy the OpenSCAD code into OpenSCAD (free: openscad.org)",
+                "2. Press F5 to preview, F6 to render",
+                "3. Export as STL: File -> Export -> STL",
+                "4. Slice with Cura/PrusaSlicer for your 3D printer",
+                "5. Print with PETG for outdoor use or PLA for indoor use",
+                "6. Sand, paint, and assemble with M2.5 screws",
+            ],
+            "download_hint": "Save the openscad_code to a .scad file, open in OpenSCAD, then export as STL",
+        }
 
-    async def detect_flaws(self, build):
-        return BuildOptimizer.scan_flaws(build)
+    async def get_component_details(self, component_id):
+        return ComponentDatabase.get_component_details(component_id)
 
-    async def search_web(self, query):
-        return await self.search_internet(query)
+    async def generate_build_video(self, build):
+        sbc = build["components"].get("sbc", {})
+        display = build["components"].get("display", {})
+        kb = build["components"].get("keyboard", {})
+        power = build["components"].get("power", {})
+        enclosure = build["components"].get("enclosure", {})
+        cooling = build["components"].get("cooling", {})
+        style = build.get("style", "industrial")
+        style_preset = STYLE_PRESETS.get(style, STYLE_PRESETS["industrial"])
+        scenes = [
+            {
+                "scene": 1,
+                "title": "Introduction & Overview",
+                "duration_seconds": 30,
+                "description": f"Wide shot of all components laid out on a workbench. Camera slowly pans across each part.",
+                "narration": f"Welcome to the {build['category']} cyberdeck build. Today we're assembling a {style_preset['name']}-style deck using a {sbc.get('name', 'SBC')}.",
+                "camera_angle": "overhead wide",
+                "components_shown": ["all"],
+                "text_overlay": f"{build['category']} Cyberdeck — {build['tier']}",
+            },
+            {
+                "scene": 2,
+                "title": "Component Close-ups",
+                "duration_seconds": 45,
+                "description": "Individual close-up shots of each component with specs overlay.",
+                "narration": f"Starting with the brain: the {sbc.get('name', 'SBC')} with {sbc.get('ram', 'N/A')} RAM. The display is a {display.get('name', 'screen')}. Input via {kb.get('name', 'keyboard')}.",
+                "camera_angle": "close-up panning",
+                "components_shown": ["sbc", "display", "keyboard"],
+                "text_overlay": "Component Specs",
+            },
+            {
+                "scene": 3,
+                "title": "Enclosure Preparation",
+                "duration_seconds": 60,
+                "description": f"Show the {enclosure.get('name', 'enclosure')} being prepared. Mark drill points, test-fit components.",
+                "narration": f"Our enclosure is the {enclosure.get('name', 'case')}. The style is {style_preset['name']} — {style_preset['description']}. Main color: {build.get('color', '#2d2d2d')}.",
+                "camera_angle": "medium shot, workbench",
+                "components_shown": ["enclosure"],
+                "text_overlay": f"Style: {style_preset['name']}",
+            },
+            {
+                "scene": 4,
+                "title": "SBC Mounting",
+                "duration_seconds": 45,
+                "description": "Mount the SBC onto standoffs inside the enclosure. Secure with screws.",
+                "narration": f"Mounting the {sbc.get('name', 'SBC')} using M2.5 standoffs. Ensure GPIO header is accessible and all ports align with enclosure cutouts.",
+                "camera_angle": "close-up, hands visible",
+                "components_shown": ["sbc", "enclosure"],
+                "text_overlay": "Step 1: Mount SBC",
+            },
+            {
+                "scene": 5,
+                "title": "Cooling Installation",
+                "duration_seconds": 30,
+                "description": f"Install {cooling.get('name', 'cooling solution')}. Apply thermal paste if heatsink.",
+                "narration": f"Installing the {cooling.get('name', 'cooling')}. {'This is a passive solution — no fan noise.' if 'Passive' in cooling.get('type', '') else 'Connect fan to GPIO for PWM control.'}",
+                "camera_angle": "close-up",
+                "components_shown": ["cooling"],
+                "text_overlay": "Step 2: Cooling",
+            },
+            {
+                "scene": 6,
+                "title": "Display Installation",
+                "duration_seconds": 45,
+                "description": f"Connect and mount the {display.get('name', 'display')}. Route cables neatly.",
+                "narration": f"Connecting the {display.get('name', 'display')} via {display.get('interface', 'HDMI')}. {'Capacitive touch is connected via USB.' if display.get('touch') else 'No touch interface needed.'}",
+                "camera_angle": "close-up, angled",
+                "components_shown": ["display"],
+                "text_overlay": "Step 3: Display",
+            },
+            {
+                "scene": 7,
+                "title": "Keyboard & Power Wiring",
+                "duration_seconds": 60,
+                "description": "Connect keyboard and wire the power system. Show cable routing.",
+                "narration": f"Keyboard: {kb.get('name', 'keyboard')} via {kb.get('connection', 'USB')}. Power: {power.get('name', 'power source')}. {'Include charging circuit with TP4056 module.' if build['components'].get('charging') else 'Direct power connection.'}",
+                "camera_angle": "overhead close-up",
+                "components_shown": ["keyboard", "power"],
+                "text_overlay": "Step 4: Keyboard & Power",
+            },
+            {
+                "scene": 8,
+                "title": "Cable Management",
+                "duration_seconds": 30,
+                "description": "Route all cables neatly. Use zip ties, grommets, and sleeving.",
+                "narration": "Cable management is key to a clean build. Route power cables on one side, signal on the other. Use heat shrink on all solder joints.",
+                "camera_angle": "overhead, time-lapse style",
+                "components_shown": [],
+                "text_overlay": "Step 5: Cable Management",
+            },
+            {
+                "scene": 9,
+                "title": "Final Assembly & Power On",
+                "duration_seconds": 45,
+                "description": "Close the enclosure, secure screws, and power on for the first time.",
+                "narration": "Closing up the enclosure. All screws tightened. Moment of truth — powering on for the first time.",
+                "camera_angle": "medium shot, dramatic angle",
+                "components_shown": ["enclosure"],
+                "text_overlay": "Power On!",
+            },
+            {
+                "scene": 10,
+                "title": "Finished Build Showcase",
+                "duration_seconds": 30,
+                "description": f"360-degree showcase of the finished {build['category']} cyberdeck. Show it in use.",
+                "narration": f"And here it is — the {build['category']} cyberdeck in all its {style_preset['name']} glory. Built with a {sbc.get('name', 'SBC')}, ready for {build['category']} tasks.",
+                "camera_angle": "turntable 360",
+                "components_shown": ["all"],
+                "text_overlay": f"{build['category']} Cyberdeck — Complete",
+            },
+        ]
+        total_duration = sum(s["duration_seconds"] for s in scenes)
+        video_script = {
+            "title": f"{build['category']} Cyberdeck Build — {style_preset['name']} Style",
+            "total_duration_seconds": total_duration,
+            "total_duration_formatted": f"{total_duration // 60}:{total_duration % 60:02d}",
+            "style": style,
+            "style_preset": style_preset["name"],
+            "scenes": scenes,
+            "metadata": {
+                "category": build["category"],
+                "tier": build["tier"],
+                "sbc": sbc.get("name", "N/A"),
+                "total_components": len([k for k, v in build["components"].items() if v and k != "charging"]),
+                "generated_at": datetime.now().isoformat(),
+            },
+            "production_notes": [
+                "Use consistent lighting across all scenes",
+                "Background music: lo-fi or synthwave for cyberpunk style",
+                "Add text overlays for each component name and spec",
+                "Include B-roll of cable routing close-ups",
+                "End screen: subscribe + related builds",
+            ],
+        }
+        return video_script
+
+    async def suggest_custom_pcb(self, compatibility_issues):
+        suggestions = []
+        for issue in compatibility_issues:
+            il = issue.lower()
+            if "hdmi" in il and "dsi" in il:
+                suggestions.append({
+                    "template": "hdmi_to_dsi_adapter",
+                    **CUSTOM_PCB_TEMPLATES["hdmi_to_dsi_adapter"],
+                    "triggered_by": issue,
+                })
+            if ("power" in il or "usb-c" in il or "5v/5a" in il) and ("pd" in il or "delivery" in il or "adapter" in il):
+                suggestions.append({
+                    "template": "usbc_power_board",
+                    **CUSTOM_PCB_TEMPLATES["usbc_power_board"],
+                    "triggered_by": issue,
+                })
+            if "gpio" in il or "level" in il or "5v" in il and "3.3v" in il:
+                suggestions.append({
+                    "template": "gpio_expansion",
+                    **CUSTOM_PCB_TEMPLATES["gpio_expansion"],
+                    "triggered_by": issue,
+                })
+            if ("charge" in il or "battery" in il or "bms" in il) and ("custom" in il or "integrated" in il):
+                suggestions.append({
+                    "template": "power_management",
+                    **CUSTOM_PCB_TEMPLATES["power_management"],
+                    "triggered_by": issue,
+                })
+            if "display" in il and ("interface" in il or "adapter" in il or "connector" in il):
+                suggestions.append({
+                    "template": "display_adapter_multi",
+                    **CUSTOM_PCB_TEMPLATES["display_adapter_multi"],
+                    "triggered_by": issue,
+                })
+            if "gamepad" in il or "controller" in il or "joystick" in il:
+                suggestions.append({
+                    "template": "retro_gamepad_hat",
+                    **CUSTOM_PCB_TEMPLATES["retro_gamepad_hat"],
+                    "triggered_by": issue,
+                })
+        if not suggestions and compatibility_issues:
+            suggestions.append({
+                "template": "gpio_expansion",
+                **CUSTOM_PCB_TEMPLATES["gpio_expansion"],
+                "triggered_by": "General compatibility issue — GPIO expansion may help bridge components",
+            })
+        return {
+            "issues_analyzed": len(compatibility_issues),
+            "pcb_suggestions": suggestions,
+            "note": "Custom PCBs require PCB fabrication (JLCPCB, PCBWay, OSH Park). Design in KiCad or EasyEDA.",
+        }
+
+    async def build_custom(self, name, description, tier="intermediate"):
+        return await self.build(f"{name}: {description}", tier)
 
     async def search_parts(self, query):
         results = {"query": query, "suggestions": [], "sources": ["Amazon", "Adafruit", "Pimoroni", "PiShop.us", "CanaKit", "AliExpress"]}
@@ -1937,34 +2605,51 @@ class CyberdeckAgent:
     async def search_internet(self, query):
         results = {"query": query, "platforms": {}, "compiled_build_list": None}
         try:
-            import httpx
             search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}+cyberdeck"
             results["platforms"]["youtube"] = {"url": search_url, "note": "Search for cyberdeck builds on YouTube"}
             results["platforms"]["tiktok"] = {"url": f"https://www.tiktok.com/search?q={query.replace(' ', '+')}+cyberdeck", "note": "Viral cyberdeck content on TikTok"}
             results["platforms"]["github"] = {"url": f"https://github.com/search?q={query.replace(' ', '+')}+cyberdeck&type=repositories", "note": "Cyberdeck repos on GitHub"}
-        except ImportError:
+        except Exception:
             pass
         return results
 
     def get_status(self):
         return {
-            "version": self.version, "total_builds": len(self.build_history),
+            "version": self.version,
+            "v4_1_features": [
+                "3D Model Color Picker + Downloadable STL",
+                "Detailed Component Specs",
+                "Waterproof + Battery Charging Components",
+                "Size Preference (Small vs Big)",
+                "3D Model Style Presets",
+                "Video Creation (Build Tutorial Scripts)",
+                "Custom PCB for Backward Compatibility",
+                "Component Risk Levels",
+            ],
+            "total_builds": len(self.build_history),
             "videos_learned": len(self.learner.learnings.get("video_knowledge", [])),
             "tips_count": len(self.learner.learnings.get("tips_learned", [])),
             "flaws_fixed": len(self.learner.learnings.get("flaws_fixed", [])),
             "categories": list(CATEGORIES.keys()), "tiers": list(TIERS.keys()),
+            "styles": list(STYLE_PRESETS.keys()),
+            "size_profiles": list(SIZE_PROFILES.keys()),
+            "custom_pcb_templates": len(CUSTOM_PCB_TEMPLATES),
             "sbc_count": len(SBC_DATABASE), "display_count": len(DISPLAY_DATABASE),
             "keyboard_count": len(KEYBOARD_DATABASE), "power_count": len(POWER_DATABASE),
             "enclosure_count": len(ENCLOSURE_DATABASE), "cooling_count": len(COOLING_DATABASE),
             "pcb_count": len(PCB_DATABASE), "wire_count": len(WIRE_DATABASE),
             "connectivity_count": len(CONNECTIVITY_DATABASE), "os_count": len(OS_DATABASE),
+            "charging_components": 3,
+            "waterproof_enclosures": 3,
             "video_queue_pending": self.video_queue.get_pending_count(),
             "learner_stats": self.learner.get_stats(),
         }
 
     def get_categories(self):
         return {k: {"name": v["name"], "description": v["description"], "budget_range": v["budget_range"],
-                     "estimated_cost": v.get("estimated_cost", "?")} for k, v in CATEGORIES.items()}
+                     "estimated_cost": v.get("estimated_cost", "?"), "default_style": v.get("default_style", "industrial"),
+                     "default_color": v.get("default_color", "#2d2d2d"), "size_preference": v.get("size_preference", "big")}
+                for k, v in CATEGORIES.items()}
 
 
 # ============================================================

@@ -1,5 +1,5 @@
 {
-  "version": "3.7.135",
+  "version": "3.7.136",
   "updated": "2026-07-25",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -278,6 +278,18 @@
       "WiFi/LAN enforced in every build, mandatory cooling, 100% compatibility",
       "Components upgradeable/enforceable, modular design principles",
       "Continuous learning from chats, videos, and builds"
+    ],
+    "3.7.136": [
+      "Cyberdeck Agent v4.1 -- 2664 lines, 8 new features, 3D model generation, component specs, waterproof/charging, size preference, video creation, custom PCB, risk levels",
+      "3D Model Generation -- /cyberdeck 3d <desc> [color] [style] -- OpenSCAD code with 6 styles (futuristic, retro, industrial, minimal, steampunk, cyberpunk), downloadable STL",
+      "Detailed Component Specs -- /cyberdeck specs <id> -- full specs: type (OLED/IPS), size, resolution, refresh rate, brightness, interface, power, risk level",
+      "Waterproof + Charging -- IP65/IP67/IP68 enclosures, TP4056/BQ25895/USB-C PD chargers, waterproof battery packs, solar charging",
+      "Size Preference -- small (compact, less power) vs big (full power, heavy) -- auto-swaps components based on preference",
+      "3D Model Styles -- 6 styles with color schemes, screw visibility, wiring exposure, vent patterns",
+      "Build Video Script -- /cyberdeck video <desc> -- 10-scene JSON script with narration, camera angles, text overlays",
+      "Custom PCB -- /cyberdeck pcb-custom <desc> -- adapter templates for HDMI-to-DSI, USB-C PD, GPIO expansion, backward compatibility",
+      "Component Risk Levels -- all components rated minimal/low/medium/high with risk factors",
+      "New /cyberdeck commands: 3d, specs, video, pcb-custom, styles, risk"
     ]
   }
 }

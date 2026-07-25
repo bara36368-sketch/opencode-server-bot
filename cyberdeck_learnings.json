@@ -124,6 +124,30 @@
         "tier": "intermediate"
       },
       "learned_at": "2026-07-25T11:26:53.168067"
+    },
+    {
+      "build": {
+        "category": "coding",
+        "sbc": "pi5_4gb",
+        "tier": "beginner"
+      },
+      "learned_at": "2026-07-25T18:25:36.325109"
+    },
+    {
+      "build": {
+        "category": "writerdeck",
+        "sbc": "pi_zero_2w",
+        "tier": "beginner"
+      },
+      "learned_at": "2026-07-25T18:25:36.347830"
+    },
+    {
+      "build": {
+        "category": "coding",
+        "sbc": "pi5_16gb",
+        "tier": "advanced"
+      },
+      "learned_at": "2026-07-25T18:25:36.365264"
     }
   ],
   "chat_learnings": [],

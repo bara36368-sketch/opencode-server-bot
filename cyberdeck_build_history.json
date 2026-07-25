@@ -88,5 +88,29 @@
     "tier": "intermediate",
     "sbc": "pi5_16gb",
     "timestamp": "2026-07-25T11:26:53.167058"
+  },
+  {
+    "category": "coding",
+    "tier": "beginner",
+    "sbc": "pi5_4gb",
+    "style": "industrial",
+    "size_preference": "small",
+    "timestamp": "2026-07-25T18:25:36.324098"
+  },
+  {
+    "category": "writerdeck",
+    "tier": "beginner",
+    "sbc": "pi_zero_2w",
+    "style": "minimal",
+    "size_preference": "small",
+    "timestamp": "2026-07-25T18:25:36.347100"
+  },
+  {
+    "category": "coding",
+    "tier": "advanced",
+    "sbc": "pi5_16gb",
+    "style": "industrial",
+    "size_preference": "big",
+    "timestamp": "2026-07-25T18:25:36.364409"
   }
 ]
