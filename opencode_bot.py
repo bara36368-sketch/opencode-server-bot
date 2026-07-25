@@ -2672,10 +2672,15 @@ async def announce_update(old_v, new_v, changes, state):
         lines.append("  /experimental — Enable new features")
     lines.append("")
     lines.append("🚀 Enjoying the bot? Share it with friends!")
+    lines.append("")
+    lines.append("🔕 Don't want these? /announcementoff")
     msg = "\n".join(lines)
     sent_count = 0
+    opted_out = set(state.get("opted_out_announcements", []))
     for cid in known_chats:
         try:
+            if cid in opted_out:
+                continue
             if str(cid) not in state.get("notified_chats", {}).get(new_v, []):
                 r = await send(cid, msg)
                 if r and r.get("ok"):
@@ -5754,6 +5759,24 @@ async def main():
                         await send(chat, f"Removed feature: {fid}")
                     else:
                         await send(chat, get_experimental_list())
+
+                elif cmd == "/announcementoff":
+                    state = load_version_state()
+                    opted = state.get("opted_out_announcements", [])
+                    if chat not in opted:
+                        opted.append(chat)
+                    state["opted_out_announcements"] = opted
+                    save_version_state(state)
+                    await send(chat, "🔕 Update announcements turned OFF for this chat.\nUse /announcementon to re-enable.")
+
+                elif cmd == "/announcementon":
+                    state = load_version_state()
+                    opted = state.get("opted_out_announcements", [])
+                    if chat in opted:
+                        opted.remove(chat)
+                    state["opted_out_announcements"] = opted
+                    save_version_state(state)
+                    await send(chat, "🔔 Update announcements turned ON for this chat.")
 
                 elif cmd == "/rich":
                     sub = parts[1].lower() if len(parts) > 1 else "status"
