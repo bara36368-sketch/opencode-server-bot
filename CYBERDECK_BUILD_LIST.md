@@ -1511,8 +1511,12 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 | **fulltimemenace** | First cyberdeck build progress | TikTok build logs | Apr 2026 |
 | **pirate2122yt** | Cyberdeck build progress | TikTok build logs | Jun 2026 |
 | **unicoleunicron** | Female maker cyberdeck tutorials | Instagram viral series | 2026 |
+| **diypagancrafts** | Retro TV-themed purse cyberdeck | TikTok viral, The Verge coverage | Jun 2026 |
+| **fishlooker_** | Cyberduck audio journal (bird-shaped) | TikTok viral, inspired by ubeboobey | Jun 2026 |
+| **CocoasAesthetic** | Dunkin' Munchkin box cyberdeck with barista game | TikTok viral, TechCrunch | Jun 2026 |
+| **@julip.mp3** | Creative coding + music + tech | TikTok viral | 2026 |
 
-**Key Trend:** Young women driving cyberdeck movement on TikTok — turning purses, caboodles, and vintage cases into fully functional computers. WIRED called cyberdecks "the hottest anti-AI gadget" (Apr 2026). CNN covered the rise (Apr 2026). TechCrunch featured the movement (Jun 2026).
+**Key Trend:** Young women driving cyberdeck movement on TikTok — turning purses, caboodles, vintage cases, and even Dunkin' boxes into fully functional computers. WIRED called cyberdecks "the hottest anti-AI gadget" (Apr 2026). The Verge covered the aesthetic shift (Jun 2026). TechCrunch featured the movement (Jun 2026). Hybrid Rituals called it "the aesthetic tech rebellion" (Jul 2026). r/cyberDeck grew to 183K+ members. AI tools enabled non-technical builders to learn wiring, config, and debugging in real time.
 
 ### New YouTube Build Channels (2026)
 | Channel | Content | Link |
@@ -1531,6 +1535,22 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 | **Hola** | Women driving cyberdeck movement | 2026 |
 | **TechJuice** | Gen Z building cyberdecks | Jul 2026 |
 | **Raspberry Pi Magazine** | Issue 167 — Backpack Cyberdeck | Jul 2026 |
+| **The Verge** | Cyberdecks used to look like laptops, now they're... | Jun 2026 |
+| **Hybrid Rituals** | "Aesthetic Tech Rebellion Taking Over TikTok" | Jul 2026 |
+| **Adafruit** | "Hottest Anti-AI Gadget is a Cyberdeck" | May 2026 |
+| **Prism News** | TikTok maker turns purse into viral cyberdeck | Jun 2026 |
+| **2much.net** | Gen Z Revives Cyberdecks: Annike Tan's Viral Build | Jun 2026 |
+| **Field Test (Substack)** | "Why the girls are building cyberdecks" | Apr 2026 |
+| **Hackster.io** | 3D Print Farm Cyberdeck, Ben Makes Everything LattePanda | Jul 2026 |
+| **Hackaday** | Jankbu modular cyberdeck, mermaid clutch-purse | 2026 |
+
+### New YouTube Build Videos (2026)
+| Video | Channel | Date |
+|-------|---------|------|
+| "Most Powerful Cyberdeck in the World" | Unknown (Anker sponsor) | Jun 2026 |
+| "Cyberdeck Build" playlist | Unknown | Ongoing |
+| LattePanda μ Handheld Cyberdeck | Ben Makes Everything | Jul 2026 |
+| Jankbu Modular Cyberdeck | Jankbu | May 2026 |
 
 ### New GitHub Cyberdeck Repos (2026)
 | Repo | SBC | Features | URL |
@@ -1572,16 +1592,23 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 | **Caboodle Cyberdeck** | Pi | Old makeup caboodle conversion |
 
 ### Key Insights from Research
-1. **Anti-AI movement**: Cyberdecks positioned as rejection of big tech surveillance — WIRED, CNN, TechCrunch coverage
-2. **Female makers driving movement**: TikTok women turning purses and vintage cases into viral builds
-3. **NVMe is standard**: Pi 5 PCIe lane + NVMe HAT = proper SSD speed, no more SD card bottleneck
-4. **LoRa/Meshtastic**: Off-grid mesh networking is a major trend (dinodeck, therustyrobot)
-5. **Modular design**: NATO rails, swappable modules, upgrade-friendly enclosures
-6. **Commercial kits emerging**: ClockworkPi uConsole as off-the-shelf option
-7. **RK3588 as Pi alternative**: 8K, 6 TOPS NPU, multiple M.2 — serious Pi 5 alternative for AI builds
-8. **Vintage shell conversions**: Amstrad, BlackBerry, Motorola police terminals — retro shells with modern guts
-9. **Open-source everything**: STL files, firmware, schematics all on GitHub — community collaboration
-10. **Writerdecks mature**: Micro Journal series (4 gens), Penkesu, Chonky Palmtop — refined single-purpose machines
+1. **Anti-AI movement**: Cyberdecks positioned as rejection of big tech surveillance — WIRED, CNN, TechCrunch, The Verge, Hybrid Rituals coverage
+2. **Female makers driving movement**: TikTok women turning purses, caboodles, Dunkin' boxes into viral builds — 75% of ubeboobey's audience is women
+3. **AI enables non-technical builders**: AI tools let first-time builders learn wiring, config, debugging in real time — knowledge barrier removed
+4. **NVMe is standard**: Pi 5 PCIe lane + NVMe HAT = proper SSD speed, no more SD card bottleneck
+5. **LoRa/Meshtastic**: Off-grid mesh networking is a major trend (dinodeck, therustyrobot)
+6. **Modular design**: NATO rails, swappable modules, upgrade-friendly enclosures
+7. **Commercial kits emerging**: ClockworkPi uConsole as off-the-shelf option, Amazon selling cyberdeck kits
+8. **RK3588 as Pi alternative**: 8K, 6 TOPS NPU, multiple M.2 — serious Pi 5 alternative for AI builds
+9. **Vintage shell conversions**: Amstrad, BlackBerry, Motorola police terminals, vintage TVs, retro TV purses — retro shells with modern guts
+10. **Open-source everything**: STL files, firmware, schematics all on GitHub — community collaboration
+11. **Writerdecks mature**: Micro Journal series (4 gens), Penkesu, Chonky Palmtop — refined single-purpose machines
+12. **Scroll-wheel interfaces**: Anti-doomscrolling, tactile control (Cyberdore 2064, Ben Makes Everything)
+13. **Clutch-purse/kawaii aesthetic**: Mermaid, pink, feminine, Dunkin' boxes, bird-shaped — breaking the rugged cyberpunk stereotype
+14. **3D Print Farm integration**: ESP32 + Home Assistant + OLEDs for monitoring print farms from a cyberdeck
+15. **Solarpunk movement**: "Not doomsday, solarpunk" — 4000+ likes on TikTok, ideological axis of the trend
+16. **Frutiger Aero aesthetic**: Transparent casing, colorful, early-2000s inspired — new design language
+17. **r/cyberDeck 183K+ members**: One of the largest maker communities on Reddit
 
 ### Sources Compiled
 1. Vapor95 — Complete 2026 guide (Jul 2026)
@@ -1865,5 +1892,5 @@ Each category now includes: best_sbc, best_display, best_keyboard, best_power, b
 
 ---
 
-*Compiled from 33+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek, Adafruit, Class Central, Forbes, Hola, TechJuice, DigiKey, Ben Makes Everything, Jeff Merrick, Un Kyu Lee, Tommi Laukkanen — July 2026*
+*Compiled from 40+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek, Adafruit, Class Central, Forbes, Hola, TechJuice, DigiKey, Ben Makes Everything, Jeff Merrick, Un Kyu Lee, Tommi Laukkanen, The Verge, Hybrid Rituals, Prism News, 2much.net, Field Test (Substack), Hackster.io — July 2026*
 *OpenCode Bot Cyberdeck Agent Knowledge Base v4.0*
