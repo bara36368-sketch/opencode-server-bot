@@ -1952,5 +1952,831 @@ Each category now includes: best_sbc, best_display, best_keyboard, best_power, b
 
 ---
 
-*Compiled from 40+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek, Adafruit, Class Central, Forbes, Hola, TechJuice, DigiKey, Ben Makes Everything, Jeff Merrick, Un Kyu Lee, Tommi Laukkanen, The Verge, Hybrid Rituals, Prism News, 2much.net, Field Test (Substack), Hackster.io — July 2026*
-*OpenCode Bot Cyberdeck Agent Knowledge Base v4.0*
+---
+
+## BUILD LIST — ADDITIONAL BUILDS (47-67)
+
+### 47. Lisperati1000
+- **SBC**: Pi Zero 2W
+- **Key feature**: Ultra-portable, Lisp-programmable, minimal
+- **Source**: Hackaday
+
+### 48. Penkesu
+- **SBC**: Pi Zero 2W
+- **Key feature**: Retro handheld form factor, 3D printed
+- **Source**: Hackaday.io
+
+### 49. Typeframe PX-88
+- **SBC**: Pi-based
+- **Key feature**: 88-key full-size keyboard cyberdeck
+- **Source**: Cyberdeck.cafe
+
+### 50. MutantC V5
+- **SBC**: Pi-based
+- **Key feature**: Slider phone form factor, V5 generation
+- **Source**: Cyberdeck.cafe
+
+### 51. Bumble Berry Pi
+- **SBC**: Pi Zero 2W
+- **Key feature**: Ultra-small, Berry-themed enclosure
+- **Source**: Cyberdeck.cafe
+
+### 52. CM Deck
+- **SBC**: CM5
+- **Key feature**: Split ortho low-profile keyboard + trackpad + OLED, QMK, resin-printed translucent enclosure
+- **Source**: YouTube (Feb 2026), GitHub
+
+### 53. Portable CRT TV Cyberdeck
+- **SBC**: Pi-based
+- **Key feature**: Old CRT TV case repurposed
+- **Source**: Hackaday
+
+### 54. Altoids Tin Linux Computer
+- **SBC**: Pi Zero
+- **Key feature**: Fits inside an Altoids mint tin
+- **Source**: Hackaday
+
+### 55. Darbin Orvar Wood Cyberdeck
+- **SBC**: Pi 5
+- **Key feature**: Hand-crafted Baltic birch plywood, XTool laser cut, OLED + speakers
+- **Source**: YouTube (Darbin Orvar)
+
+### 56. Mimisbrunnur E-Reader Cyberdeck
+- **SBC**: Pi-based
+- **Key feature**: E-ink display, dual-purpose e-reader + cyberdeck
+- **Source**: Hackaday
+
+### 57. Jankbu Modular Cyberdeck
+- **SBC**: Pi-based
+- **Key feature**: Steel linear rods + sliding screen, CNC cable chain
+- **Source**: Hackaday
+
+### 58. Pilet
+- **SBC**: Pi-based
+- **Key feature**: Tablet + keyboard dock hybrid
+- **Source**: Hackaday.io
+
+### 59. Mecha Comet
+- **SBC**: Pi-based
+- **Key feature**: Modular handheld, snap-on modules
+- **Source**: Cyberdeck.cafe
+
+### 60. SharkDeck AI
+- **SBC**: Pi-based
+- **Key feature**: AI-focused, $150 budget
+- **Source**: Carbon Computers
+
+### 61. PocketMage (writerdeck)
+- **Key feature**: Ultra-portable writerdeck
+- **Source**: writerdeck.org
+
+### 62. Foliodeck (writerdeck)
+- **Key feature**: Folder-style writerdeck
+- **Source**: writerdeck.org
+
+### 63. Octavia (writerdeck)
+- **Key feature**: Writerdeck with unique form factor
+- **Source**: writerdeck.org
+
+### 64. JFW — Just Fine Writerdeck
+- **Key feature**: Minimalist writerdeck
+- **Source**: writerdeck.org
+
+### 65. Micro Journal Rev.7 E-Ink (writerdeck)
+- **Key feature**: E-ink display writerdeck
+- **Source**: writerdeck.org
+
+### 66. Tapico Typer (writerdeck)
+- **Key feature**: Writerdeck project
+- **Source**: writerdeck.org
+
+### 67. Omega Deck (writerdeck)
+- **Key feature**: 60-key ortholinear split, hot-swappable MX, LCD/e-ink between halves, Vim on minimal Linux
+- **Source**: GitHub (devarops)
+
+---
+
+## COMMERCIAL DEVICES — ADDITIONAL (25+)
+
+| Device | Price | Key Feature |
+|--------|-------|-------------|
+| Pi Flux Archnoir | $341–$855 | Premium Pi 5 cyberdeck |
+| CyberDeck MK-III | $429–$1,868 | Modular industrial |
+| SpecFive Nomad 2 | $550–$680 | Professional field |
+| Pi Slate | $282–$706 | Pi 5 handheld |
+| ELECROW CrowPi2 | $330–$390 | STEM education |
+| HackberryPi Zero | ~$126 | Budget Pi Zero |
+| Pi-Edge | ~$152 | Edge computing |
+| Playard One | varies | Snap-on modules |
+| YARH.IO TheBrick | varies | Modular keyboard deck |
+| FRST Model 4 | varies | E-paper display |
+| BYOK | $199 | Bring Your Own Keyboard |
+| Micro Journal Rev 2 | $269 | Small batches, Italy |
+| Micro Journal Rev 5 | $139 | BYOK design |
+| Micro Journal Rev 6 | $179 | Protective hood |
+| Freewrite Digital Typewriter | $649 | Aluminum, e-ink, mechanical |
+| Freewrite Traveler | $499 | Clamshell e-ink |
+| Freewrite Alpha | $349 | Budget Alphasmart update |
+| Alphasmart Neo/Neo2 | $40-80 | Vintage, incredible battery |
+| Alphasmart Dana | $50-80 | Larger screen, PalmPilot |
+| Alphasmart 3000 | $50-80 | Modifiable keyboard |
+| Writer Fusion | $25-50 | USB drive saving |
+| KingJim Pomera DM30 | $150-250 | E-ink, fold-up keyboard |
+| KingJim Pomera DM100 | ~$150 | Larger keyboard, LCD |
+| KingJim Pomera DM250 | ~$400 | 7" LCD, USB-C, Scrivener-like |
+| reMarkable Paper Tablet | $498 | E-ink with Type Folio |
+| Zerowriter Ink | $279 | E-ink writerdeck |
+| PocketTerm35 | $186 | Portable terminal |
+
+---
+
+## NEW KEYBOARD/ENCLOSURE RESOURCES (43)
+
+| # | Resource | What It Covers |
+|---|----------|----------------|
+| 1 | CMDeck build (YouTube) | Split ortho low-profile + trackpad + OLED, QMK |
+| 2 | Jake Walker Cyberdeck (jakew.me) | 8-key ARTSEY.IO chord keyboard, RP2040 + QMK |
+| 3 | Pocket Cyberdeck 9-Button (YouTube) | Two-stroke chording (81 outputs from 9 keys) |
+| 4 | Hackaday.io 40-Key QMK | 10-key-wide, Gateron low-profile, ATMega 328 |
+| 5 | Fixer-OTG (GitHub) | Pocket keyboard, Kailh Mute Micro, KiCad PCB |
+| 6 | CyberKeeb2040 (GitHub) | RP2040 keyboard + Pi Zero, PicoMK firmware |
+| 7 | Pico-Keyboard (GitHub) | Hot-swappable RP2040 keyboard, PicoMK |
+| 8 | ClickPico (Instructables) | DIY mechanical keyboard with Pico |
+| 9 | Adafruit DIY Pico Keyboard | Fritzing PCB, CircuitPython, 26 keys |
+| 10 | Krunchboard (GitHub) | 80% ISO Pico keyboard, KMK, OLED, rotary |
+| 11 | SlideXdeck (Printables) | Psion 5-inspired sliding keyboard tray |
+| 12 | QAZooie (Printables) | Keyboard case with tablet holder, mousepad |
+| 13 | Modular Panel Generator (MakerWorld) | Apache 1800 parametric panel, dynamic slots |
+| 14 | ModuDeck (GitHub) | Multi-SBC modular, magnetic USB |
+| 15 | Costumdeck (GitHub) | Pi 5 + 10.1" touchscreen case |
+| 16 | My Cyberdeck Pelican 1300 (Printables) | P40 keyboard, Sharge battery, TPU seals |
+| 17 | Kailh Choc Ortho 14x5 (Tindie) | 70-switch low-profile PCB for Pi Pico |
+| 18 | Cacao (GitHub) | Hot-swap Choc V2, macro keys, RGB |
+| 19 | Sofle Choc | 58-key split, Choc v1, hot-swap, encoders |
+| 20 | W-CORNE V4.1 (xkeeb.com) | 2.4G wireless split Choc keyboard |
+| 21 | Corne Choc v4 (beekeeb) | Pre-soldered split, RP2040, RGB |
+| 22 | Mt. Choc (GitHub) | 65% Choc V1, round display badge |
+| 23 | Sofle Choc Kit (TurkeyBoards) | Sofle kit with Sea-Picro controller |
+| 24 | Ducktop2 (GitHub) | Cherry MX Ultra Low Profile laptop keyboard |
+| 25 | Mill-Max Hot-Swap Guide (keeb.io) | Adding hotswap sockets to any PCB |
+| 26 | 3D-Printed Hot-Swap Socket (Printables) | Solderless hotswap for handwired boards |
+| 27 | OpenSCAD Hotswap PCB Generator (GitHub) | Generates hotswap PCBs from KLE JSON |
+| 28 | Vecdec (GitHub) | Split cyberdeck with Meshtastic LoRa |
+| 29 | Omega Deck (GitHub) | Split writerdeck, Vim on minimal Linux |
+| 30 | Ergohaven K:04 | Modular split with touchpad/trackball modules |
+| 31 | ZSA Voyager | Ultra-thin Choc split, magnetic mounting |
+| 32 | MoErgo Go60 | Split with trackpads, ZMK, walnut rests |
+| 33 | Micro Journal Rev.2 Ergonomic | Alice-style split, PS2 thumbstick mouse |
+| 34 | clickyBoard (GitHub) | Pi GPIO keyboard add-on, 4 Cherry MX |
+| 35 | Pi Zero W Split Keyboard (raspberrypi.com) | Pi Zero W as USB keyboard controller |
+| 36 | Pi Chord Keyboard (raspberrypi.com) | 6-key chord, CircuitPython, NeoKey |
+| 37 | KMK Firmware (GitHub) | CircuitPython-based, split/BT/RGB |
+| 38 | QMK Getting Started | Official build guide |
+| 39 | QMK Porting Guide | Adding custom keyboards to QMK |
+| 40 | Keycaps.dev | AI keycap concept designer |
+| 41 | Cyberdeck Artisan | Resin casting, mold making for keycaps |
+| 42 | Thock King Cyberdeck Set | 143-piece PBT keycap set |
+| 43 | Capsmiths | Custom keycap design tool |
+
+---
+
+## BATTERIES & POWER (14)
+
+| # | Product | Price | Key Feature |
+|---|---------|-------|-------------|
+| 1 | Waveshare UPS HAT (E) 21700 | ~$32 | 4x 21700, 40W USB-C, 5V/6A |
+| 2 | Waveshare UPS HAT (D) 21700 | ~$20 | 2x 21700, compact, Type-C |
+| 3 | Pi-UpTime 2.0 | $58.50 | Dual 18650, USB-C, universal |
+| 4 | Tiny-UPS 3.0 | $38 | World's tiniest UPS, GPIO indicator |
+| 5 | PiShop UPS HAT (3A) | $34.95 | Built-in RTC, safe shutdown |
+| 6 | Witty Pi 5 HAT+ | $59.95 | Programmable scheduling, 5A |
+| 7 | Yahboom Pi 5 Power Board | ~$15-20 | 6-24V input, 5V/5A output |
+| 8 | 52Pi PD Extension Board | ~$23 | USB-C PD support |
+| 9 | Sequent Super Watchdog V7 | ~$35 | Hardware watchdog, prevents hangs |
+| 10 | EveryCalculators 18650 | Free | Runtime estimation with efficiency |
+| 11 | BatterypackCalculator.com | Free | Interactive visual builder, cell database |
+| 12 | codingace.net Pack Designer | Free | BMS sizing guidance |
+| 13 | that18650calc.dk | Free | Quick capacity/voltage calc |
+| 14 | Pichondria USB-PD Converter | $12.99 | Converts any PD to 5V/5A for Pi 5 |
+
+**Key Insight**: Pi 5 needs 5V/5A minimum (8.8W full load). Most power banks shut down below 50-100mA idle — use Pichondria board ($13) or dedicated PD trigger. 21700 cells replacing 18650 in new UPS HATs.
+
+---
+
+## COOLING SOLUTIONS (10)
+
+| # | Product | Price | Type | Peak Temp |
+|---|---------|-------|------|-----------|
+| 1 | Argon ONE V3 M.2 NVMe | ~$45 | Active+NVMe | <80°C full load |
+| 2 | SunFounder Pironman 5 | ~$80-90 | Active+OLED+NVMe | Best active |
+| 3 | Flirc Pi 5 Case | ~$20 | Passive aluminum | Silent, 24/7 |
+| 4 | GeeekPi Aluminum | ~$15 | Passive | Budget silent |
+| 5 | Geekworm P573 | ~$10 | Passive+heatsink | 38°C idle/55°C load |
+| 6 | iUniker Aluminum | ~$13 | Passive | -10 to -15°C |
+| 7 | 52Pi ICE Tower Plus | ~$17 | Active tower | 50°C under load |
+| 8 | Entaniya Heat Pipe | ~$169 | Passive heat pipe | 61°C (best passive) |
+| 9 | MILL & GRAIN Monolith | ~$50-60 | 6061-T6 aluminum | 300g thermal mass |
+| 10 | Official Pi Active Cooler | ~$5-6 | Active | <50°C sustained |
+
+**Key Insight**: Passive ceiling ~61°C (Entaniya). Best budget active: 52Pi ICE Tower ($17, 50°C). Best passive: Flirc ($20, silent). Thermal paste swap on Active Cooler = only 1.8°C improvement.
+
+---
+
+## DISPLAYS (11 IPS + 4 E-Ink)
+
+**IPS/LCD:**
+| # | Product | Price | Size | Brightness |
+|---|---------|-------|------|------------|
+| 1 | Orient Display 5" | $61.19 | 800x480 | 1000 nits! |
+| 2 | Orient Display 10.1" | $141.86 | 1280x800 | 900 nits |
+| 3 | Orient Display 7" Industrial | ~$200-300 | 1024x600 | 1000 nits, IP65 |
+| 4 | Beetronics 10" | $749 | 10" | 1000 nits, outdoor |
+| 5 | SIHOVISION 12.1" | ~$300-500 | 12.1" | 1000 nits, wet-touch |
+| 6 | Elecrow 10.1" | ~$57 | 1280x800 | IPS, includes case |
+| 7 | Elecrow 8" | ~$57 | 1280x800 | IPS, compact |
+| 8 | GeeekPi 10.1" | ~$50-60 | 1024x600 | IPS, plug-and-play |
+| 9 | Pi Slate 5" | ~$250-350 | 1280x720 | IPS, modular HAT |
+
+**E-Ink:**
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 10 | Adafruit E-Ink Bonnet | $14.95 | Multiple sizes, 3W speaker |
+| 11 | InkyPi (open source) | ~$30-50 | Web interface, plugins |
+| 12 | Adafruit MagTag 2.9" | $34.95 | WiFi, battery, retains image |
+| 13 | Pimoroni Inky Frame 7.3" | ~$80-100 | 7-color e-ink! |
+| 14 | Waveshare 2.13" e-Paper HAT | ~$15-20 | Zero power static |
+
+**Key Insight**: Orient Display 5" at $61 with 1000 nits is best value sunlight-readable for cyberdecks. E-ink zero power when static — ideal for writerdeck status displays.
+
+---
+
+## NVMe STORAGE (5)
+
+| # | Product | Price | Max SSD |
+|---|---------|-------|---------|
+| 1 | Official Pi M.2 HAT+ | ~$12-15 | 2230/2242 |
+| 2 | Pimoroni NVMe Base | ~$15-20 | 2230-2280 |
+| 3 | Geekworm X1001 | ~$10-15 | 2230-2280 |
+| 4 | Geekworm Q200 Dual | $32 | Dual 2280 |
+| 5 | Pineberry Pi HatDrive | ~$15-20 | Boot support |
+
+**Key Insight**: SD ~45 MB/s → NVMe ~800-900 MB/s. Boot 45s → 15s. Random I/O 20x faster.
+
+---
+
+## AUDIO (8)
+
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 1 | HiFiBerry DAC2 HD | ~$108 | Audiophile 192kHz/24-bit |
+| 2 | HiFiBerry Amp2 | ~$50 | Built-in amp, 2x passive speakers |
+| 3 | Sonocotta Louder Hat | ~$30-40 | 25W/channel, 2.1, subwoofer |
+| 4 | Waveshare Hi-Fi HAT | ~$18 | Stereo, includes speakers |
+| 5 | Adafruit I2S Speaker Bonnet | ~$12 | 3W/channel, I2S |
+| 6 | ReSpeaker 2-Mics pHAT | ~$12 | Voice recognition input |
+| 7 | Pi Codec Zero | ~$19 | Official Pi Zero codec |
+| 8 | PAM8403 Amp Module | ~$3-5 | Ultra-cheap Class D |
+
+---
+
+## LORA & MESH NETWORKING (7)
+
+| # | Device | Price | Feature |
+|---|--------|-------|---------|
+| 1 | RAK WisMesh Pi HAT | $14-206 | Modular Meshtastic |
+| 2 | Seeed Wio Tracker L1 | ~$40-60 | GPS+OLED+BLE, pre-flashed |
+| 3 | Seeed Wio L1 E-Ink | ~$45-65 | Ultra-low-power e-ink |
+| 4 | Elecrow ThinkNode M1 | ~$35-45 | E-ink, 48+ hour battery |
+| 5 | RAK WisMesh Tag | $39 | Rugged IP-rated pocket |
+| 6 | SenseCAP T1000-E | ~$30-40 | Credit-card size, IP65 |
+| 7 | Heltec V3 LoRa | ~$20-25 | Built-in OLED, cheapest |
+
+---
+
+## GPS MODULES (3)
+
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 1 | GY-NEO6MV2 | ~$8-12 | Ceramic antenna, UART, APM compatible |
+| 2 | VFAN Dual GLONASS | ~$15-20 | Dual GLONASS, USB option |
+| 3 | diymore ESP32 LoRa V4 | ~$20-30 | GPS+LoRa+Solar in one |
+
+---
+
+## ANTENNAS (5)
+
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 1 | 868MHz RP-SMA | ~$5-10 | EU LoRa optimized |
+| 2 | 915MHz DIY Yagi | ~$5-10 | Directional, 7.7dB gain |
+| 3 | Data Alliance Catalog | ~$10-50 | Wide selection, combo antennas |
+| 4 | WiMo 9-element Yagi | ~$40-60 | Professional quality |
+| 5 | SMA Panel Mount | ~$3-10 | Clean case integration |
+
+---
+
+## SOFTWARE OPTIONS (70+)
+
+### Operating Systems (10 new)
+NixOS, Artix Linux, Void Linux, CachyOS, Armbian, Haiku, FreeBSD, OpenBSD, SerenityOS, Redox OS
+
+### Minimal Linux (3 new)
+Tiny Core Linux (16MB!), Puppy Linux (runs in RAM), AntiX
+
+### Security OS (5 new)
+Parrot Security OS (500+ tools), BlackArch (2900+ tools), Kali 2025.3 (updated), Pentoo, Parrot Home
+
+### Hacking Tools (12)
+Nmap, Metasploit, Burp Suite, OWASP ZAP, Aircrack-ng, John the Ripper, Hashcat, Wireshark, Hydra, Responder, BloodHound, Netcat
+
+### Retro Gaming (6)
+Recalbox, RetroPie, Lakka, JELOS, Batocera Linux, EmuELEC
+
+### Writerdeck Software (8)
+WareWoolf (novel-writing), ZeroWriter (terminal e-ink), TypeWryter (fork), writerDeckOS (no internet/apps/games), CyberWriter (Python), FocusWriter (distraction-free), WordGrinder (terminal DOS-style), WordPerfect for Unix
+
+### Tiling Window Managers (6)
+i3wm, Sway, Hyprland, labwc (default in Pi OS), bspwm, dwm
+
+### Networking (5)
+Pi-hole v6, AdGuard Home, Tailscale (WireGuard mesh VPN), Cockpit (web management), Zenmap (Nmap GUI)
+
+### Cyberdeck Platforms (7)
+MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbox, PenTesters Framework (300+ tools), CyberDeck CLI Cookbook
+
+### Writerdeck-Specific Resources
+- yarh.io — hand-wired ortholinear, QMK firmware
+- writerdeck.org — curated guide
+- Apple WriterDeck app (Apr 2026)
+
+---
+
+## AESTHETICS — PERIPHERALS & FINISHING (75+ new)
+
+### POINTING DEVICES
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 1 | Ploopy Trackpad | ~$94 | Open-source, QMK, 156x99mm, 16-touch |
+| 2 | Pimoroni Trackball Breakout | ~$15 | Mini trackball, RGB LEDs, I2C |
+| 3 | EFOG Endgame Trackball | ~$150-200 | BLE wireless, twist-scroll, 50mm ball |
+| 4 | Azoteq TPS43 Trackpad | ~$15-20 | Ultra-thin capacitive, I2C |
+
+### NVMe ENCLOSURES
+| # | Product | Price | Speed |
+|---|---------|-------|-------|
+| 5 | OWC Express 1M2 | ~$120-180 | 3836 MB/s, USB4 |
+| 6 | OWC Express 1M2 80G | ~$150-250 | 6000+ MB/s, TB5 |
+| 7 | Satechi USB4 Slim | ~$100-130 | 40Gbps, tool-free |
+| 8 | Satechi USB4 Pro | ~$80-100 | 3840MB/s, 16TB max |
+| 9 | StarTech USB4 | ~$90-120 | TB5, rugged |
+
+### CAMERAS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 10 | Pi Camera Module 3 NoIR | ~$25 | 12MP, autofocus, HDR, night vision |
+| 11 | Arducam 5MP Motorized IR-CUT | ~$25-30 | Auto day/night, 130° FOV, IR LEDs |
+| 12 | Pi Global Shutter Camera | ~$50-60 | 12MP, no rolling shutter, CS mount |
+
+### THERMAL IMAGING
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 13 | FLIR Lepton 3.5 | ~$200-350 | 160x120 LWIR, <50mK, radiometric |
+| 14 | PureThermal 3 Board | ~$60-80 | USB webcam interface for Lepton |
+| 15 | Pi FLIR Lepton Project | DIY ~$250-400 | Open-source, auto-boot, headless |
+
+### SDR
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 16 | HackRF One | ~$340 | 1MHz-6GHz, TX/RX, open-source |
+| 17 | PiSDR Linux | Free | Pre-configured SDR distro |
+| 18 | RTL-SDR Blog V4 | ~$30-40 | R828D tuner, HF direct, bias tee |
+
+### GPIO EXPANDERS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 19 | AB Electronics IO Pi Plus | ~$25-30 | 32-channel, stackable to 128 |
+| 20 | 52Pi GPIO Screw Terminal HAT | ~$8-12 | Screw terminals, LED indicators |
+| 21 | DFRobot IO Expansion HAT | ~$15-20 | STM32 ADC, 22 ports, PWM |
+| 22 | SunFounder GPIO Breakout | ~$5-8 | T-shaped breadboard adapter |
+
+### USB HUBS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 23 | Geekworm X1013 | ~$35-45 | 10-port (4x USB3 + 6x USB2), PCIe |
+| 24 | Waveshare PCIe USB HAT+ | ~$20-25 | 4x USB3.2, INA219 power monitor |
+
+### E-INK STATUS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 25 | Waveshare 2.13" e-Paper HAT | ~$15-20 | 250x122, zero power static |
+| 26 | Pimoroni Inky Frame 7.3" | ~$45-55 | 7-color e-ink |
+| 27 | Cyberdeck Stats Monitor | DIY ~$20 | CPU/RAM/disk/IP, auto-refresh |
+
+### OLED STATUS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 28 | Waveshare 1.3" OLED HAT | ~$10-15 | 128x64, joystick, 3 buttons |
+| 29 | PiHOLED Software | Free | Multi-function, button integration |
+
+### NFC/RFID
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 30 | Waveshare PN532 NFC HAT | ~$15-20 | Triple interface, card emulation |
+| 31 | PiNFC by SB Components | ~$20-25 | OLED, buzzer, GPIO breakout |
+
+### BARCODE/QR
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 32 | SB Components Barcode HAT | ~$40-50 | 20 symbologies, LCD, buzzer |
+| 33 | Zero Barcode HAT | ~$35-45 | Pi Zero form factor |
+
+### FINGERPRINT
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 34 | PiFinger HAT | ~$40-50 | Capacitive 508dpi, OLED, crypto |
+| 35 | R307 Fingerprint Sensor | ~$10-15 | Optical, 300 prints, standalone |
+| 36 | R503 Capacitive Sensor | ~$15-25 | Capacitive, 199 users, 3.3V |
+
+### HAPTIC FEEDBACK
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 37 | Adafruit DRV2605L HAT | ~$10-15 | 100+ effects, ERM+LRA, STEMMA QT |
+| 38 | Pimoroni DRV2605L | ~$12-15 | Motor included, Breakout Garden |
+| 39 | Boardoza DRV2605L | ~$5-8 | Cheapest, 20x20mm |
+| 40 | Boardoza Vibration Motor | ~$3-5 | Motor included, one-pin control |
+
+### IMU/ACCELEROMETER
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 41 | Waveshare Sense HAT (B) | ~$25-35 | 9-axis IMU + temp/humidity + baro + color + ADC |
+| 42 | Waveshare Sense HAT (C) | ~$25-35 | 6-axis + magnetometer + env sensors |
+| 43 | Adafruit BNO055 | ~$30-35 | 9-DOF with on-board sensor fusion |
+| 44 | Adafruit MPU-6050 | ~$10-12 | 6-DOF, cheap, huge community |
+
+### ENVIRONMENTAL SENSORS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 45 | Waveshare Environment Sensor HAT | ~$25-35 | 5 sensors: BME280+IMU+UV+VOC+Light |
+| 46 | Pimoroni BME680 | ~$25-30 | Temp/humidity/pressure/gas |
+| 47 | Adafruit BME680 | ~$20-25 | Same with STEMMA QT |
+| 48 | Adafruit LTR390-UV | ~$8-10 | UVA + ambient light |
+| 49 | VEML6075 UV Sensor | ~$8-12 | Dual-band UVA+UVB |
+| 50 | Plantower PMS5003 | ~$25-35 | PM1.0/PM2.5/PM10, laser |
+| 51 | Nova SDS011 | ~$25-35 | PM2.5/PM10, sleep mode |
+| 52 | Adafruit SCD-40 | ~$30-35 | TRUE CO2 (photoacoustic) |
+| 53 | Adafruit SCD-30 | ~$55-60 | NDIR CO2, 400-10,000ppm |
+| 54 | SparkFun SCD40 Qwiic | ~$40-45 | 0.4µA sleep mode |
+| 55 | Adafruit SHT40 | ~$10-12 | ±0.2°C, heater on chip |
+| 56 | Adafruit SGP40 | ~$15-18 | VOC index, no clock stretching |
+| 57 | SunFounder MQ-2 | ~$5-8 | Multi-gas (LPG/CO/smoke) |
+
+### RADIATION DETECTORS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 58 | PiGI Geiger Interface | ~$20-30 | 1000V for GM tubes, dual stackable |
+| 59 | Granz Scientific Pi Zero Geiger | ~$50-80 | I2C, web UI, networked |
+
+### SOIL/WATER
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 60 | ANAVI Gardening uHAT | ~$15-25 | 2 capacitive sensors, temp, open-source |
+
+### AUDIO FEEDBACK
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 61 | Passive Piezo Buzzer | ~$0.50-2 | Any frequency via PWM |
+| 62 | Pimoroni Speaker pHAT | ~$10-15 | 3W, Pi Zero optimized |
+| 63 | Active Buzzer | ~$0.50-1 | Simplest alert |
+
+### KVM / REMOTE ACCESS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 64 | PiKVM V4 Plus | ~$400 | Full BIOS KVM, open-source |
+| 65 | GL-iNet Comet Pro | ~$180 | 4K@30fps, WiFi, touchscreen |
+| 66 | Geekworm X680 | ~$55 | 4-port IP KVM for CM4 |
+
+### USB-C HUBS/DOCKS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 67 | Plugable USB-C 10-in-1 | $74.95 | 4K 144Hz, 2.5G Ethernet, 140W PD |
+
+### THERMAL INTERFACE
+| # | Product | Price | W/m·K |
+|---|---------|-------|-------|
+| 68 | Thermal Grizzly Minus Pad 8 | ~$8-15 | 8 W/m·K |
+| 69 | Fujipoly Ultra | ~$15-25 | 15 W/m·K |
+| 70 | Gelid Extreme | ~$10-18 | 12 W/m·K |
+| 71 | Arctic Silver 5 | ~$7-15 | 8.9 W/m·K |
+| 72 | Thermal Grizzly Kryonaut | ~$7-15 | 12.5 W/m·K |
+
+### IP-RATED ENCLOSURES
+| # | Product | Price | Rating |
+|---|---------|-------|--------|
+| 73 | GTT Wireless IP67 | ~$80-120 | IP67, 6.2dBi antenna, Gore vent |
+| 74 | Sixfab IP65 Outdoor | ~$25-35 | IP65, clear lid, cable grommets |
+| 75 | PiLink PL-R5 IP65 | ~$200-300 | IP65 aluminum, 9-40V, M.2 NVMe |
+
+### CABLE MANAGEMENT
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 76 | FPV FPC Flat HDMI Cable | ~$3-8 | Ultra-thin ribbon, flexible |
+| 77 | Smallrig Flexible HDMI | ~$5-10 | Gooseneck-style, short |
+| 78 | Ubo Pod Side Connector | ~$10-15 | Relocates all ports to one side |
+
+### WIRELESS CHARGING
+| # | Approach | Price | Feature |
+|---|----------|-------|---------|
+| 79 | Qi Receiver + Charging Pad | ~$15-25 | 10W, trickle-charge battery only |
+
+### WATERPROOFING
+| # | Approach | Price | Rating |
+|---|----------|-------|--------|
+| 80 | TPU Gasket Groove | ~$0.01 | IP65, re-openable |
+| 81 | O-Ring Groove | ~$2-5 | Professional-grade |
+| 82 | Silicone Sealant Bedding | ~$3-8 | Simplest, permanent |
+
+### SPEECH RECOGNITION
+| # | Project | Price | Feature |
+|---|---------|-------|---------|
+| 83 | WhisperBox / VoxPi | Free | 100% offline, Bluetooth HID output |
+| 84 | pi5-local-voice-assistant | Free | 7.77x realtime STT, local LLM |
+| 85 | voice-hotword | Free | Offline hotword detection |
+
+### MICROPHONE ARRAYS
+| # | Product | Price | Feature |
+|---|---------|-------|---------|
+| 86 | ReSpeaker XMOS XVF3800 | ~$54.50 | 4-mic, ESP32-S3, USB/I2S |
+| 87 | ReSpeaker 6-Mic Circular | ~$35-45 | 6 mics, DOA, RGB LEDs |
+
+### BATTERY SIZING TOOLS
+| # | Tool | Price | Feature |
+|---|------|-------|---------|
+| 88 | TheHomeServerBlog Calculator | Free | Runtime estimation, Peukert effect |
+| 89 | Simulations4All IEEE 485 | Free | Standards-compliant, exportable reports |
+
+### UPS SHUTDOWN SCRIPTS
+| # | Script | Price | Feature |
+|---|--------|-------|---------|
+| 90 | Matho/x120x-UPS-for-sbc | Free | Python, Geekworm X1200, configurable |
+| 91 | maaad/ups-hat-controller | Free | Rust, Waveshare HAT (E), DRY_RUN mode |
+
+---
+
+## AESTHETICS — PAINTING & FINISHING (7)
+
+1. **3DPut Post-Processing Guide** — full sanding→paint→clear coat pipeline (120-3000 grit)
+2. **Creality Finishing Guide** — filament-specific (PLA/PETG/ABS/resin), acetone smoothing
+3. **Alien-Themed Weathering** — paint-mask-chip technique, Semiotic Standard glyphs
+4. **XMT-19 Cutlass Weathering** — WWII scratches, stenciled markings, hand-cut foam greebles
+5. **TRL Cyberdeck Weathering** — silver base, edge chipping, retro-futuristic
+6. **Wesley Treat Weathering** — rust, patina, aging for props
+7. **Christan Workshop Build** — matte black, acrylic tape, PVC foam board
+
+## AESTHETICS — VINYL WRAPPING (4)
+
+8. **Evan Ohl Cyberpunk** — carbon fiber vinyl, sticker slaps
+9. **3M 2080 Carbon Fiber** — Controltac repositionable, air-release
+10. **YesWrap 3D Carbon** — matte textured twill weave
+11. **Arquebus Cyberdeck** — carbon wrap on screen covers
+
+## AESTHETICS — LED & LIGHTING (6)
+
+12. **CMDeck Translucent Shell** — resin neon underglow, LED diffusers
+13. **Halogenica QMK Underglow** — dimmable via QMK, STM32 PWM
+14. **DIY Keyboards RGB** — WS2812B underglow, animation modes
+15. **Raphael's Split Underglow** — layer color indication, battery-saving
+16. **Moving Rainbow NeoPixel** — hardware deep-dive, power budgeting
+17. **Core Electronics Pi WS2812B** — external power for long runs
+
+## AESTHETICS — RESIN & EPOXY (4)
+
+18. **DOCOResin Cyberpunk Pyramid** — multi-layer pour, mica powder, embedded gears
+19. **Advanced Epoxy Pouring** — 6 techniques: lacing, dirty pour, petri, ocean
+20. **Resin Pour Art Beginner** — mix ratios, bubble management, curing
+21. **CMDeck Resin Enclosure** — translucent purple resin, CNC finish
+
+## AESTHETICS — TRANSPARENT/CLEAR (3)
+
+22. **Framedeck** — stacked clear acrylic + brass hardware
+23. **CMDeck Translucent Bottom** — neon underlayer resin
+24. **Mu Cyberdeck Slide-Out** — translucent housing, custom PCB
+
+## AESTHETICS — STICKER BOMBING (4)
+
+25. **Eccentric Decals Cyberpunk** — Oracal die-cut, 7-year outdoor
+26. **Sticky Studios Edgerunners** — buy-1-get-1 cyberpunk decals
+27. **M&M 40-Pack** — 40-piece glossy cyberpunk set
+28. **CyberSecDeck Modular** — custom Photoshop stickers, OLED display
+
+## AESTHETICS — WATER SLIDE DECALS (4)
+
+29. **Radical Edward Pwnagotchi** — anime-themed decal files
+30. **Kadee Custom** — ALPS thermal, white/metallic capable
+31. **Bedlam Creations** — custom since 2001, one-off prints
+32. **Phoxy Design** — full-color laser, white underprint
+
+## AESTHETICS — LASER/CNC (6)
+
+33. **UHAB Cyberdeck** — CNC milled MDF + laser engraving
+34. **DIY Life Laser-Cut** — Atomstack plywood, Inkscape design
+35. **LaBonte CNC Hardwood** — Carbide3D Nomad 3, sapele + bronze
+36. **Laser Cut Pelican Panel** — HDPE, dual-mode engrave/cut
+37. **Framedeck Acrylic Layers** — laser-cut stacked construction
+38. **PrintPal Nameplate** — free 3D-printed nameplate generator
+
+## AESTHETICS — OLED STATUS (5)
+
+39. **ESP32 Status Display** — USB CDC, live GPU/CPU stats
+40. **Moondeck ESP32-S3** — Lua widgets, touch/swipe, color LCD
+41. **Homelab Server Display** — alert pages, buzzer, daemon
+42. **Costumdeck OLED** — ESP32 dual-MCU, retro styling
+43. **Cyberdore 2064** — cassette animation, rotary encoder
+
+## AESTHETICS — ROTARY ENCODERS (3)
+
+44. **CyberDeck Rotary + Slider** — programmable knob + slider + 4 buttons
+45. **OpenClaw KY-040** — menu navigation, multi-display SPI
+46. **Pikku Dial** — Pico USB dial, multi-mode (volume/scroll/cursor)
+
+## AESTHETICS — JOYSTICKS (4)
+
+47. **PS2 Thumbstick** — Sony PS2 as mouse, split Alice layout
+48. **Voidnet Viator** — PSP joystick + roll-pin pointer
+49. **Schematik AI Joystick** — ESP32 retro gaming + AI chatbot
+50. **awesomebrownies** — JH16 + hall effect + distance sensors
+
+## AESTHETICS — GLOW-IN-DARK/UV (4)
+
+51. **Techno Glow Phosphorescent** — charges from any light, 5+ hour glow
+52. **GLO Effex Transparent UV** — invisible clear-to-glow under blacklight
+53. **SpaceBeams Nebula** — dual-color (pink day/orange glow)
+54. **GLO Effex Phosphorescent White** — strontium aluminate, 30+ year life
+
+## AESTHETICS — COLOR THEORY (4)
+
+55. **Cyberdeck VS Code Theme** — 20 cyberpunk palette variants with HEX
+56. **Chunky Cyberdeck Palette** — 5-color with CSS variables: `#1f1f61`, `#3a2a84`, `#5a2c9b`, `#8b3c8b`, `#ff6d1f`
+57. **xscript.net Palettes** — 8 palettes: Matrix/cyan/amber/purple
+58. **PageFlows Guide** — neon selection psychology, contrast principles
+
+### SPECIFIC HEX CODES
+**Cyberpunk 2077 UI:** Yellow `#FFEB0B`/`#EBE702`, Cyan `#25E1ED`/`#00FFFF`, Pink `#ED1E79`, Dark Red `#672026`, Bright Red `#FF4A57`
+**DuskTools Cyberpunk:** `#0D0221`, `#0F084B`, `#26081C`, `#FF2A6D`, `#05D9E8`
+**Synthwave (PaletteCSS):** `#2B1055`, `#7597DE`, `#FF2E97`, `#FE53BB`, `#08F7FE`
+**Synthwave Terminal:** BG `#0D0818`, FG `#F0E8FF`, Primary `#FF60C8`, Accent `#40E8E0`
+**Vaporwave (EggGradients):** `#F569C4`, `#03CAFC`, `#06FC9E`, `#B768FC`, `#FFFB8D`, `#FF06C1`, `#8705E4`
+**Vaporwave (ColorSwatches):** Void Purple `#1A0830`, Electric Purple `#CC00FF`, Hot Pink `#FF2D78`, Neon Cyan `#00FFFF`, Pink Mist `#FF80C0`
+
+## AESTHETICS — WOOD & NATURAL (4)
+
+59. **Darbin Orvar** — Baltic birch plywood, XTool laser cut
+60. **LaBonte Hardwood** — Richlite phenolic + Sapele + bronze
+61. **Timber Deck** — wooden box, custom mechanical keyboard
+62. **Progressive Robot Textile** — natural materials movement
+
+## AESTHETICS — FABRIC & TEXTILE (2)
+
+63. **Fallout Vault-Tec** — Faraday fabric, conductive gasket, EMP shielding
+64. **Feminine Cyberdeck Movement** — crochet, macrame, fabric-wrapped
+
+## AESTHETICS — FOAM INSERTS (4)
+
+65. **NANUK Custom Foam** — CNC router or die-cut, EVA/PUF/PEF
+66. **Pelican Custom Foam** — waterjet-cut, anti-static pink option
+67. **sigmaIQ Battery Case** — 3D-printed ABS + egg-crate foam
+68. **Steam Deck CYBERDECK** — sponge foam + magnets + TPU covers
+
+## AESTHETICS — METAL BADGES (5)
+
+69. **JASPER Nameplates** — etched/anodized aluminum, MIL-spec
+70. **Custom Metal Labels** — anodized aluminum, custom shapes
+71. **Trophy Outlet** — 35+ years, 1/16" precision
+72. **Laser Engraving Blanks** — black-over-silver dual-color reveal
+73. **PlaqueMaker Magnetic** — laser-engraved, magnetic mounting
+
+## AESTHETICS — CARBON FIBER (2)
+
+74. **3M 2080 CFS12** — professional dual-cast, Controltac
+75. **Parma Mer** — upholstery-grade, soft-touch faux leather
+
+## AESTHETICS — COPPER/BRASS (3)
+
+76. **Brass-Framed Pi 5** — hand-bent brass tube skeleton frame
+77. **Framedeck Brass + Acrylic** — brass screws/standoffs/accent pieces
+78. **LaBonte Bronze Heatsink** — CNC-milled bronze as design feature
+
+## AESTHETICS — RUBBER/CORK/SILICONE (2)
+
+79. **MediaSlab Rubber Grips** — custom mold-cast polyurethane
+80. **Cork-Rubber Sheet** — -40° to 250°F, vibration dampening
+
+## AESTHETICS — MAGNETIC SYSTEMS (3)
+
+81. **fyer_deck Magnetic** — magnetic battery door, polarity system
+82. **Pegdeck Pegboard** — M3 hardware, magnet-mounted panels
+83. **Christan Workshop Magnetic** — magnets hold keyboard rock-solid
+
+## AESTHETICS — HINGES/FOLDING (3)
+
+84. **CMDeck Torque Hinges** — McMaster-Carr, any angle, 140°+
+85. **Flipdeck Triple-Function** — hinge + handle + stand pivot
+86. **Jankbu Sliding Screen** — steel linear rods + cable chain
+
+## AESTHETICS — KICKSTANDS (3)
+
+87. **Christan Workshop Flip Stand** — dual flip stands, improved balance
+88. **CMDesk Riser Feet** — tilt keyboard, improve airflow
+89. **Flipdeck Adjustable** — integrated adjustable stand
+
+## AESTHETICS — CARRYING (5)
+
+90. **CyberSecDeck Picatinny** — military rail sling mounts
+91. **vbstract Techwear Strap** — AOKU camo, magnetic quick-detach
+92. **Кибердек RA01** — bicycle grip handle, retractable power
+93. **VirtuScope Grab Handle** — folding case, shoulder strap mounts
+94. **Luggable Pi Metal Handles** — dual-purpose handles as wrist rest
+
+## AESTHETICS — SCREEN PROTECTION (2)
+
+95. **Jack of All Trades Lexan** — flush-mounted Lexan cover
+96. **Steam Deck CYBERDECK TPU** — dust covers for all ports
+
+## AESTHETICS — NEW THEMES (7)
+
+97. **Feminine/Craft** — crocheted electronics, macrame motherboards
+98. **Cassette Futurism** — cassette animation OLED, rotary wheel
+99. **Aquatic/Nautical** — sapele hardwood + bronze, deep sea station
+100. **Fallout/Post-Apocalyptic** — EMP-hardened, Faraday fabric
+101. **M3TAL Industrial** — 2020 aluminum extrusion, T-nut mounting
+102. **Pegboard Hacker** — infinite reconfiguration, magnet modules
+103. **NODE-3 Cyberpunk Runner** — Steam Deck chassis, neon aesthetic
+
+## AESTHETICS — PAINT/COLOR MATCHING (3)
+
+104. **RAL to Pantone Converter** — 213 RAL colors cross-referenced
+105. **Shademix Universal Converter** — RAL/NCS/Pantone/HEX/RGB/CMYK/LAB
+106. **RAL Color Chart with HEX** — e.g. RAL 9005 Jet Black `#0A0A0A`, RAL 3020 Traffic Red `#E42313`
+
+## AESTHETICS — DEVICE SKINS (3)
+
+107. **StickieTech Custom** — 3M vinyl wraps, upload any design
+108. **M2Skins Steam Deck** — automotive-grade, Controltac
+109. **Qskinz Cyber Security PCB** — circuit board themed, 3D texture
+
+## AESTHETICS — PORT LABELING (2)
+
+110. **DYMO Rhino M1011** — industrial embosser, stainless steel/aluminum
+111. **DYMO Organizer Xpress** — lightweight handheld embosser
+
+## AESTHETICS — SCREW COVERS (2)
+
+112. **3DSearch Screw Cap** — free STL, printable in any color
+113. **Essentra Components** — polypropylene caps, #4-#10 screws
+
+## AESTHETICS — VENT/GRILL DESIGNS (3)
+
+114. **Cyberpunk Circuit Fan Grill** — 120mm, 1mm spacer, chamfered
+115. **Grille Generator** — OpenSCAD parametric vents/covers
+116. **Parametric Ventilation Grid** — OpenSCAD honeycomb/louver/square
+
+## AESTHETICS — HANDLE/GRIP (2)
+
+117. **CyberSecDeck-001** — bike handlebar grip, picatinny rails
+118. **Luggable Pi Metal Handles** — metal handles double as wrist rest
+
+## AESTHETICS — WRIST RESTS (2)
+
+119. **vecdec Ergonomic** — rubber isolators, UAV-style quiet typing
+120. **Omega Deck** — integrated wrist rest between split halves
+
+## AESTHETICS — INSPIRATION GALLERIES (4)
+
+121. **Awesome CyberDeck (GitHub)** — curated list of builds, components, software
+122. **Pinterest Cyberdeck Builds** — image gallery of community projects
+123. **Cyberdeck Cafe Community** — build guides, cultural documentation
+124. **r/cyberDeck Subreddit** — active community, progress photos
+
+---
+
+## KEY INSIGHTS & TRENDS (2025-2026)
+
+1. **Pi 5 power**: BCM2712 draws 3W idle, 8.8W full load, up to 16W extreme. Battery systems need 5V/5A minimum.
+2. **NVMe transformation**: SD ~45 MB/s → NVMe ~800-900 MB/s. Boot 45s → 15s. Random I/O 20x faster.
+3. **Meshtastic/LoRa**: Pi-native `meshtasticd` support, RAK6421 HAT, standalone trackers that integrate with Pi builds.
+4. **Passive cooling ceiling**: Best passive cases keep Pi 5 under 61-65°C. Anything heavier needs active cooling.
+5. **21700 replacing 18650**: Waveshare's newer UPS HATs favor 21700 cells for higher capacity.
+6. **E-ink maturing**: Color 7-color (Pimoroni), large 7.5" (Seeed), 10.3" displays viable for writerdeck status.
+7. **Sunlight-readable displays**: 1000 nits IPS from Orient Display ($61 for 5"), industrial options for outdoor.
+8. **Antenna integration**: Panel-mount SMA/N-connectors; Yagi for directional LoRa; combo antennas reduce connector count.
+9. **Power bank shutdown**: Most power banks shut down below 50-100mA idle — Pi 5 idles very low. Use Pichondria PD converter ($13).
+10. **Thermal paste vs pads**: Swapping stock pad for Kryonaut on Active Cooler = only 1.8°C improvement. Not worth risk unless overclocking.
+11. **Feminine/Craft movement**: Crocheted electronics, macrame motherboards, fabric-wrapped cases — rejecting hardware masculine aesthetics.
+12. **Cassette Futurism revival**: Cyberdore 2064, rotary wheel controllers, retro media player form factors.
+13. **Nautical/Aquatic cyberpunk**: Sapele hardwood + bronze hardware = deep sea station aesthetic.
+14. **EMP-hardened builds**: Fallout Vault-Tec cyberdeck with Faraday fabric, conductive gasket, Flex Seal insulation.
+15. **Industrial modular**: 2020 aluminum extrusion frames, T-nut mounting, no-glue assembly, repairability-first design.
+
+---
+
+*Compiled from 170+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, Apple App Store, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Adafruit, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, Vayce, PolishSprite, xscript.net, PaletteCSS, EggGradients, ColorSwatches, Darbin Orvar, Timber Deck, Progressive Robot, Calgary Tribune, Fallout Vault-Tec, NANUK, Pelican, sigmaIQ, JASPER, Trophy Outlet, PlaqueMaker, Essentra, Cyberpunk Circuit Fan Grill, Grille Generator, CyberSecDeck, Luggable Pi, vecdec, Omega Deck, Awesome CyberDeck, Pinterest, r/cyberDeck, StickieTech, M2Skins, Qskinz, DYMO Rhino, 3DSearch — July 2026*
+*OpenCode Bot Cyberdeck Agent Knowledge Base v5.0 — 67 builds, 170+ sources, 200+ products/resources, 15 insights*
