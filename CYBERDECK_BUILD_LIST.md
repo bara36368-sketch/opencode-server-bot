@@ -590,6 +590,154 @@ Since Jay Doscher's Recovery Kit (2019), Pelican cases are the standard:
 
 ---
 
+## WiFi / LAN COMPONENT DATABASE (July 2026)
+
+Every cyberdeck needs connectivity. This database covers WiFi adapters, Ethernet, LoRa, cellular, and antenna accessories — all tested for compatibility with the SBC database above.
+
+### USB WiFi Adapters
+
+| Adapter | Standard | Frequency | Chipset | Monitor Mode | Price | Best For |
+|---------|----------|-----------|---------|--------------|-------|----------|
+| Alfa AWUS036ACH | WiFi 5 (802.11ac) | 2.4/5GHz | RTL8812AU | Yes | $30 | Security, pentesting |
+| Alfa AWUS036ACS | WiFi 5 (802.11ac) | 2.4/5GHz | RTL8811AU | Yes | $20 | Budget security |
+| Alfa AWUS036NHA | WiFi 4 (802.11n) | 2.4GHz | Atheros AR9271 | Yes | $25 | Legacy pentesting |
+| Panda PAU09 | WiFi 5 (802.11ac) | 2.4/5GHz | RT5572 | Yes | $25 | Budget option |
+| TP-Link TL-WN722N v1 | WiFi 4 (802.11n) | 2.4GHz | Atheros AR9271 | Yes | $15 | Budget pentesting |
+
+**Notes:**
+- AWUS036ACH is the community standard — best range with dual external antenna
+- All monitor mode adapters need driver install on Pi (usually `realtek-rtl8812au` dkms)
+- USB 3.0 preferred for max throughput
+
+### Ethernet Adapters
+
+| Adapter | Standard | Speed | Connection | Price | Best For |
+|---------|----------|-------|------------|-------|----------|
+| UGREEN USB 3.0 to Ethernet | GbE | 1000 Mbps | USB 3.0 | $15 | Pi Zero, adds wired net |
+| Cable Matters USB-C to Ethernet | GbE | 1000 Mbps | USB-C | $18 | Pi 5, CM5 |
+| Anker USB-C to Ethernet | GbE | 1000 Mbps | USB-C | $20 | Reliable backup |
+| Pi 5 built-in Ethernet | GbE | 1000 Mbps | Native | $0 | Pi 5 builds |
+| Pi 4 built-in Ethernet | GbE | 1000 Mbps | Native | $0 | Pi 4 builds |
+
+**Notes:**
+- Pi 5 and Pi 4 have native GbE — no adapter needed
+- Pi Zero 2W needs USB adapter for Ethernet
+- Flat Cat6 cables recommended for internal routing
+
+### Ethernet Cables
+
+| Cable | Standard | Speed | Length | Price | Best For |
+|-------|----------|-------|--------|-------|----------|
+| Cable Matters Cat6 Flat | Cat 6 UTP | 1 Gbps | 1m | $4 | Internal routing |
+| Cable Matters Cat6 Flat | Cat 6 UTP | 1 Gbps | 3m | $6 | Desktop use |
+| Amazon Basics Cat6 | Cat 6 UTP | 1 Gbps | 1.5m | $5 | General use |
+| UGREEN Cat6 Flat | Cat 6 UTP | 1 Gbps | 1m | $4 | Clean internal runs |
+| StarTech Cat6 Shielded | Cat 6 STP | 1 Gbps | 2m | $8 | Industrial/EMI |
+
+**Notes:**
+- Cat 6 is recommended — future-proof, supports 10Gbps at short distances
+- Flat cables are easier to route inside enclosures
+- Shielded (STP) for industrial or high-EMI environments
+
+### Network Switches
+
+| Switch | Ports | Speed | Price | Best For |
+|--------|-------|-------|-------|----------|
+| UGREEN 5-Port GbE | 5x RJ45 | 1000 Mbps | $15 | Multi-device decks |
+| TP-Link TL-SG105 | 5x RJ45 | 1000 Mbps | $15 | Community favorite |
+| Netgear GS305 | 5x RJ45 | 1000 Mbps | $15 | Reliable |
+| UGREEN 8-Port GbE | 8x RJ45 | 1000 Mbps | $25 | Large builds |
+
+**Notes:**
+- 5-port is standard for cyberdeck builds
+- Fanless design preferred for noise
+- All are managed/unmanaged — unmanaged is fine for most builds
+
+### Software Defined Radio (SDR)
+
+| SDR | Type | Frequency | TX/RX | Price | Best For |
+|-----|------|-----------|-------|-------|----------|
+| RTL-SDR Blog V3 | Receiver | 24MHz-1766MHz | RX only | $30 | Entry-level SDR |
+| RTL-SDR Blog V4 | Receiver | 24MHz-1766MHz | RX only | $40 | Improved V3 |
+| HackRF One | Transceiver | 1MHz-6GHz | TX+RX | $350 | Full spectrum |
+| Yard Stick One | Sub-GHz | Sub-1GHz | TX+RX | $100 | Sub-GHz protocols |
+| Flipper Zero | Multi-tool | Sub-1GHz/NFC/IR | TX+RX | $170 | Multi-protocol |
+
+**Notes:**
+- RTL-SDR is the entry point — ADS-B tracking, ham radio, satellite
+- HackRF One is the gold standard for full TX+RX
+- All compatible with Pi 5 via USB
+
+### LoRa Modules (Off-Grid Mesh)
+
+| Module | Chipset | Frequency | Range | Price | Best For |
+|--------|---------|-----------|-------|-------|----------|
+| Seeed Wio-SX1262 | SX1262 | 868/915MHz | 5-15km | $20 | Meshtastic mesh |
+| Heltec LoRa 32 V3 | SX1262 | 868/915MHz | 5-15km | $25 | Meshtastic node |
+| LilyGO T-Beam | SX1262 | 868/915MHz | 5-15km | $25 | GPS + LoRa |
+| RAK WisBlock | SX1262 | 868/915MHz | 5-15km | $30 | Modular design |
+
+**Notes:**
+- Meshtastic is the standard firmware for LoRa mesh networking
+- 915MHz for Americas, 868MHz for Europe
+- SPI connection to Pi GPIO — needs wiring
+
+### Cellular Modems
+
+| Modem | Standard | Speed | Connection | Price | Best For |
+|-------|----------|-------|------------|-------|----------|
+| Quectel EC20 | 4G LTE Cat 4 | 150/50 Mbps | USB + SIM | $30 | Industrial 4G |
+| SIM7600 | 4G LTE Cat 4 | 150/50 Mbps | USB + SIM | $35 | Pi-focused |
+| SIM800C | 2G GSM | GPRS | UART | $10 | SMS/voice only |
+| Quectel RM500Q | 5G Sub-6 | 4.2/2.1 Gbps | USB-C | $200 | Future-proof 5G |
+
+**Notes:**
+- 4G LTE is the sweet spot for cyberdeck builds
+- Needs active SIM card + data plan
+- USB connection is simplest — no UART wiring needed
+- GPS often included
+
+### Antenna Accessories
+
+| Accessory | Type | Price | Best For |
+|-----------|------|-------|----------|
+| Alfa 5dBi Antenna (pair) | RP-SMA | $8 | WiFi adapter range |
+| Alfa 9dBi Antenna | RP-SMA | $12 | Long range WiFi |
+| SMA Pigtail (U.FL) | Cable | $3 | Internal to external |
+| SMA Panel Mount | Connector | $5 | Case-mounted antenna |
+| 915MHz LoRa Antenna | SMA | $5 | LoRa range |
+| 2.4GHz Dipole Antenna | SMA | $3 | WiFi/Bluetooth |
+
+**Notes:**
+- External antennas dramatically improve range
+- Panel mount through enclosure wall for clean look
+- Match antenna frequency to adapter/module frequency
+
+### Connectivity Selection Rules
+
+| Build Type | Primary Connectivity | Secondary | Why |
+|-----------|---------------------|-----------|-----|
+| Security/Pentesting | Alfa AWUS036ACH | RTL-SDR | Monitor mode + RF |
+| Writerdeck | Cat6 flat cable | — | Reliable, low power |
+| Coding | Cat6 flat + USB Ethernet | — | Multiple connections |
+| Field Research | USB Ethernet + LoRa | — | Wired + off-grid mesh |
+| Survival | LoRa + LTE modem | — | Off-grid + emergency |
+| Gaming | Cat6 flat cable | — | Low latency |
+| Media | Cat6 flat cable | — | Streaming |
+| AI/ML | USB Ethernet | — | High bandwidth |
+
+### Compatibility Notes
+
+- **USB WiFi adapters** work with all SBCs via USB 3.0/2.0
+- **Ethernet** built into Pi 4/5 — no adapter needed
+- **Pi Zero 2W** needs USB Ethernet adapter (no built-in)
+- **LoRa modules** need SPI wiring to GPIO — verify pinout
+- **Cellular modems** need USB port + SIM card slot
+- **SDR dongles** are receive-only (except HackRF) — plug into USB
+- **Antenna connectors** must match: RP-SMA for Alfa, SMA for LoRa
+
+---
+
 ## COOLING SYSTEMS
 
 Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and enclosed builds trap heat. Choose based on your SBC and build style.

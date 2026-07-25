@@ -60,6 +60,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed",
         "best_cooling": "active_fan",
         "best_os": "raspberry_pi_os",
+        "best_connectivity": "usb_ethernet",
         "pcb": "waveshare_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_18awg",
@@ -77,6 +78,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed",
         "best_cooling": "passive_heatsink",
         "best_os": "writerdeck_os",
+        "best_connectivity": "cat6_flat",
         "pcb": "penkesu_pcb",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_20awg",
@@ -94,6 +96,7 @@ CATEGORIES = {
         "best_enclosure": "pelican_1450",
         "best_cooling": "active_fan",
         "best_os": "kali_linux",
+        "best_connectivity": "awus036ach",
         "pcb": "waveshare_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_18awg",
@@ -111,6 +114,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed",
         "best_cooling": "passive_heatsink",
         "best_os": "retropie",
+        "best_connectivity": "cat6_flat",
         "pcb": "adafruit_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_20awg",
@@ -128,6 +132,7 @@ CATEGORIES = {
         "best_enclosure": "pelican_1400",
         "best_cooling": "passive_heatsink",
         "best_os": "raspberry_pi_os",
+        "best_connectivity": "usb_ethernet",
         "pcb": "waveshare_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_18awg",
@@ -145,6 +150,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed_vented",
         "best_cooling": "active_fan_heatsink",
         "best_os": "jetpack",
+        "best_connectivity": "usb_ethernet",
         "pcb": "jetson_carrier",
         "wire_signal": "silicon_24awg",
         "wire_power": "silicon_16awg",
@@ -162,6 +168,7 @@ CATEGORIES = {
         "best_enclosure": "pelican_1450",
         "best_cooling": "passive_heatsink",
         "best_os": "raspberry_pi_os",
+        "best_connectivity": "lora_module",
         "pcb": "waveshare_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_16awg",
@@ -179,6 +186,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed",
         "best_cooling": "passive_heatsink",
         "best_os": "libreelec",
+        "best_connectivity": "cat6_flat",
         "pcb": "adafruit_phat",
         "wire_signal": "silicon_26awg",
         "wire_power": "silicon_20awg",
@@ -196,6 +204,7 @@ CATEGORIES = {
         "best_enclosure": "3d_printed_cyberpunk",
         "best_cooling": "passive_heatsink",
         "best_os": "twister_os",
+        "best_connectivity": "wifi_antenna_pigtail",
         "pcb": "custom_neon_pcb",
         "wire_signal": "silicon_26awg_neon",
         "wire_power": "silicon_20awg",
@@ -1029,6 +1038,159 @@ OS_DATABASE = {
 }
 
 # ============================================================
+# CONNECTIVITY DATABASE — WiFi adapters, LAN cables, switches
+# ============================================================
+CONNECTIVITY_DATABASE = {
+    "awus036ach": {
+        "name": "Alfa AWUS036ACH USB WiFi Adapter",
+        "type": "USB WiFi Adapter",
+        "standard": "WiFi 5 (802.11ac) Dual-Band",
+        "frequency": "2.4GHz + 5GHz",
+        "speed": "AC1200",
+        "antenna": "2x detachable 5dBi",
+        " chipset": "Realtek RTL8812AU",
+        "connection": "USB 3.0",
+        "price": 30,
+        "range": "Long range with external antenna",
+        "monitor_mode": True,
+        "packet_injection": True,
+        "pros": ["Best WiFi adapter for pentesting", "Monitor mode + injection", "Dual-band", "External antenna", "Kali compatible"],
+        "cons": ["Needs driver install", "USB dongle size"],
+        "best_for": ["security", "coding", "research"],
+    },
+    "awus036acs": {
+        "name": "Alfa AWUS036ACS USB WiFi Adapter",
+        "type": "USB WiFi Adapter",
+        "standard": "WiFi 5 (802.11ac) Dual-Band",
+        "frequency": "2.4GHz + 5GHz",
+        "speed": "AC1200",
+        "antenna": "Internal + 2.4GHz external",
+        "chipset": "Realtek RTL8811AU",
+        "connection": "USB 3.0",
+        "price": 20,
+        "range": "Medium range",
+        "monitor_mode": True,
+        "packet_injection": True,
+        "pros": ["Budget pentesting adapter", "Monitor mode", "Dual-band", "Compact"],
+        "cons": ["Single external antenna"],
+        "best_for": ["security", "coding"],
+    },
+    "rtl_sdr": {
+        "name": "RTL-SDR Blog V3 Dongle",
+        "type": "SDR Receiver",
+        "standard": "Software Defined Radio",
+        "frequency": "24MHz - 1766MHz",
+        "speed": "2.4 MSPS",
+        "antenna": "Antenna not included (SMA)",
+        "chipset": "RTL2832U + R820T2",
+        "connection": "USB 2.0",
+        "price": 30,
+        "range": "Radio spectrum",
+        "monitor_mode": False,
+        "packet_injection": False,
+        "pros": ["ADS-B aircraft tracking", "Ham radio", "Satellite reception", "RF snooping", "Wide frequency range"],
+        "cons": ["Receive only", "Needs antenna"],
+        "best_for": ["security", "research", "survival"],
+    },
+    "hackrf_one": {
+        "name": "Great Scott Gadgets HackRF One",
+        "type": "SDR Transceiver",
+        "standard": "Software Defined Radio",
+        "frequency": "1MHz - 6GHz",
+        "speed": "20 MSPS",
+        "antenna": "Antenna not included (SMA)",
+        "chipset": "NXP LPC4330 + MAX2837",
+        "connection": "USB 3.0",
+        "price": 350,
+        "range": "Full radio spectrum",
+        "monitor_mode": False,
+        "packet_injection": False,
+        "pros": ["TX + RX capable", "Huge frequency range", "Industry standard", "HackRF compatible"],
+        "cons": ["Expensive", "Full-duplex limited"],
+        "best_for": ["security", "research"],
+    },
+    "ethernet_switch": {
+        "name": "UGREEN 5-Port Gigabit Ethernet Switch",
+        "type": "Network Switch",
+        "standard": "Gigabit Ethernet",
+        "ports": "5x RJ45 GbE",
+        "speed": "1000 Mbps",
+        "connection": "Ethernet cables",
+        "price": 15,
+        "pros": ["Cheap", "5 ports", "Fanless", "Compact", "Plug and play"],
+        "cons": ["Needs power adapter"],
+        "best_for": ["security", "coding", "research"],
+    },
+    "usb_ethernet": {
+        "name": "UGREEN USB 3.0 to Ethernet Adapter",
+        "type": "USB Ethernet Adapter",
+        "standard": "Gigabit Ethernet",
+        "ports": "1x RJ45 GbE",
+        "speed": "1000 Mbps",
+        "connection": "USB 3.0",
+        "price": 15,
+        "pros": ["Adds Ethernet to Pi Zero", "USB-C and USB-A options", "No driver needed"],
+        "cons": ["Single port"],
+        "best_for": ["writerdeck", "conversation", "survival"],
+    },
+    "cat6_cable": {
+        "name": "Cat 6 Ethernet Cable (1m/3m/5m)",
+        "type": "Ethernet Cable",
+        "standard": "Cat 6 UTP",
+        "speed": "1 Gbps (up to 10 Gbps at 55m)",
+        "length_options": ["1m", "3m", "5m", "10m"],
+        "price_range": "$3-$8",
+        "pros": ["Future-proof", "Shielded options available", "Flat and round"],
+        "cons": ["Bulkier than Cat 5e"],
+        "best_for": ["ALL"],
+    },
+    "cat6_flat": {
+        "name": "Cat 6 Flat Ethernet Cable (1m)",
+        "type": "Ethernet Cable",
+        "standard": "Cat 6 UTP Flat",
+        "speed": "1 Gbps",
+        "length_options": ["1m", "2m", "3m"],
+        "price_range": "$4-$8",
+        "pros": ["Ultra thin", "Easy routing in enclosures", "Velcro tie included"],
+        "cons": ["Less shielding"],
+        "best_for": ["coding", "security", "gaming"],
+    },
+    "lora_module": {
+        "name": "Seeed Studio Wio-SX1262 LoRa Module",
+        "type": "LoRa Radio Module",
+        "standard": "LoRa SX1262",
+        "frequency": "868MHz / 915MHz",
+        "range": "5-15km",
+        "connection": "SPI + GPIO",
+        "price": 20,
+        "pros": ["Meshtastic compatible", "Long range", "Off-grid mesh networking", "Low power"],
+        "cons": ["Needs antenna", "SPI wiring"],
+        "best_for": ["survival", "research"],
+    },
+    "lte_modem": {
+        "name": "Quectel EC20 LTE Cat 4 Modem",
+        "type": "Cellular Modem",
+        "standard": "4G LTE Cat 4",
+        "speed": "150 Mbps DL / 50 Mbps UL",
+        "connection": "USB + SIM slot",
+        "price": 30,
+        "pros": ["4G LTE connectivity", "GPS included", "AT command support", "Industrial grade"],
+        "cons": ["Needs SIM card", "Antenna required"],
+        "best_for": ["survival", "research", "security"],
+    },
+    "wifi_antenna_pigtail": {
+        "name": "SMA Pigtail Cable (RP-SMA / SMA)",
+        "type": "Antenna Cable",
+        "connector": "RP-SMA to U.FL / SMA to U.FL",
+        "length_options": ["10cm", "20cm", "30cm"],
+        "price_range": "$2-$5",
+        "pros": ["Internal WiFi to external antenna", "Clean build", "Various connectors"],
+        "cons": ["Needs soldering or U.FL clip"],
+        "best_for": ["security", "coding", "research"],
+    },
+}
+
+# ============================================================
 # COMPATIBILITY RULES
 # ============================================================
 COMPAT_RULES = {
@@ -1560,7 +1722,7 @@ class BuildGenerator:
             "|---|-----------|------|-------|",
         ]
         idx = 1
-        for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling", "pcb", "wire_signal", "wire_power"]:
+        for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling", "pcb", "wire_signal", "wire_power", "connectivity"]:
             comp = build["components"].get(key, {})
             if comp:
                 name = comp.get("name", key)
@@ -1605,7 +1767,7 @@ class BuildGenerator:
             "## What You Need",
             "",
         ]
-        for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling", "pcb"]:
+        for key in ["sbc", "display", "keyboard", "power", "enclosure", "cooling", "pcb", "connectivity"]:
             comp = build["components"].get(key, {})
             if comp:
                 lines.append(f"- {comp.get('name', key)}")
@@ -1664,6 +1826,14 @@ class BuildGenerator:
             "2. Boot and complete initial setup.",
             "3. Install any category-specific software (IDE, Kali tools, RetroPie, etc.).",
             "4. Test all hardware: display, keyboard, cooling, power management.",
+            "",
+            "### Step 9: Configure Connectivity",
+            "1. If using WiFi adapter: plug into USB 3.0 port, install drivers.",
+            "2. If using Ethernet: connect Cat6 cable to SBC Ethernet port.",
+            "3. If using LoRa: connect module via SPI, install Meshtastic firmware.",
+            "4. If using cellular modem: insert SIM, connect via USB.",
+            "5. Test internet access: `ping 8.8.8.8`",
+            "6. If external antenna: mount and route SMA cable through enclosure.",
             "",
             "## Tips",
         ])
@@ -1841,6 +2011,7 @@ class CyberdeckAgent:
             "wire_signal": ("wire_signal", WIRE_DATABASE),
             "wire_power": ("wire_power", WIRE_DATABASE),
             "os": ("best_os", OS_DATABASE),
+            "connectivity": ("best_connectivity", CONNECTIVITY_DATABASE),
         }
         if component_type not in type_map:
             return {"error": f"Unknown type: {component_type}. Use: {', '.join(type_map.keys())}"}
@@ -1932,6 +2103,7 @@ class CyberdeckAgent:
             "cooling_count": len(COOLING_DATABASE),
             "pcb_count": len(PCB_DATABASE),
             "wire_count": len(WIRE_DATABASE),
+            "connectivity_count": len(CONNECTIVITY_DATABASE),
             "os_count": len(OS_DATABASE),
             "video_queue_pending": self.video_queue.get_pending_count(),
         }

@@ -6323,6 +6323,19 @@ async def main():
                                 lines.append(f"  ${wire['price_per_meter']}/m")
                             await send(chat, "\n".join(lines))
 
+                        elif sub == "connectivity":
+                            from cyberdeck_agent import CONNECTIVITY_DATABASE
+                            lines = ["📡 **WiFi / LAN / LoRa / Cellular Database:**\n"]
+                            for cid, comp in CONNECTIVITY_DATABASE.items():
+                                lines.append(f"• **{comp['name']}** ({comp['type']})")
+                                lines.append(f"  {comp.get('standard', '')} | Price: ${comp.get('price', '?')}")
+                                if comp.get('pros'):
+                                    lines.append(f"  Pros: {', '.join(comp['pros'][:3])}")
+                                if comp.get('best_for'):
+                                    lines.append(f"  Best for: {', '.join(comp['best_for'])}")
+                                lines.append("")
+                            await send(chat, "\n".join(lines))
+
                         elif sub == "status":
                             status = agent.get_status()
                             lines = ["🔧 **Cyberdeck Agent v3.0 Status:**\n"]
@@ -6337,7 +6350,7 @@ async def main():
                             lines.append(f"Keyboards: {status.get('keyboard_count', 0)} | Power: {status.get('power_count', 0)}")
                             lines.append(f"Enclosures: {status.get('enclosure_count', 0)} | Cooling: {status.get('cooling_count', 0)}")
                             lines.append(f"PCBs: {status.get('pcb_count', 0)} | Wires: {status.get('wire_count', 0)}")
-                            lines.append(f"OS Options: {status.get('os_count', 0)}")
+                            lines.append(f"Connectivity: {status.get('connectivity_count', 0)} | OS Options: {status.get('os_count', 0)}")
                             lines.append(f"Video Queue: {status.get('video_queue_pending', 0)} pending")
                             await send(chat, "\n".join(lines))
 
@@ -6355,7 +6368,8 @@ async def main():
                                 "  /cyberdeck upgrade <desc> — Suggest upgrades\n"
                                 "  /cyberdeck cooling — View cooling options\n"
                                 "  /cyberdeck pcb — View PCB/carrier board database\n"
-                                "  /cyberdeck wires — View wire/cable database\n\n"
+                                "  /cyberdeck wires — View wire/cable database\n"
+                                "  /cyberdeck connectivity — View WiFi/LAN/LoRa/cellular database\n\n"
                                 "**Research & Learn:**\n"
                                 "  /cyberdeck search <query> — Search for parts\n"
                                 "  /cyberdeck watch <url> — Learn from YouTube/TikTok video\n"
