@@ -1279,5 +1279,165 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 
 ---
 
+## PCB / CARRIER BOARD DATABASE (Best of Best)
+
+### Pi HATs
+| Board | Type | Pins | Compatibility | Price | Best For |
+|-------|------|------|---------------|-------|----------|
+| **Waveshare UPS HAT (H5180)** | Power | 40-pin passthrough | Pi 5, Pi 4, Pi 3, CM4 | $45 | Coding, Security, Research |
+| **Waveshare Motor HAT** | Motor | 40-pin passthrough | Pi 5, Pi 4, Pi 3, CM4 | $20 | Robotics, IoT |
+| **Waveshare Sensor HAT** | Sensors | 40-pin passthrough | Pi 5, Pi 4, Pi 3, CM4 | $15 | Research, Survival |
+| **Adafruit pHAT / Bonnet** | I2C/SPI | 26-pin GPIO | Pi Zero, Pi 3, Pi 4, Pi 5 | $10-$25 | Writerdeck, Gaming, Media |
+| **SparkFun Qwiic HAT** | I2C | Qwiic connectors | Pi 5, Pi 4, Pi 3, Zero | $10-$20 | Research, AI, Survival |
+
+### Compute Module Carriers
+| Board | Type | Pins | Compatibility | Price | Best For |
+|-------|------|------|---------------|-------|----------|
+| **Waveshare CM5 IO Board** | CM5 carrier | Full 40-pin GPIO + M.2 | CM5 only | $25-$45 | AI, Coding, Security |
+| **Waveshare CM4 IO Board** | CM4 carrier | Full 40-pin GPIO + M.2 | CM4 only | $20-$35 | Gaming, Media, Writerdeck |
+| **ClockworkPi uConsole Kit** | All-in-one kit | CM4/CM5 compatible | CM4/CM5 | $160-$200 | Portable all-in-one |
+
+### Jetson Carriers
+| Board | Type | Compatibility | Price | Best For |
+|-------|------|---------------|-------|----------|
+| **Jetson Orin Nano Dev Kit Carrier** | Official carrier | Jetson Orin Nano only | Included | AI & ML |
+| **Leetop A615 Carrier** | Third-party | Orin Nano/NX | $149 | AI (budget) |
+| **ReComputer J401 Carrier** | Third-party | Orin Nano/NX | $216-$227 | AI (industrial) |
+
+### Custom / Specialty PCBs
+| Board | Type | Compatibility | Price | Best For |
+|-------|------|---------------|-------|----------|
+| **Penkesu Computer PCB** | Clamshell | Pi Zero 2W only | $15-$25 | Writerdeck |
+| **Custom WS2812B Neon LED PCB** | LED strip | ALL | $5-$15 | Conversation Piece |
+| **Hackberry Pi Zero Panel** | External antenna | Pi Zero 2W | Free STL | Security |
+| **Atopile Custom PCB** | Open-source design | Variable | DIY | Advanced builds |
+
+---
+
+## WIRE / CABLE DATABASE (Best of Best)
+
+### Signal Wires
+| Wire | Gauge | Type | Current | Use | Price/m |
+|------|-------|------|---------|-----|---------|
+| **Silicon 26AWG** | 26 AWG | Silicone insulated | 2.2A | Signal, I2C, SPI, UART, GPIO | $0.50 |
+| **Silicon 24AWG** | 24 AWG | Silicone insulated | 3.5A | Fan power, LED strips | $0.60 |
+| **IDC Ribbon Cable** | 28 AWG flat | Flat ribbon | 1A/conductor | DSI display, CSI camera | $2.00/m |
+
+### Power Wires
+| Wire | Gauge | Type | Current | Use | Price/m |
+|------|-------|------|---------|-----|---------|
+| **Silicon 20AWG** | 20 AWG | Silicone insulated | 5A | Battery connections, UPS wiring | $0.80 |
+| **Silicon 18AWG** | 18 AWG | Silicone insulated | 10A | Main power, solar wiring | $1.00 |
+| **Silicon 16AWG** | 16 AWG | Silicone insulated | 15A | Heavy power, motor wiring | $1.20 |
+
+### Specialty / Quick-Connect
+| Wire | Type | Current | Use | Price |
+|------|------|---------|-----|-------|
+| **JST-PH 2.0mm Cables** | Pre-crimped | 2A | Battery BMS, speaker, sensor | $3/set |
+| **USB-C to USB-C (240W PD)** | USB-C PD | 5A @ 48V | Power+data+display | $8/unit |
+| **Silicon 26AWG Neon** | Neon silicone | 2.2A | LED accent, WS2812B data | $0.80/m |
+
+### Wire Selection Rules (per use case)
+| Use Case | Recommended Wire | Gauge |
+|----------|-----------------|-------|
+| Signal / I2C / SPI / UART | Silicon 26AWG | 26 |
+| Fan power / LED strips | Silicon 24AWG | 24 |
+| Battery connections | Silicon 20AWG | 20 |
+| Main power / UPS | Silicon 18AWG | 18 |
+| Solar / heavy power | Silicon 16AWG | 16 |
+| DSI / CSI ribbon | IDC Ribbon | 28 flat |
+| Quick connect (no solder) | JST-PH 2.0mm | 26 pre-crimped |
+| USB-C power delivery | USB-C PD cable | Internal 20+28 |
+| LED neon accent | Silicon Neon 26AWG | 26 |
+
+---
+
+## LATEST 2026 TRENDS (Updated July 2026)
+
+### TikTok Viral Cyberdeck Builds
+| Creator | Build | Viral Moment | Date |
+|---------|-------|--------------|------|
+| **Ube Boobey** | Whimsical purse cyberdeck | WIRED feature, CNN coverage | Apr 2026 |
+| **Annike Tan (CC)** | "Cunty cyberdeck" — purse with pearls, gold, moss | Viral TikTok, Adafruit feature | Mar-Jun 2026 |
+| **Goblin** | Old makeup caboodle converted to Pi | TikTok build series | 2026 |
+| **fulltimemenace** | First cyberdeck build progress | TikTok build logs | Apr 2026 |
+| **pirate2122yt** | Cyberdeck build progress | TikTok build logs | Jun 2026 |
+| **unicoleunicron** | Female maker cyberdeck tutorials | Instagram viral series | 2026 |
+
+**Key Trend:** Young women driving cyberdeck movement on TikTok — turning purses, caboodles, and vintage cases into fully functional computers. WIRED called cyberdecks "the hottest anti-AI gadget" (Apr 2026). CNN covered the rise (Apr 2026). TechCrunch featured the movement (Jun 2026).
+
+### New GitHub Cyberdeck Repos (2026)
+| Repo | SBC | Features | URL |
+|------|-----|----------|-----|
+| **therebelrobot/dinodeck-2026** | Pi Zero 2W | Cellular LTE, LoRa/Meshtastic, 3.5" DPI, thrifted enclosure, $200 | github.com/therebelrobot/dinodeck-2026 |
+| **therustyrobot/cyberdeck** | Any Node.js device | Offline AI, mesh networking, Wikipedia, LLMs, 82 commits | github.com/therustyrobot/cyberdeck |
+| **penk/penkesu** | Pi Zero 2W | Clamshell, 7.9" ultrawide, Corne keyboard, GBA SP hinges | github.com/penk/penkesu |
+| **a8ksh4/chonky-palmtop** | Pi 4 | 7" touch, Corne split pivot, Miryoku firmware | github.com/a8ksh4/chonky-palmtop |
+| **drcode/lisperati1000** | Variable | Lisp-focused cyberdeck | github.com/drcode/lisperati1000 |
+| **unkyulee/micro-journal** | ESP32 | Writerdeck series (4 gens), instant boot, 30% ortho | github.com/unkyulee/micro-journal |
+| **osresearch/mdt9100** | BeagleBone Black | Motorola MDT-9100 police terminal conversion | github.com/osresearch/mdt9100 |
+| **ZitaoTech/Hackberry-Pi_Zero** | Pi Zero 2W | External WiFi antenna, Kali, open-source STL | github.com/ZitaoTech/Hackberry-Pi_Zero |
+| **beepy** | Variable | Cyberdeck OS/platform | github.com/beepy |
+| **ESP32Berry** | ESP32 | Blackberry-style handheld | github.com/ESP32Berry |
+| **boostbox** | Variable | Cyberdeck enclosure system | github.com/boostbox |
+| **gpio-keyboard** | Variable | GPIO keyboard driver | github.com/gpio-keyboard |
+
+### New Hardware Trends (2026)
+| Trend | Details | Status |
+|-------|---------|--------|
+| **NVMe HATs** | Geekworm, Pimoroni, Pineboards — 500-1000 MB/sec, boots from SSD | Mainstream |
+| **RK3588 Carrier Boards** | 8K, 6 TOPS NPU, multiple M.2, WiFi 6 — $80-$190 | Available |
+| **ClockworkPi uConsole Kit** | CM4/CM5, 5" IPS, QWERTY, speakers, battery — off-the-shelf kit | Available |
+| **Hackberry Pi Zero** | External WiFi antenna panel, Kali-ready | Open-source |
+| **Sector 07 Dual-Screen** | Pi 5, two swiveling touchscreens, 3D printed | Open-source |
+| **Jankbu Modular** | Pi 5, sliding screen, NATO rail system, swappable modules | Open-source |
+| **Dinodeck 2026** | Pi Zero 2W, cellular LTE, LoRa/Meshtastic, off-grid | Open-source |
+| **Cyberdeck Red V2** | LattePanda 3 Delta, oscilloscope, HackRF SDR, projector | Hackaday |
+
+### Raspberry Pi Foundation Featured Builds (2026)
+| Build | SBC | Description |
+|-------|-----|-------------|
+| **Mega Six-Screen Cyberdeck** | 3x Pi | Three Raspberry Pis, six screens, orange case |
+| **Amstrad PPC-640 Cyberdeck** | Pi | Vintage Amstrad shell with modern Pi internals |
+| **Super 8 Cyberdeck** | Pi 4 | 1970s Hanimex film viewer conversion |
+| **Clamshell BlackBerry Cyberdeck** | Pi 4 | Blackberry + Pi 4, wooden surround |
+| **PiPipBoy** | Pi | Fallout Pip-Boy wearable, 3D printed |
+| **P-Sea SeaShell** | Pi | Seashell enclosure |
+| **Caboodle Cyberdeck** | Pi | Old makeup caboodle conversion |
+
+### Key Insights from Research
+1. **Anti-AI movement**: Cyberdecks positioned as rejection of big tech surveillance — WIRED, CNN, TechCrunch coverage
+2. **Female makers driving movement**: TikTok women turning purses and vintage cases into viral builds
+3. **NVMe is standard**: Pi 5 PCIe lane + NVMe HAT = proper SSD speed, no more SD card bottleneck
+4. **LoRa/Meshtastic**: Off-grid mesh networking is a major trend (dinodeck, therustyrobot)
+5. **Modular design**: NATO rails, swappable modules, upgrade-friendly enclosures
+6. **Commercial kits emerging**: ClockworkPi uConsole as off-the-shelf option
+7. **RK3588 as Pi alternative**: 8K, 6 TOPS NPU, multiple M.2 — serious Pi 5 alternative for AI builds
+8. **Vintage shell conversions**: Amstrad, BlackBerry, Motorola police terminals — retro shells with modern guts
+9. **Open-source everything**: STL files, firmware, schematics all on GitHub — community collaboration
+10. **Writerdecks mature**: Micro Journal series (4 gens), Penkesu, Chonky Palmtop — refined single-purpose machines
+
+### Sources Compiled
+1. Vapor95 — Complete 2026 guide (Jul 2026)
+2. Raspberry Pi Blog — "In celebration of cyberdecks" (Apr 2026)
+3. WIRED — "The Hottest Anti-AI Gadget Is a Cyberdeck" (Apr 2026)
+4. CNN — "Inside the rise of cyberdecks" (Apr 2026)
+5. TechCrunch — Cyberdecks rejecting big tech (Jun 2026)
+6. Adafruit — Cyberdeck TikTok coverage (May 2026)
+7. Hackaday — Cyberdeck tag (ongoing, Jul 2026)
+8. GitHub — therebelrobot/dinodeck-2026, therustyrobot/cyberdeck
+9. Geeky Gadgets — DIY modular cyberdeck (May 2026)
+10. Tom's Hardware — Sector 07 dual-screen cyberdeck (2025)
+11. Core Electronics — Raspberry Pi SDR cyberdeck (Jan 2026)
+12. Reddit r/cyberDeck — Active community (2026)
+13. cyberdeck.cafe — Build guide
+14. PCBSync — Raspberry Pi cyberdeck guide
+15. Betechit — Personal cyberdeck building
+16. MakeUseOf — Best Raspberry Pi cyberdecks
+17. TheWearify — Best cyberdecks
+18. Jalexine Lab — Build your first cyberdeck
+
+---
+
 *Compiled from 15+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok (@ubeboobey, @alexinexxx, @metamerd, @carternosko), SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek — July 2026*
 *OpenCode Bot Cyberdeck Agent Knowledge Base v2.0*
