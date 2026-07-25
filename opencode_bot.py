@@ -2459,7 +2459,10 @@ async def send(chat, text, parse_mode=None, receiver_user=None):
     if len(raw) <= MAX_TG:
         if receiver_user:
             params["receiver_user_id"] = receiver_user
-        return await tg("sendMessage", params)
+        log(f"SEND to chat={chat}: {raw[:80]}...")
+        result = await tg("sendMessage", params)
+        log(f"SEND result: ok={result.get('ok')} error={result.get('error_code', 'none')}")
+        return result
 
     chunks = []
     while raw:
