@@ -6465,9 +6465,9 @@ async def main():
                                 await send(chat, "No logs.")
                             else:
                                 lines = ["📋 **Recent Activity:**\n"]
-                                for log in logs[-10:]:
-                                    ts = datetime.fromtimestamp(log["time"]).strftime("%H:%M:%S")
-                                    lines.append(f"`{ts}` {log['action']}: {log['details']}")
+                                for entry in logs[-10:]:
+                                    ts = datetime.fromtimestamp(entry["time"]).strftime("%H:%M:%S")
+                                    lines.append(f"`{ts}` {entry['action']}: {entry['details']}")
                                 await send(chat, "\n".join(lines))
                         elif sub == "help":
                             from iot_control import build_iot_commands
