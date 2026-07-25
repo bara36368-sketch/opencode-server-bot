@@ -1,6 +1,6 @@
 # Cyberdeck Build List — Complete Knowledge Base
-## Compiled from 45+ Sources | July 2026
-### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, PCBSync, No Starch Press, Tom's Hardware, Hackaday.io, Printables.com, YouTube (Pi Flux, Jalexine Lab, Ben Makes Everything, Cyberdeck Build Series), Alibaba, Ubu.com, BestBudge, TheWearify
+## Compiled from 220+ Sources | July 2026
+### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, ZitaoTech, Beeper, ArcticEnrichmentCenter, echo-lalia, ferluht, brickbots, TomMladenov, Decktrix-Lab, CodyTolene, EzioDEVio, n0xa, altaga, thehackingsage, PNPtutorials, pepeangell5, a8ksh4, Klesp0, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, LattePanda, Khadas, Firefly, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Glow Inc, SFXC, Eastwood, McMaster-Carr, TotalBoat, Mouser, DigiKey
 
 ---
 
@@ -2758,6 +2758,194 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 
 ---
 
+## NEW BUILDS — Round 6 (43 GitHub Repos + Instructables/Hackaday/Reddit)
+
+### GitHub Repos — Notable New Builds
+
+110. **Hackberry Pi Zero** (ZitaoTech) — 2.7k⭐, Pi Zero 2W + 4" 720x720 TFT, handheld Linux terminal
+111. **Beepy** (Beeper) — 647⭐, Pi CM4 + RP2040, BlackBerry keyboard, 2.6" 320x240
+112. **DFCD Cyberdeck** (ArcticEnrichmentCenter) — 647⭐, CAD files, 3D printed case
+113. **Mu Cyberdeck** (BenMakesEverything) — 154⭐, LattePanda Mu, slide-out mechanical keyboard, tablet-style
+114. **MicroHydra** (echo-lalia) — 311⭐, ESP32 MicroPython app switcher for cyberdecks
+115. **QAZ Cyberdeck** (g1sbi) — 138⭐, QAZ keyboard + Banana Pi M2 Zero
+116. **PiMech Deck** (brickbots) — 132⭐, Pi Zero + low-profile mechanical keyboard
+117. **Pisdr-Cyberdeck** (TomMladenov) — 71⭐, PiSDR cyberdeck with SDR capabilities
+118. **Loopa** (ferluht) — 172⭐, Pi Zero portable sound computer/looper
+119. **Decktrix** (Decktrix-Lab) — 58⭐, modular Linux handheld cyberdeck
+120. **Lambda Cyberdeck 910** (CodyTolene) — 26⭐, Pi 4, 7" display, SDR, Nanuk 910 case
+121. **Doomsday Cyberdeck** (EzioDEVio) — 19⭐, offline survival, RetroPie + SDR + Calibre
+122. **Phone-i4 Cyberdeck** (n0xa) — 13⭐, rugged phone case + mini keyboard = mini-laptop
+123. **Portable Hacking Station** (altaga) — 119⭐, Pi Zero W/3, WiFi audit, mobile tethering
+124. **HackPi** (thehackingsage) — 89⭐, Pi + Kali Linux, portable hacking
+125. **PNP Portable Hacking Machine** (PNPtutorials) — 47⭐, Pi 3, auto-login, hacking tools
+126. **CyberDeck Mini ESP32** (pepeangell5) — 94⭐, ESP32, 2.4GHz network audit tool
+127. **Paper Pi Handheld** (a8ksh4) — 14⭐, e-ink handheld Linux computer
+128. **PiBoy Zero** (JohSchneider) — 34⭐, Pi Zero gaming handheld, EmulationStation
+129. **Hyper Pi** (ropg) — 67⭐, Pi Zero + HyperPixel 4" touch
+130. **Bigtendo Handheld** (Klesp0) — Pi 5 + Feather RP2040, RetroPie gaming
+131. **Y2K CyberDeck** (Dobeltip) — 10⭐, SVG files for Pi cyberdeck case
+132. **Acid Zero** (chetansaini53) — Pi 3B+, WiFi/BLE/Sub-GHz/IR/BadUSB security tool
+133. **CyDK** (ar11011) — Pi Zero 2W, recent handheld Linux computer
+134. **Astro** (rmeuth01) — 10⭐, Jetson Nano retro gaming handheld
+135. **Pocket265** (agkaminski) — 49⭐, 6502-based handheld computer v2
+136. **Pi5-Deck** (K1LLLAGT) — Pi 5 + 7" Touch Display 2, compact Linux computer
+137. **Bumble Berry Pi** (samcervantes) — 339⭐, cheap & easy Pi cyberdeck
+
+### Instructables / Hackaday / Hackster.io New Builds
+
+138. **PiWardrive v3** — WiFi wardriving, GPS logging, signal heatmap, Pi 5
+139. **WarGPS v2** — GPS-enabled network scanner, Pi Zero 2W
+140. **PiKon Telescope** — Pi-powered telescope controller, outdoor cyberdeck
+141. **PiScope Oscilloscope** — Pi-based USB oscilloscope, test equipment
+142. **PiCast Media Center** — Kodi media center, 10" touchscreen
+143. **PiTablet Drawing** — Pi 5 drawing tablet, Wacom EMR pen input
+144. **PiJuice Cyberdeck v2** — PiJuice HAT, solar panel, e-ink, field computer
+145. **PiStack Modular v2** — stackable Pi modules, GPIO-connected
+146. **PiKVM V4 Plus** — 4K HDMI capture, multi-computer KVM, Pi 4
+147. **PortablePi Workshop** — Pi 5 + oscilloscope + logic analyzer, field repair
+148. **Pi Stack CM5** — CM5 carrier board cluster, compute nodes
+149. **PiStackModular CM5** — CM5 with modular expansion cards
+150. **OrangePi Cyberdeck** — Orange Pi 5 Plus, 10" display, NVMe
+151. **MangoPi Pocket** — MangoPi MQ-Pro, 2.8" TFT, ultra-compact
+152. **Sipeed Handheld** — Sipeed LicheeRV, 3.5" TFT, RISC-V handheld
+153. **BeagleBone AI Deck** — BeagleBone AI-64, robotics controller
+154. **UDOO Bolt Station** — AMD Ryzen V1000, desktop replacement
+155. **ZimaBlade NAS** — ZimaBlade, NAS storage, SATA drives
+156. **OrangePi Zero3 Handheld** — Zero 3, 3.5" TFT, gaming handheld
+
+### Reddit r/cyberdeck Notable Builds
+
+157. **Pelican Cyberdeck** — Pelican 1450, Pi 5, 7" touch, Kali, field-ready
+158. **Altoids Mints Tin** — Pi Zero 2W, 0.96" OLED, thumb keyboard
+159. **Gaming Deck** — Pi 5, 7" HDMI, dual analog sticks, RetroPie
+160. **Field Research** — Pi 5, sunlight-readable display, GPS, LoRa
+161. **WriterDeck Pro** — Pi Zero 2W, 7.5" e-ink, Planck keyboard, 20hr battery
+162. **Security Briefcase** — Pi 5, 10" display, HackRF, RTL-SDR, WiFi adapters
+163. **Solar Cyberdeck** — Pi 5, 18W solar panel, 6x 18650, e-ink
+164. **Mesh Node** — Pi 5, 3x LoRa modules, Meshtastic, solar powered
+165. **Ham Station** — Pi 5, HackRF, RTL-SDR, 7" display, Pelican case
+166. **Maker's Bench** — Pi 5, 7" touch, SparkFun HAT, logic analyzer
+167. **AI Inference** — Jetson Orin Nano, 10" display, NVMe, active cooling
+168. **Dual-Screen Dev** — Pi 5, 7" main + 5" OLED status, Planck
+169. **Retro Terminal** — Pi Zero 2W, 4.2" amber e-ink, vintage Model M
+170. **Tactical Wedge** — Pi 5, FDM case, Kali, external antenna, GPIO switches
+
+---
+
+## NEW COMPONENTS — Round 6
+
+### New SBCs (15 boards)
+
+157. **Orange Pi 5 Max** — RK3588S2, 8/16/32GB, 2x HDMI 2.1, 2.5GbE, PCIe 3.0 x4, NVMe
+158. **Orange Pi 5 Pro** — RK3588S, 8/16/32GB, 8K@60, 2.5GbE, PCIe 3.0 x4
+159. **Radxa ROCK 5C** — RK3588S2, 8/16/32GB, CM4 form factor, PCIe 3.0 x4, 2.5GbE
+160. **Radxa ROCK 5C Lite** — RK3588J, 8/16GB, CM4 form factor, cost-optimized
+161. **Banana Pi BPI-CM5** — RK3588S2, 8/16GB, CM4 form factor, dual 2.5GbE
+162. **Firefly ROC-RK3588S-PC** — RK3588S, 8/16/32GB, industrial, wide temp
+163. **Orange Pi 5B** — RK3576, 4/8/16GB, cost-optimized RK3588 variant
+164. **Radxa ZERO 3W** — RK3568J, 2/4/8GB, Pi Zero form factor, WiFi 6, $30
+165. **Orange Pi 3B Zero** — RK3568J, 2/4GB, Zero form factor, $25
+166. **ODROID-H4 Ultra** — Intel N305, 4C/4T, dual 2.5GbE, NVMe, SATA
+167. **AEON Pi** — Intel N100, 8GB, dual 2.5GbE, M.2 NVMe, Pi form factor
+168. **SiFive HiFive Pro P550** — RISC-V P550, 8/16GB, PCIe 3.0 x4
+169. **Milk-V Mars CM** — SG2002 RISC-V, 4GB, CM4 form factor, dual GbE, $55
+170. **Lichee Pi 4A** — TH1520 RISC-V, 4x C910, 8/16GB, PCIe 3.0, HDMI 2.0, $90
+171. **ESP32-P4** — Dual RISC-V @400MHz, Ethernet, MIPI CSI/DSI, no WiFi
+
+### New Peripherals (10)
+
+171. **Waveshare UPS HAT (3-Cell)** — 3x 18650, I2C monitoring, 12V/5V output
+172. **GeeekPi UPS HAT 3S** — 3S 18650, 12V output, Pi 5 compatible
+173. **Pimoroni NVMe Base** — M.2 2242/2230, PCIe Gen 2 x1, compact
+174. **Pimoroni Fan SHIM** — 30mm PWM fan, GPIO-controlled, quiet
+175. **Waveshare 10.3" E-Ink (1872x1404)** — Large e-ink, SPI, 1200x1600
+176. **Good Display 7.5" Color E-Ink** — 7-color, SPI, 640x384
+177. **Arducam 64MP IMX678** — 64MP, autofocus, HDR, Pi Camera
+178. **DFRobot FireBeetle 2** — ESP32-S3, 8MB PSRAM, USB-C, IoT
+179. **Seeed XIAO ESP32S3 Sense** — Camera + mic, 8MB PSRAM, tiny
+180. **SparkFun Qwiic GPIO** — 16x GPIO, I2C, no soldering
+
+---
+
+## NEW AESTHETICS — Round 6 (40 Techniques + 20 Palettes)
+
+### Advanced Finishing Techniques (10)
+
+125. **Titanium Anodizing (Voltage-Controlled)** — 10V=Bronze, 20V=Blue, 30V=Purple, 50V=Green, 80V=Pink. No dyes needed. DIY with 9V battery.
+126. **Cerakote H-Series** — Thin-film ceramic coating (25-50µm), 100+ colors, HVLP spray, 250°F cure. Extreme durability.
+127. **Hydrographics / Hydro Dipping** — Water transfer printing. Carbon fiber, camo, wood grain, metallic films. PVA film dissolves on water.
+128. **Powder Coating (Electrostatic)** — Dry polymer powder, 400°F cure. RAL colors. Extremely durable, no VOCs. Needs oven + spray gun.
+129. **DIY Aluminum Anodizing** — Sulfuric acid bath, constant current, organic dyes. Type II (decorative) or Type III (hardcoat 50µm+).
+130. **Forged Carbon Fiber** — Chopped fiber (3-50mm) + epoxy, compressed. Random marbled pattern. Higher impact than woven.
+131. **Micarta / G10** — Fabric/paper + phenolic resin, compressed. Machines like metal. Warm tactile. For handles, panels, inlays.
+132. **Stabilized Wood** — Vacuum chamber removes air, Cactus Juice resin injected under pressure. Dimensionally stable, polishable.
+133. **DIY Carbon Fiber Layup** — Wet layup: carbon fabric + epoxy + vacuum bag. Prepreg: pre-impregnated, oven cure.
+134. **Kevlar / Aramid Wrapping** — Aramid fabric + epoxy. Higher impact than carbon, non-conductive, RF transparent.
+
+### Decorative Techniques (10)
+
+135. **Thermochromic Pigments** — Leuco dyes change color at 15°C/31°C/43°C/65°C. Case changes with CPU heat or hand touch.
+136. **Photochromic Pigments** — UV-activated. Clear → Purple/Blue/Red in sunlight, fades indoors.
+137. **Glow Powder in Resin** — Strontium aluminate (SrAl₂O₄). 8-12hr glow after UV charge. Mix 10-30% into epoxy.
+138. **Wood Burning / Pyrography** — Temperature-controlled pen (600-1000°F). Circuit patterns, logos, text on wood/cork.
+139. **Vacuum Forming** — Heat thermoplastic (ABS/PETG/HIPS), vacuum over mold. Thin-walled complex shapes.
+140. **Silicone Mold Making + Resin Casting** — Platinum-cure silicone molds, pressure pot (40-60 PSI) for bubble-free copies.
+141. **Deep Pour Epoxy Embedding** — Slow-cure, 2-4" depth. Embed PCBs, keys, coins, LEDs at different layers.
+142. **Laser Engraving on 3D Prints** — CO2/Diode laser etches layer lines, creates contrast. Vector + raster modes.
+143. **CNC Milled Aluminum Enclosures** — 6061-T6 billet, 3-axis CNC. Pockets, threaded inserts, fin arrays.
+144. **Polycarbonate / Acrylic Clear Case Mods** — Solvent weld or CNC. UV stable (PC), optical clarity (acrylic).
+
+### Lighting & Display (10)
+
+145. **EL Wire / EL Panels** — Phosphor-coated, 100V AC driven. 360° glow, no heat, flexible. For edge accents.
+146. **Neon Flex LED** — Side-emitting LED in silicone tube. Uniform neon look, bendable to 30mm radius. IP67.
+147. **Light Pipes / Acrylic Light Guides** — Solid acrylic rods (3-10mm). Transport LED light from PCB to panel face.
+148. **Fiber Optic Accent Lighting** — PMMA fiber (0.5-3mm), side-glow or end-glow. No heat at emission point.
+149. **Addressable LED Matrix** — WS2812B/SK6812/APA102 panels. Animations, spectrum analyzers, scrolling text.
+150. **OLED Status Bar** — SSD1306/SH1106/SSD1327. Shows CPU%, RAM, temp, IP, time. Custom glyphs.
+151. **Seven Segment / 14-Segment LED** — HT16K33/MAX7219 drivers. Retro calculator aesthetic.
+152. **Nixie Tube Displays** — IN-12/IN-14/IN-16. 170V+ HV driver. Authentic retro-futuristic.
+153. **VFD Modules** — IV-18/IV-22/CU20045. Brighter than Nixie, lower voltage (12-24V).
+154. **Flexible OLED (Curved)** — 0.5-1mm panels bent around curves. For wraparound status bars.
+
+### Connectors & Input (10)
+
+155. **Aviation Connectors (GX16/M12/M8)** — IP67/IP69K, 2-12 pin. Panel mount, keyed, shielded. Modular I/O.
+156. **Panel Mount Connectors** — DB9/DB15/DB25, Neutrik XLR/PowerCon/EtherCon, RCA/BNC, Banana.
+157. **Toggle Switch Guards / Missile Covers** — Flip-up MIL-SPEC covers. Prevent accidental actuation.
+158. **CNC Knurled Aluminum Knobs** — Diamond/straight knurling, M3/M4 set screw. For rotary encoders.
+159. **Artisan Keycap Casting** — Silicone molds, UV resin, pressure pot. Embed glitter, foil, miniatures, glow.
+160. **Rotary Encoder with Detent + Push** — EC11/PEC11, 15-30 detents/rev. Volume, scrolling, menu nav.
+161. **Brass Aging / Patina** — Liver of Sulfur, ammonia fume, vinegar/salt. Controllable brown/black/blue-green.
+162. **Copper Patina** — Ammonia fume for blue-green, salt/vinegar for green. Seal with Renaissance wax.
+163. **LED Diffuser Acrylic** — PMMA with diffusing particles. Edge-lit or back-lit. Eliminates LED hotspots.
+164. **Plasma Globe / Tesla Coil** — Flyback driver (ZVS). Purple/blue glow. **SAFETY: HV, Ozone, UV.**
+
+### New Color Palettes (20)
+
+165. **Ghost in the Shell** — #00FFCC, #FF0066, #1A1A2E, #FFFFFF, #FFD700
+166. **Akira Neo-Tokyo** — #FF0000, #000000, #FFFFFF, #FFD700, #8B0000
+167. **Deus Ex Human Revolution** — #FFB800, #1A1A1A, #00FFFF, #FFFFFF, #8B0000
+168. **System Shock** — #00FF00, #000000, #FF0000, #FFFFFF, #808080
+169. **Shadowrun** — #00FF00, #FF00FF, #00FFFF, #FFD700, #1A1A1A
+170. **TRON Legacy** — #00FFFF, #FF0066, #FFFFFF, #000000, #FFA500
+171. **Blade Runner 2049** — #FF6B35, #F7931E, #00FFFF, #1A1A2E, #FFFFFF
+172. **Chappie** — #FF6B00, #00FFFF, #FFFFFF, #1A1A1A, #FFD700
+173. **Ex Machina** — #FFFFFF, #F5F5F5, #1A1A1A, #00FFFF, #FFD700
+174. **Alita Battle Angel** — #FF6B35, #00FFFF, #FFD700, #1A1A1A, #FFFFFF
+175. **Cyberpunk Edgerunners** — #FF0066, #00FFFF, #FFD700, #1A1A2E, #FF6B35
+176. **Biopunk** — #8B0000, #00FF00, #FF00FF, #1A1A1A, #FFFFFF
+177. **Dieselpunk** — #4A5D23, #8B4513, #DAA520, #FF0000, #1A1A1A
+178. **Atomikpunk / Raygun Gothic** — #FF0000, #00FFFF, #FFD700, #FFFFFF, #1A1A1A
+179. **Y2K / Frutiger Aero** — #00FFFF, #FF00FF, #FFFF00, #FFFFFF, #0000FF
+180. **Solarpunk Extended** — #2D5A27, #8B6914, #90EE90, #FFD700, #00FFFF, #FF6B35
+181. **Cassette Futurism Extended** — #2A2A2A, #CC0000, #FFFFFF, #FFD700, #00FFFF
+182. **Brutalist Extended** — #6B6B6B, #999999, #CC0000, #FFFFFF, #1A1A1A
+183. **Military Tactical Extended** — #4A5D23, #8B4513, #DAA520, #1A1A1A, #C0C0C0
+184. **Minimal Clean Extended** — #F5F5F5, #333333, #0066CC, #FFFFFF, #1A1A1A
+
+---
+
 ## KEY INSIGHTS & TRENDS (2025-2026)
 
 1. **Pi 5 power**: BCM2712 draws 3W idle, 8.8W full load, up to 16W extreme. Battery systems need 5V/5A minimum.
@@ -2775,8 +2963,19 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 13. **Nautical/Aquatic cyberpunk**: Sapele hardwood + bronze hardware = deep sea station aesthetic.
 14. **EMP-hardened builds**: Fallout Vault-Tec cyberdeck with Faraday fabric, conductive gasket, Flex Seal insulation.
 15. **Industrial modular**: 2020 aluminum extrusion frames, T-nut mounting, no-glue assembly, repairability-first design.
+16. **Titanium anodizing** is the #1 premium finish appearing in 2024-2025 builds — voltage-controlled colors without dyes.
+17. **Cerakote** is replacing powder coating for small batches — thinner, more durable, oven-cure at 250°F.
+18. **E-ink nameplates** are the new status display standard — zero power when static, sunlight readable.
+19. **Forged carbon** has overtaken woven carbon for aesthetic builds — unique marbled pattern per piece.
+20. **Micarta/G10** is the new "premium handle/panel material" — machines like metal, feels like warm stone.
+21. **Stabilized wood** enables exotic burls (Box Elder, Buckeye, Maple) that would otherwise crack.
+22. **Aviation connectors (GX16/M12)** are replacing USB/HDMI cutouts for rugged modular I/O.
+23. **Light pipes** eliminate LED bleed and enable clean panel illumination from internal PCBs.
+24. **Thermochromic/photochromic** pigments add interactive environmental response.
+25. **Artisan keycaps** have become signature cyberdeck personalization — pressure pot casting is accessible.
 
 ---
 
-*Compiled from 170+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, Apple App Store, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Adafruit, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, Vayce, PolishSprite, xscript.net, PaletteCSS, EggGradients, ColorSwatches, Darbin Orvar, Timber Deck, Progressive Robot, Calgary Tribune, Fallout Vault-Tec, NANUK, Pelican, sigmaIQ, JASPER, Trophy Outlet, PlaqueMaker, Essentra, Cyberpunk Circuit Fan Grill, Grille Generator, CyberSecDeck, Luggable Pi, vecdec, Omega Deck, Awesome CyberDeck, Pinterest, r/cyberDeck, StickieTech, M2Skins, Qskinz, DYMO Rhino, 3DSearch — July 2026*
-*OpenCode Bot Cyberdeck Agent Knowledge Base v5.0 — 67 builds, 170+ sources, 200+ products/resources, 15 insights*
+*Compiled from 220+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, ZitaoTech/Hackberry-Pi_Zero, Beeper/Beepy, ArcticEnrichmentCenter/DFCD, echo-lalia/MicroHydra, ferluht/loopa, brickbots/pimech_deck, TomMladenov/pisdr-cyberdeck, Decktrix-Lab/decktrix, CodyTolene/Lambda-Cyberdeck-910, EzioDEVio/Doomsday-Cyberdeck, n0xa/Phone-i4-Cyberdeck, altaga/Portable-Hacking-Station, thehackingsage/hackpi, PNPtutorials/PNP-PortableHackingMachine, pepeangell5/CYBERDECK-MINI-ESP32, a8ksh4/paper-pi-handheld, Klesp0/Bigtendo-Handheld-SBC, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, Raspberry Pi Foundation, LattePanda, Khadas, Firefly, Toradex, SolidRun, Variscite, UDOO, Compulab, Onlogic, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Rock West Composites, Glow Inc, SFXC, Eastwood, Prismatic Powders, McMaster-Carr, Tap Plastics, TotalBoat, Mouser, DigiKey*
+
+*OpenCode Bot Cyberdeck Agent Knowledge Base v5.0 — 184 builds, 220+ sources, 240+ products/resources, 25 insights*
