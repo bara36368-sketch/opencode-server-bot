@@ -1605,6 +1605,7 @@ class BuildGenerator:
             "wire_signal": cat.get("wire_signal", "silicon_26awg"),
             "wire_power": cat.get("wire_power", "silicon_18awg"),
             "os": cat.get("best_os", "raspberry_pi_os"),
+            "connectivity": custom_parts.get("connectivity") if custom_parts and custom_parts.get("connectivity") else cat.get("best_connectivity", "cat6_flat"),
         }
         if custom_parts:
             for k, v in custom_parts.items():
@@ -1625,10 +1626,11 @@ class BuildGenerator:
         wire_signal = WIRE_DATABASE.get(components.get("wire_signal", "silicon_26awg"), WIRE_DATABASE["silicon_26awg"])
         wire_power = WIRE_DATABASE.get(components.get("wire_power", "silicon_18awg"), WIRE_DATABASE["silicon_18awg"])
         os_info = OS_DATABASE.get(components.get("os", "raspberry_pi_os"), {})
+        connectivity_info = CONNECTIVITY_DATABASE.get(components.get("connectivity", "cat6_flat"), {})
         total_price = (
             sbc_info.get("price", 0) + display_info.get("price", 0) +
             power_info.get("price", 0) + enclosure_info.get("price", 0) +
-            cooling_info.get("price", 0)
+            cooling_info.get("price", 0) + connectivity_info.get("price", 0)
         )
         return {
             "category": cat["name"],
@@ -1646,6 +1648,7 @@ class BuildGenerator:
                 "wire_signal": {"id": components.get("wire_signal", ""), **wire_signal},
                 "wire_power": {"id": components.get("wire_power", ""), **wire_power},
                 "os": {"id": components.get("os", ""), **os_info},
+                "connectivity": {"id": components.get("connectivity", ""), **connectivity_info},
             },
             "compatibility": compat,
             "total_price_estimate": f"${total_price}",
