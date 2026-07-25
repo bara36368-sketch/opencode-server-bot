@@ -7894,6 +7894,45 @@ async def main():
                     except Exception as e:
                         await send(chat, f"Backup error: {e}")
 
+                elif cmd == "/backup-keys":
+                    if not is_owner:
+                        await send(chat, "Owner only.")
+                        continue
+                    try:
+                        import key_backup
+                        sub_backup = parts[1].lower() if len(parts) > 1 else "save"
+                        if sub_backup == "save":
+                            result = key_backup.backup_keys()
+                            if result.get("success"):
+                                await send(chat, f"Keys backed up: {result['count']} keys\nTimestamp: {result['timestamp']}")
+                            else:
+                                await send(chat, f"Backup failed: {result.get('error', 'unknown')}")
+                        elif sub_backup == "restore":
+                            result = key_backup.restore_keys()
+                            if result.get("success"):
+                                await send(chat, f"Keys restored: {result['count']} keys\nRestored: {', '.join(result.get('restored', [])[:10])}")
+                            else:
+                                await send(chat, f"Restore failed: {result.get('error', 'unknown')}")
+                        elif sub_backup == "list":
+                            info = key_backup.list_backed_up()
+                            if info.get("success"):
+                                lines = [f"Keys backed up: {info['count']}\nTimestamp: {info['timestamp']}\nChecksum: {info['checksum']}\n"]
+                                for k, v in info.get("keys", {}).items():
+                                    lines.append(f"  {k}: {v}")
+                                await send(chat, "\n".join(lines))
+                            else:
+                                await send(chat, f"No backup: {info.get('error', 'unknown')}")
+                        elif sub_backup == "check":
+                            missing = key_backup.check_missing_keys()
+                            if missing:
+                                await send(chat, f"Missing keys: {', '.join(missing)}\nUse /backup-keys restore to fix")
+                            else:
+                                await send(chat, "All critical keys present in .env")
+                        else:
+                            await send(chat, "Usage:\n/backup-keys save — Backup all keys\n/backup-keys restore — Restore keys from backup\n/backup-keys list — Show backed up keys (masked)\n/backup-keys check — Check for missing keys")
+                    except Exception as e:
+                        await send(chat, f"Key backup error: {e}")
+
                 elif cmd == "/restore":
                     if not is_owner and not is_admin:
                         await send(chat, "Owner/Admin only.")

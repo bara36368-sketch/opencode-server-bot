@@ -35,6 +35,23 @@ def _security_check():
 
 _security_check()
 
+# Auto-backup/restore keys on startup
+try:
+    import key_backup
+    missing = key_backup.check_missing_keys()
+    if missing:
+        log(f"Missing critical keys: {missing}, attempting restore...", "keys")
+        restore_result = key_backup.restore_keys()
+        if restore_result.get("success"):
+            log(f"Keys restored: {restore_result.get('count', 0)} keys", "keys")
+        else:
+            log(f"Key restore failed: {restore_result.get('error', 'unknown')}", "keys")
+    backup_result = key_backup.auto_backup_on_startup()
+    if backup_result.get("action") == "backed_up":
+        log(f"Auto-backup: {backup_result.get('count', 0)} keys saved", "keys")
+except Exception as e:
+    log(f"Key backup system error (non-fatal): {e}", "keys")
+
 DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(DIR, "runner.log")
 CRASH_LOG = os.path.join(DIR, "crash.log")
