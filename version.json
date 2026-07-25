@@ -1,5 +1,5 @@
 {
-  "version": "3.7.137",
+  "version": "3.7.138",
   "updated": "2026-07-25",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -35,6 +35,7 @@
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)",
     "Cyberdeck Agent v4.0 -- 10 classes, 100 components, cable routing, pack generation, flaw detection, image/video understanding, 13 categories, 4 tiers, 100% compatibility, WiFi/LAN enforced, continuous learning (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status/pcb/wires/connectivity/cables/pack/flaws/learn/search-web/optimize/stats)",
     "Cyberdeck Agent v5.0 -- 3359+ lines, 6 new styles, 6 new categories, peripheral recommendation engine, antenna calculator, battery sizing, forensics module, test equipment, ham radio, 15+ new databases (environmental, cameras, SDR, LoRa, NFC, fingerprint, haptics, IMU, color palettes, aesthetic materials, thermal interface)",
+    "Cyberdeck Agent v5.2 -- Custom Builder (/cyberdeck cb): interactive mix-and-match component picker with real-time pricing, compatibility checks, build summaries. 6 new SBCs (Radxa Dragon Q8B, Orange Pi RV2, Banana Pi BPI-F3, ArmSoM CM1, ZimaBoard 2, Pi 500), 7 new displays (Pimoroni Presto, Waveshare 13.3\" e-ink, Inky Impression 7.3\", 4\" RPi LCD), NVMe SSD database (6 options), MicroSD/eMMC storage, uConsole expansion cards (5), total 200+ components with full specs and prices",
     "IoT Control Dashboard \u2014 ESP32/Arduino/Pi device control, GPIO pin management, sensor monitoring, alerts, schedules (/iot add/list/status/pin/sensor/alert/schedule/logs/simulate)",
     "Education & Games \u2014 quizzes with scoring, spaced repetition flashcards, Wordle, Hangman, math challenges, code challenges, leaderboards (/edu quiz/wordle/hangman/math/code/review/top/stats/achievements)",
     "Finance & Crypto Tracker \u2014 crypto prices, portfolio management, price alerts, watchlists, currency conversion (/fin price/market/convert/buy/sell/portfolio/alert/watch/info)",

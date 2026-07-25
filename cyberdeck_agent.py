@@ -572,6 +572,12 @@ SBC_DATABASE = {
     "pi_zero_2w": {"name": "Raspberry Pi Zero 2 W", "cpu": "BCM2710A1 Cortex-A53 @ 1GHz quad-core", "ram": "512MB LPDDR2", "gpu": "VideoCore IV", "storage": "MicroSD", "connectivity": "WiFi (2.4GHz), BT 4.2, 1x USB OTG, mini-HDMI", "gpio": "40-pin GPIO header (unpopulated)", "video_output": "mini-HDMI (1080p)", "price": 15, "power_draw": "5V/2.5A micro-USB", "form_factor": "65mm x 30mm", "pros": ["Tiny", "Ultra cheap", "Low power", "Perfect for writerdeck"], "cons": ["512MB RAM limits multitasking", "mini-HDMI needs adapter"], "best_for": ["writerdeck", "conversation", "survival"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "mini-HDMI 1080p@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "mini-HDMI, micro-USB power", "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
     "cm5": {"name": "Raspberry Pi CM5 16GB", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "16GB LPDDR4X", "gpu": "VideoCore VII", "storage": "eMMC + MicroSD + NVMe", "connectivity": "PCIe Gen 3 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 110, "power_draw": "5V/4A", "form_factor": "55mm x 40mm (module only)", "pros": ["Most powerful compute module", "Industrial grade", "NVMe", "eMMC"], "cons": ["Needs carrier board", "More complex"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Depends on carrier", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Depends on carrier board", "power_consumption_w": 12, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "high", "failure_rate": "low"}},
     "cm4": {"name": "Raspberry Pi CM4 8GB", "cpu": "BCM2711 Cortex-A72 @ 1.5GHz quad-core", "ram": "8GB LPDDR4", "gpu": "VideoCore VI", "storage": "eMMC + MicroSD", "connectivity": "PCIe Gen 2 x1, USB 3.0, GbE", "gpio": "2x 100-pin connectors", "video_output": "Depends on carrier board", "price": 55, "power_draw": "5V/3A", "form_factor": "55mm x 40mm (module only)", "pros": ["Mature ecosystem", "Cheap", "Lots of carrier boards"], "cons": ["Needs carrier board"], "best_for": ["gaming", "media", "writerdeck"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Depends on carrier", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Depends on carrier board", "power_consumption_w": 7, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "radxa_dragon_q8b": {"name": "Radxa Dragon Q8B (Snapdragon 8cx)", "cpu": "Snapdragon 8cx Gen 3 (8-core Kryo)", "ram": "32GB LPDDR5X", "gpu": "Adreno 690", "storage": "NVMe M.2 + eMMC", "connectivity": "WiFi 6E, BT 5.2, 2.5GbE, USB 3.2, Thunderbolt 4", "gpio": "40-pin GPIO", "video_output": "USB-C DP + HDMI 2.1", "price": 350, "power_draw": "15W-25W", "form_factor": "120mm x 80mm", "pros": ["ARM laptop-class CPU", "32GB RAM", "Thunderbolt 4", "NPU 40 TOPS"], "cons": ["Very expensive", "Linux support limited", "Needs active cooling"], "best_for": ["ai", "coding", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.1 4K@120Hz", "refresh_rate_hz": 120, "brightness_nits": 0, "interface": "USB-C DP, HDMI 2.1", "power_consumption_w": 20, "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "fair", "community_usage": "low", "failure_rate": "low"}},
+    "orange_pi_rv2": {"name": "Orange Pi RV2 16GB (RISC-V)", "cpu": "SpacemiT K1 8-core RISC-V @ 2.0GHz", "ram": "16GB LPDDR4X", "gpu": "Imagination BXE-4-32", "storage": "eMMC + MicroSD + NVMe", "connectivity": "WiFi 6, BT 5.4, GbE, USB 3.0 x2", "gpio": "40-pin GPIO", "video_output": "HDMI 2.0 + Micro-HDMI", "price": 70, "power_draw": "5V/3A USB-C", "form_factor": "89mm x 56mm", "pros": ["8-core RISC-V", "16GB RAM", "NVMe", "Very affordable"], "cons": ["RISC-V ecosystem maturing", "No GPU acceleration"], "best_for": ["coding", "research", "maker"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.0 4K@30Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.0, USB-C power", "power_consumption_w": 8, "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "fair", "community_usage": "low", "failure_rate": "medium"}},
+    "banana_pi_bpi_f3": {"name": "Banana Pi BPI-F3 16GB (RISC-V)", "cpu": "SpacemiT K1 8-core RISC-V @ 2.0GHz", "ram": "16GB LPDDR4X", "gpu": "Imagination BXE-4-32", "storage": "eMMC + MicroSD + NVMe", "connectivity": "WiFi 6, BT 5.4, 2.5GbE, USB 3.0 x2", "gpio": "40-pin GPIO", "video_output": "HDMI 2.0", "price": 80, "power_draw": "5V/3A USB-C", "form_factor": "89mm x 56mm", "pros": ["8-core RISC-V", "16GB RAM", "2.5GbE", "NVMe"], "cons": ["RISC-V ecosystem", "Larger community needed"], "best_for": ["coding", "research", "maker"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.0 4K@30Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.0, USB-C power", "power_consumption_w": 8, "risk_level": "medium", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "fair", "community_usage": "low", "failure_rate": "medium"}},
+    "armsom_cm1": {"name": "ArmSoM CM1 16GB (RK3588S Module)", "cpu": "RK3588S Cortex-A76+A55 octa-core", "ram": "16GB LPDDR4X", "gpu": "Mali-G610 MC4", "storage": "eMMC + NVMe via carrier", "connectivity": "PCIe Gen 3, USB 3.0, GbE", "gpio": "200-pin connector", "video_output": "Depends on carrier", "price": 15, "power_draw": "5V/3A", "form_factor": "69mm x 50mm (module)", "pros": ["Ultra cheap RK3588S", "Industrial grade", "NVMe", "NPU"], "cons": ["Needs carrier board", "Module only"], "best_for": ["ai", "coding", "security"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "Depends on carrier", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "Depends on carrier", "power_consumption_w": 10, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "zimaboard_2": {"name": "ZimaBoard 2 (N100/N305)", "cpu": "Intel N100 or N305 (4C/8C)", "ram": "8GB/16GB DDR5", "gpu": "Intel UHD", "storage": "eMMC + NVMe M.2 + SATA", "connectivity": "WiFi 6, BT 5.2, 2x 2.5GbE, USB 3.2", "gpio": "16-pin GPIO", "video_output": "HDMI 2.0 + Mini-DP", "price": 120, "power_draw": "12W TDP", "form_factor": "120mm x 80mm", "pros": ["x86 with dual 2.5GbE", "NVMe + SATA", "Wall-mount", "Server-class"], "cons": ["x86 only", "Fan noise", "Limited GPIO"], "best_for": ["coding", "security", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "HDMI 2.0 4K@60Hz", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "HDMI 2.0, Mini-DP", "power_consumption_w": 12, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "medium", "failure_rate": "low"}},
+    "pi_500": {"name": "Raspberry Pi 500 Keyboard Computer", "cpu": "BCM2712 Cortex-A76 @ 2.4GHz quad-core", "ram": "8GB LPDDR4X", "gpu": "VideoCore VII", "storage": "MicroSD + NVMe via HAT", "connectivity": "WiFi 6, BT 5.0, GbE, USB 3.0 x1, USB 2.0 x2", "gpio": "40-pin GPIO header", "video_output": "2x micro-HDMI (4K@60Hz)", "price": 120, "power_draw": "5V/5A USB-C (27W max)", "form_factor": "Keyboard-integrated (286mm x 122mm)", "pros": ["All-in-one keyboard computer", "Built-in keyboard", "NVMe support", "Clean desk setup"], "cons": ["Keyboard not mechanical", "Fixed form factor"], "best_for": ["coding", "writerdeck", "research"], "compatibility": ["ALL"], "display_type": "N/A (SBC)", "screen_size_inches": 0, "resolution": "4K@60Hz per output", "refresh_rate_hz": 60, "brightness_nits": 0, "interface": "2x micro-HDMI, USB-C power", "power_consumption_w": 12, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "high", "failure_rate": "low"}},
 }
 
 # ============================================================
@@ -588,6 +594,10 @@ DISPLAY_DATABASE = {
     "oled_1_3inch": {"name": "SSD1306 1.3\" OLED (128x64)", "size": "1.3 inch", "resolution": "128x64", "interface": "I2C", "price": 8, "power_draw": "~10mA", "touch": False, "viewing_angle": "160 degrees", "pros": ["Tiny", "Ultra cheap", "Low power", "Great for status display"], "cons": ["Tiny", "Monochrome"], "best_for": ["conversation", "writerdeck"], "display_type": "OLED", "screen_size_inches": 1.3, "refresh_rate_hz": 30, "brightness_nits": 150, "power_consumption_w": 0.05, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
     "sunlight_readable_7": {"name": "Sunread 7\" Sunlight Readable (1024x600)", "size": "7 inch", "resolution": "1024x600", "interface": "HDMI + USB touch", "price": 120, "power_draw": "5V/2A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["1000 nits brightness", "Direct sunlight readable", "IPS"], "cons": ["Expensive", "Higher power draw"], "best_for": ["research", "survival"], "display_type": "IPS", "screen_size_inches": 7, "refresh_rate_hz": 60, "brightness_nits": 1000, "power_consumption_w": 10, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "medium", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
     "hdmi_5inch": {"name": "Waveshare 5\" HDMI IPS (800x480)", "size": "5 inch", "resolution": "800x480", "interface": "HDMI + USB touch", "price": 25, "power_draw": "5V/0.5A via USB", "touch": True, "viewing_angle": "178 degrees", "pros": ["Small", "Cheap", "Touch"], "cons": ["Low resolution"], "best_for": ["conversation", "writerdeck", "field-repair"], "display_type": "IPS", "screen_size_inches": 5, "refresh_rate_hz": 60, "brightness_nits": 300, "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "very_high", "failure_rate": "very_low"}},
+    "pimoroni_presto": {"name": "Pimoroni Presto 4\" IPS (480x480)", "size": "4 inch", "resolution": "480x480", "interface": "QwST I2C + SPI", "price": 90, "power_draw": "5V/0.5A", "touch": True, "viewing_angle": "178 degrees", "pros": ["Square display", "Touch", "Pimoroni quality", "RP2350/Pico compatible"], "cons": ["Small", "Needs QwST cable"], "best_for": ["conversation", "writerdeck"], "display_type": "IPS", "screen_size_inches": 4, "refresh_rate_hz": 60, "brightness_nits": 400, "power_consumption_w": 2.5, "risk_level": "minimal", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "excellent", "community_usage": "medium", "failure_rate": "very_low"}},
+    "waveshare_13_3_eink": {"name": "Waveshare 13.3\" E-Ink (1600x1200)", "size": "13.3 inch", "resolution": "1600x1200", "interface": "SPI", "price": 200, "power_draw": "Near zero (static)", "touch": False, "viewing_angle": "180 degrees", "pros": ["Huge e-ink", "Paper-like", "Sunlight readable", "Zero power static"], "cons": ["Very slow refresh", "Expensive", "Fragile"], "best_for": ["writerdeck", "research"], "display_type": "E-Ink", "screen_size_inches": 13.3, "refresh_rate_hz": 0.5, "brightness_nits": 300, "power_consumption_w": 0.05, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "low", "failure_rate": "low"}},
+    "inky_impression_7": {"name": "Pimoroni Inky Impression 7.3\" (800x480 7-color)", "size": "7.3 inch", "resolution": "800x480", "interface": "SPI", "price": 90, "power_draw": "Near zero (static)", "touch": False, "viewing_angle": "180 degrees", "pros": ["7-color e-ink", "Sunlight readable", "Beautiful artwork display"], "cons": ["Slow refresh (30s)", "No touch", "Limited colors"], "best_for": ["writerdeck", "conversation-piece"], "display_type": "E-Ink", "screen_size_inches": 7.3, "refresh_rate_hz": 0.1, "brightness_nits": 300, "power_consumption_w": 0.03, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
+    "waveshare_4inch_rpi": {"name": "Waveshare 4\" RPi LCD (480x800)", "size": "4 inch", "resolution": "480x800", "interface": "SPI + FPC", "price": 30, "power_draw": "5V/0.3A", "touch": True, "viewing_angle": "178 degrees", "pros": ["Tall portrait display", "Touch", "Pi-native"], "cons": ["Unusual orientation", "SPI bandwidth"], "best_for": ["writerdeck", "conversation"], "display_type": "IPS", "screen_size_inches": 4, "refresh_rate_hz": 60, "brightness_nits": 350, "power_consumption_w": 1.5, "risk_level": "low", "risk_factors": {"manufacturer_reliability": "high", "driver_support": "good", "community_usage": "medium", "failure_rate": "low"}},
 }
 
 # ============================================================
@@ -1090,6 +1100,34 @@ CABLE_MANAGEMENT = {
 
 
 # ============================================================
+# v5.2 — STORAGE DATABASE (NVMe SSDs, SD Cards, eMMC)
+# ============================================================
+STORAGE_DATABASE = {
+    "nvme_970_evo_500": {"name": "Samsung 970 EVO Plus 500GB NVMe", "type": "NVMe M.2 2280", "capacity": "500GB", "read_speed": "3500 MB/s", "write_speed": "3200 MB/s", "interface": "PCIe Gen 3 x4", "price": 45, "pros": ["Fast", "Reliable", "DRAM cache", "5-year warranty"], "cons": ["Pi 5 limited to Gen 3 x1"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal"},
+    "nvme_970_evo_1tb": {"name": "Samsung 970 EVO Plus 1TB NVMe", "type": "NVMe M.2 2280", "capacity": "1TB", "read_speed": "3500 MB/s", "write_speed": "3200 MB/s", "interface": "PCIe Gen 3 x4", "price": 80, "pros": ["Fast", "Reliable", "DRAM cache", "5-year warranty"], "cons": ["Pi 5 limited to Gen 3 x1"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal"},
+    "nvme_wd_sn770_500": {"name": "WD Black SN770 500GB NVMe", "type": "NVMe M.2 2280", "capacity": "500GB", "read_speed": "5000 MB/s", "write_speed": "4000 MB/s", "interface": "PCIe Gen 4 x4", "price": 40, "pros": ["Fast", "DRAM-less (HMB)", "Good value", "5-year warranty"], "cons": ["Gen 4 wasted on Pi 5"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal"},
+    "nvme_wd_sn770_1tb": {"name": "WD Black SN770 1TB NVMe", "type": "NVMe M.2 2280", "capacity": "1TB", "read_speed": "5000 MB/s", "write_speed": "4000 MB/s", "interface": "PCIe Gen 4 x4", "price": 65, "pros": ["Fast", "DRAM-less (HMB)", "Great value", "5-year warranty"], "cons": ["Gen 4 wasted on Pi 5"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal"},
+    "nvme_kingston_a2000_500": {"name": "Kingston NV2 500GB NVMe", "type": "NVMe M.2 2280", "capacity": "500GB", "read_speed": "3500 MB/s", "write_speed": "2100 MB/s", "interface": "PCIe Gen 4 x4", "price": 30, "pros": ["Ultra cheap", "Decent speed", "Low power"], "cons": ["No DRAM", "Lower write speed"], "best_for": ["writerdeck", "gaming", "media"], "risk_level": "minimal"},
+    "nvme_kingston_a2000_1tb": {"name": "Kingston NV2 1TB NVMe", "type": "NVMe M.2 2280", "capacity": "1TB", "read_speed": "3500 MB/s", "write_speed": "2100 MB/s", "interface": "PCIe Gen 4 x4", "price": 50, "pros": ["Cheap 1TB", "Decent speed", "Low power"], "cons": ["No DRAM", "Lower write speed"], "best_for": ["coding", "ai", "security"], "risk_level": "minimal"},
+    "sd_card_64gb_a2": {"name": "Samsung EVO Select 64GB A2/U3", "type": "MicroSD", "capacity": "64GB", "read_speed": "160 MB/s", "write_speed": "120 MB/s", "interface": "MicroSD UHS-I", "price": 10, "pros": ["Fast boot", "A2 random I/O", "Reliable"], "cons": ["64GB only"], "best_for": ["ALL"], "risk_level": "minimal"},
+    "sd_card_128gb_a2": {"name": "Samsung EVO Select 128GB A2/U3", "type": "MicroSD", "capacity": "128GB", "read_speed": "160 MB/s", "write_speed": "120 MB/s", "interface": "MicroSD UHS-I", "price": 15, "pros": ["Good capacity", "A2 random I/O", "Fast"], "cons": ["SD still slower than NVMe"], "best_for": ["ALL"], "risk_level": "minimal"},
+    "sd_card_256gb_a2": {"name": "Samsung EVO Select 256GB A2/U3", "type": "MicroSD", "capacity": "256GB", "read_speed": "160 MB/s", "write_speed": "120 MB/s", "interface": "MicroSD UHS-I", "price": 25, "pros": ["Large capacity", "A2 random I/O"], "cons": ["SD still slower than NVMe"], "best_for": ["ALL"], "risk_level": "minimal"},
+    "emmc_32gb": {"name": "eMMC Module 32GB (CM4/CM5)", "type": "eMMC", "capacity": "32GB", "read_speed": "100 MB/s", "write_speed": "80 MB/s", "interface": "eMMC 5.1", "price": 15, "pros": ["Boot drive", "Reliable", "Fast boot"], "cons": ["Fixed capacity"], "best_for": ["ALL"], "risk_level": "minimal"},
+    "emmc_64gb": {"name": "eMMC Module 64GB (CM4/CM5)", "type": "eMMC", "capacity": "64GB", "read_speed": "100 MB/s", "write_speed": "80 MB/s", "interface": "eMMC 5.1", "price": 25, "pros": ["Good boot drive", "Reliable"], "cons": ["Fixed capacity"], "best_for": ["ALL"], "risk_level": "minimal"},
+}
+
+# ============================================================
+# v5.2 — uConsole EXPANSION CARDS DATABASE
+# ============================================================
+UCONSOLE_EXPANSION_DATABASE = {
+    "hackergadgets_aio_v2": {"name": "HackerGadgets AIO V2 (SDR+LoRa+GPS)", "type": "uConsole Expansion", "features": "RTL-SDR + LoRa SX1262 + GPS + RTC + USB hub", "interface": "USB-C + GPIO", "price": 60, "pros": ["All-in-one RF", "SDR + LoRa + GPS", "uConsole fit"], "cons": ["Complex", "Antenna needed"], "best_for": ["security", "ham-radio", "research"]},
+    "openterface_kvm": {"name": "Openterface KVM Expansion", "type": "uConsole Expansion", "features": "HDMI input + USB HID + Ethernet", "interface": "USB-C", "price": 50, "pros": ["Portable KVM", "HDMI capture", "uConsole fit"], "cons": ["Single input"], "best_for": ["security", "field-repair"]},
+    "clockwork_lte_modem": {"name": "ClockworkPi LTE Modem Card", "type": "uConsole Expansion", "features": "Quectel EC25 4G LTE + GNSS GPS", "interface": "USB + SIM slot", "price": 40, "pros": ["4G LTE", "GPS", "Always-connected"], "cons": ["Needs SIM card", "Antenna required"], "best_for": ["survival", "research", "security"]},
+    "uether_ethernet": {"name": "uEther Ethernet Expansion", "type": "uConsole Expansion", "features": "10/100 RJ45 Ethernet + USB-C", "interface": "USB-C", "price": 15, "pros": ["Wired networking", "Cheap", "uConsole fit"], "cons": ["100Mbps only"], "best_for": ["security", "coding"]},
+    "hackerGadgets_aio_v1": {"name": "HackerGadgets AIO V1 (SDR+LoRa)", "type": "uConsole Expansion", "features": "RTL-SDR + LoRa SX1262 + GPS", "interface": "USB-C + GPIO", "price": 50, "pros": ["SDR + LoRa", "uConsole fit"], "cons": ["Older version"], "best_for": ["security", "ham-radio"]},
+}
+
+# ============================================================
 # COMPONENT DATABASE — centralized access to all part databases
 # ============================================================
 class ComponentDatabase:
@@ -1136,6 +1174,46 @@ class ComponentDatabase:
         return OS_DATABASE.get(os_id)
 
     @staticmethod
+    def get_storage(storage_id):
+        return STORAGE_DATABASE.get(storage_id)
+
+    @staticmethod
+    def get_uconsole_expansion(card_id):
+        return UCONSOLE_EXPANSION_DATABASE.get(card_id)
+
+    @staticmethod
+    def get_sensor(sensor_id):
+        return ENVIRONMENTAL_SENSOR_DATABASE.get(sensor_id)
+
+    @staticmethod
+    def get_camera(camera_id):
+        return CAMERA_MODULE_DATABASE.get(camera_id)
+
+    @staticmethod
+    def get_sdr(sdr_id):
+        return SDR_DATABASE.get(sdr_id)
+
+    @staticmethod
+    def get_lora(lora_id):
+        return LORA_MESH_DATABASE.get(lora_id)
+
+    @staticmethod
+    def get_nfc(nfc_id):
+        return NFC_RFID_DATABASE.get(nfc_id)
+
+    @staticmethod
+    def get_fingerprint(fp_id):
+        return FINGERPRINT_DATABASE.get(fp_id)
+
+    @staticmethod
+    def get_haptic(haptic_id):
+        return HAPTIC_FEEDBACK_DATABASE.get(haptic_id)
+
+    @staticmethod
+    def get_imu(imu_id):
+        return IMU_DATABASE.get(imu_id)
+
+    @staticmethod
     def get_all_sbcs():
         return SBC_DATABASE
 
@@ -1179,11 +1257,17 @@ class ComponentDatabase:
     def search(query):
         results = []
         ql = query.lower()
-        for db_name, db in [("SBC", SBC_DATABASE), ("Display", DISPLAY_DATABASE),
-                             ("Keyboard", KEYBOARD_DATABASE), ("Power", POWER_DATABASE),
-                             ("Enclosure", ENCLOSURE_DATABASE), ("Cooling", COOLING_DATABASE),
-                             ("PCB", PCB_DATABASE), ("Wire", WIRE_DATABASE),
-                             ("Connectivity", CONNECTIVITY_DATABASE)]:
+        all_dbs = [("SBC", SBC_DATABASE), ("Display", DISPLAY_DATABASE),
+                   ("Keyboard", KEYBOARD_DATABASE), ("Power", POWER_DATABASE),
+                   ("Enclosure", ENCLOSURE_DATABASE), ("Cooling", COOLING_DATABASE),
+                   ("PCB", PCB_DATABASE), ("Wire", WIRE_DATABASE),
+                   ("Connectivity", CONNECTIVITY_DATABASE), ("Storage", STORAGE_DATABASE),
+                   ("Sensor", ENVIRONMENTAL_SENSOR_DATABASE), ("Camera", CAMERA_MODULE_DATABASE),
+                   ("SDR", SDR_DATABASE), ("LoRa", LORA_MESH_DATABASE),
+                   ("NFC", NFC_RFID_DATABASE), ("Fingerprint", FINGERPRINT_DATABASE),
+                   ("Haptic", HAPTIC_FEEDBACK_DATABASE), ("IMU", IMU_DATABASE),
+                   ("uConsole Expansion", UCONSOLE_EXPANSION_DATABASE)]
+        for db_name, db in all_dbs:
             for item_id, item in db.items():
                 name = item.get("name", "").lower()
                 if any(kw in name or kw in ql for kw in ql.split()):
@@ -1198,10 +1282,18 @@ class ComponentDatabase:
             "enclosure_count": len(ENCLOSURE_DATABASE), "cooling_count": len(COOLING_DATABASE),
             "pcb_count": len(PCB_DATABASE), "wire_count": len(WIRE_DATABASE),
             "connectivity_count": len(CONNECTIVITY_DATABASE), "os_count": len(OS_DATABASE),
+            "storage_count": len(STORAGE_DATABASE), "sensor_count": len(ENVIRONMENTAL_SENSOR_DATABASE),
+            "camera_count": len(CAMERA_MODULE_DATABASE), "sdr_count": len(SDR_DATABASE),
+            "lora_count": len(LORA_MESH_DATABASE), "nfc_count": len(NFC_RFID_DATABASE),
+            "fingerprint_count": len(FINGERPRINT_DATABASE), "haptic_count": len(HAPTIC_FEEDBACK_DATABASE),
+            "imu_count": len(IMU_DATABASE), "uconsole_count": len(UCONSOLE_EXPANSION_DATABASE),
             "total_components": (len(SBC_DATABASE) + len(DISPLAY_DATABASE) + len(KEYBOARD_DATABASE)
                                  + len(POWER_DATABASE) + len(ENCLOSURE_DATABASE) + len(COOLING_DATABASE)
                                  + len(PCB_DATABASE) + len(WIRE_DATABASE) + len(CONNECTIVITY_DATABASE)
-                                 + len(OS_DATABASE)),
+                                 + len(OS_DATABASE) + len(STORAGE_DATABASE) + len(ENVIRONMENTAL_SENSOR_DATABASE)
+                                 + len(CAMERA_MODULE_DATABASE) + len(SDR_DATABASE) + len(LORA_MESH_DATABASE)
+                                 + len(NFC_RFID_DATABASE) + len(FINGERPRINT_DATABASE) + len(HAPTIC_FEEDBACK_DATABASE)
+                                 + len(IMU_DATABASE) + len(UCONSOLE_EXPANSION_DATABASE)),
         }
 
     @staticmethod
@@ -1210,7 +1302,11 @@ class ComponentDatabase:
             "sbc": SBC_DATABASE, "display": DISPLAY_DATABASE, "keyboard": KEYBOARD_DATABASE,
             "power": POWER_DATABASE, "enclosure": ENCLOSURE_DATABASE, "cooling": COOLING_DATABASE,
             "pcb": PCB_DATABASE, "wire": WIRE_DATABASE, "connectivity": CONNECTIVITY_DATABASE,
-            "os": OS_DATABASE,
+            "os": OS_DATABASE, "storage": STORAGE_DATABASE, "sensor": ENVIRONMENTAL_SENSOR_DATABASE,
+            "camera": CAMERA_MODULE_DATABASE, "sdr": SDR_DATABASE, "lora": LORA_MESH_DATABASE,
+            "nfc": NFC_RFID_DATABASE, "fingerprint": FINGERPRINT_DATABASE,
+            "haptic": HAPTIC_FEEDBACK_DATABASE, "imu": IMU_DATABASE,
+            "uconsole": UCONSOLE_EXPANSION_DATABASE,
         }
         for db_name, db in databases.items():
             if component_id in db:
@@ -2385,6 +2481,278 @@ class BuildGenerator:
             pass
         return {"code": f"# TODO: Implement {request} in {language}", "description": "Template", "language": language}
 
+
+# ============================================================
+# v5.2 — CUSTOM BUILD ENGINE — interactive mix/match component picker
+# ============================================================
+class CustomBuildEngine:
+    """Interactive cyberdeck builder — pick components, see prices, check compatibility."""
+
+    CATEGORIES = {
+        "sbc": {"name": "SBC (Brain)", "db": "SBC_DATABASE", "required": True, "icon": "🧠",
+                "desc": "The main computer board — Pi, Orange Pi, Jetson, etc."},
+        "display": {"name": "Display", "db": "DISPLAY_DATABASE", "required": True, "icon": "🖥️",
+                    "desc": "Screen — IPS, OLED, E-Ink, touchscreen"},
+        "keyboard": {"name": "Keyboard", "db": "KEYBOARD_DATABASE", "required": False, "icon": "⌨️",
+                     "desc": "Input — mechanical, thumb, split, ortho"},
+        "power": {"name": "Power/Battery", "db": "POWER_DATABASE", "required": True, "icon": "🔋",
+                  "desc": "UPS HAT, battery pack, solar, charging module"},
+        "storage": {"name": "Storage", "db": "STORAGE_DATABASE", "required": False, "icon": "💾",
+                    "desc": "NVMe SSD, MicroSD, eMMC module"},
+        "enclosure": {"name": "Enclosure/Case", "db": "ENCLOSURE_DATABASE", "required": True, "icon": "📦",
+                      "desc": "Case — Pelican, 3D printed, aluminum, custom"},
+        "cooling": {"name": "Cooling", "db": "COOLING_DATABASE", "required": False, "icon": "❄️",
+                    "desc": "Fan, heatsink, passive cooling"},
+        "connectivity": {"name": "Connectivity", "db": "CONNECTIVITY_DATABASE", "required": False, "icon": "📡",
+                         "desc": "WiFi adapter, LoRa, LTE modem, SDR, Ethernet"},
+        "camera": {"name": "Camera", "db": "CAMERA_MODULE_DATABASE", "required": False, "icon": "📷",
+                   "desc": "Pi Camera, thermal, global shutter"},
+        "sensor": {"name": "Sensors", "db": "ENVIRONMENTAL_SENSOR_DATABASE", "required": False, "icon": "🌡️",
+                   "desc": "Temperature, humidity, CO2, radiation, UV"},
+        "os": {"name": "Operating System", "db": "OS_DATABASE", "required": False, "icon": "💿",
+               "desc": "Raspberry Pi OS, Kali, Ubuntu, RetroPie"},
+    }
+
+    def __init__(self):
+        self.db_map = {
+            "SBC_DATABASE": SBC_DATABASE, "DISPLAY_DATABASE": DISPLAY_DATABASE,
+            "KEYBOARD_DATABASE": KEYBOARD_DATABASE, "POWER_DATABASE": POWER_DATABASE,
+            "STORAGE_DATABASE": STORAGE_DATABASE, "ENCLOSURE_DATABASE": ENCLOSURE_DATABASE,
+            "COOLING_DATABASE": COOLING_DATABASE, "CONNECTIVITY_DATABASE": CONNECTIVITY_DATABASE,
+            "CAMERA_MODULE_DATABASE": CAMERA_MODULE_DATABASE,
+            "ENVIRONMENTAL_SENSOR_DATABASE": ENVIRONMENTAL_SENSOR_DATABASE,
+            "OS_DATABASE": OS_DATABASE,
+        }
+        self.builds = {}  # user_id -> {category: component_id, ...}
+
+    def start_build(self, user_id: int) -> dict:
+        """Start a new custom build for a user."""
+        self.builds[user_id] = {}
+        return {"status": "started", "categories": list(self.CATEGORIES.keys())}
+
+    def get_category_options(self, category: str) -> list:
+        """Get all options in a category with prices."""
+        cat = self.CATEGORIES.get(category)
+        if not cat:
+            return []
+        db = self.db_map.get(cat["db"], {})
+        options = []
+        for comp_id, comp in db.items():
+            price = comp.get("price", comp.get("price_range", "TBD"))
+            name = comp.get("name", comp_id)
+            options.append({
+                "id": comp_id, "name": name, "price": price,
+                "key_specs": self._extract_key_specs(category, comp),
+            })
+        # Sort by price (numeric)
+        def sort_key(x):
+            p = x["price"]
+            if isinstance(p, (int, float)):
+                return p
+            if isinstance(p, str) and p.startswith("$"):
+                try:
+                    return float(p.replace("$", "").split("-")[0].replace(",", ""))
+                except:
+                    return 9999
+            return 9999
+        options.sort(key=sort_key)
+        return options
+
+    def select_component(self, user_id: int, category: str, component_id: str) -> dict:
+        """Select a component for a category."""
+        cat = self.CATEGORIES.get(category)
+        if not cat:
+            return {"error": f"Unknown category: {category}"}
+        db = self.db_map.get(cat["db"], {})
+        comp = db.get(component_id)
+        if not comp:
+            return {"error": f"Component '{component_id}' not found in {category}"}
+        if user_id not in self.builds:
+            self.builds[user_id] = {}
+        self.builds[user_id][category] = component_id
+        return {
+            "selected": True, "category": category, "component": comp.get("name", component_id),
+            "price": comp.get("price", "TBD"),
+            "total_cost": self.get_total_cost(user_id),
+        }
+
+    def remove_component(self, user_id: int, category: str) -> dict:
+        """Remove a component from a category."""
+        if user_id in self.builds and category in self.builds[user_id]:
+            del self.builds[user_id][category]
+            return {"removed": category, "total_cost": self.get_total_cost(user_id)}
+        return {"error": f"No component in {category}"}
+
+    def get_build(self, user_id: int) -> dict:
+        """Get the current build for a user."""
+        build = self.builds.get(user_id, {})
+        components = []
+        for cat_key, comp_id in build.items():
+            cat = self.CATEGORIES.get(cat_key, {})
+            db = self.db_map.get(cat["db"], {})
+            comp = db.get(comp_id, {})
+            components.append({
+                "category": cat_key, "category_name": cat.get("name", cat_key),
+                "icon": cat.get("icon", ""), "component_id": comp_id,
+                "name": comp.get("name", comp_id), "price": comp.get("price", "TBD"),
+                "specs": self._extract_key_specs(cat_key, comp),
+            })
+        return {
+            "components": components,
+            "total_cost": self.get_total_cost(user_id),
+            "component_count": len(components),
+            "required_missing": self._get_missing_required(user_id),
+        }
+
+    def get_total_cost(self, user_id: int) -> str:
+        """Calculate total cost of the build."""
+        build = self.builds.get(user_id, {})
+        total = 0
+        has_string = False
+        for cat_key, comp_id in build.items():
+            cat = self.CATEGORIES.get(cat_key, {})
+            db = self.db_map.get(cat["db"], {})
+            comp = db.get(comp_id, {})
+            price = comp.get("price", 0)
+            if isinstance(price, (int, float)):
+                total += price
+            elif isinstance(price, str) and price.startswith("$"):
+                try:
+                    total += float(price.replace("$", "").split("-")[0].replace(",", ""))
+                except:
+                    has_string = True
+            else:
+                has_string = True
+        if has_string:
+            return f"~${total:.0f}+ (some prices TBD)"
+        return f"${total:.2f}"
+
+    def check_compatibility(self, user_id: int) -> dict:
+        """Check compatibility of the current build."""
+        build = self.builds.get(user_id, {})
+        warnings = []
+        recommendations = []
+        sbc_id = build.get("sbc")
+        display_id = build.get("display")
+        power_id = build.get("power")
+
+        if sbc_id:
+            sbc = SBC_DATABASE.get(sbc_id, {})
+            sbc_name = sbc.get("name", "")
+
+            # Check display interface compatibility
+            if display_id:
+                display = DISPLAY_DATABASE.get(display_id, {})
+                disp_interface = display.get("interface", "").lower()
+                if "hdmi" in disp_interface and "pi zero" in sbc_name.lower():
+                    warnings.append("⚠️ Pi Zero needs mini-HDMI adapter for HDMI displays")
+                if "dsi" in disp_interface and "orange pi" in sbc_name.lower():
+                    warnings.append("⚠️ Orange Pi boards may not support DSI displays natively")
+
+            # Check power requirements
+            if power_id:
+                power = POWER_DATABASE.get(power_id, {})
+                power_output = power.get("output", "")
+                if "Pi 5" in sbc_name and "5V/3A" in power_output:
+                    warnings.append("⚠️ Pi 5 needs 5V/5A (27W) — this supply may be insufficient")
+
+            # Check NVMe support
+            storage_id = build.get("storage")
+            if storage_id:
+                storage = STORAGE_DATABASE.get(storage_id, {})
+                if "NVMe" in storage.get("type", "") and "Pi 4" in sbc_name:
+                    warnings.append("⚠️ Pi 4 needs PCIe HAT for NVMe — not native")
+                if "NVMe" in storage.get("type", "") and "Pi Zero" in sbc_name:
+                    warnings.append("❌ Pi Zero cannot use NVMe — no PCIe lane")
+
+            # Recommendations
+            if "Pi 5" in sbc_name:
+                cooling_id = build.get("cooling")
+                if not cooling_id:
+                    recommendations.append("💡 Pi 5 recommended: add active cooling (fan/heatsink)")
+                if build.get("power") == "pimoroni_lipo_shim":
+                    recommendations.append("💡 Pi 5 draws 12W — consider larger battery (UPS HAT)")
+            if "ai" in str(sbc.get("best_for", [])):
+                recommendations.append("💡 This SBC supports AI workloads — consider adding camera/sensors")
+
+        return {"warnings": warnings, "recommendations": recommendations, "compatible": len(warnings) == 0}
+
+    def generate_build_summary(self, user_id: int) -> str:
+        """Generate a formatted build summary with prices."""
+        build_data = self.get_build(user_id)
+        compat = self.check_compatibility(user_id)
+
+        lines = ["🔧 *CYBERDECK CUSTOM BUILD*", "=" * 35, ""]
+        for comp in build_data["components"]:
+            price_str = f"${comp['price']}" if isinstance(comp['price'], (int, float)) else str(comp['price'])
+            lines.append(f"{comp['icon']} *{comp['category_name']}*")
+            lines.append(f"  → {comp['name']}")
+            lines.append(f"  💰 Price: {price_str}")
+            if comp.get("specs"):
+                lines.append(f"  📋 {comp['specs']}")
+            lines.append("")
+
+        lines.append("─" * 35)
+        lines.append(f"💰 *TOTAL ESTIMATED COST: {build_data['total_cost']}*")
+        lines.append(f"📦 Components: {build_data['component_count']}")
+
+        if build_data["required_missing"]:
+            lines.append(f"\n⚠️ *MISSING REQUIRED:*")
+            for cat in build_data["required_missing"]:
+                cat_info = self.CATEGORIES.get(cat, {})
+                lines.append(f"  ❌ {cat_info.get('name', cat)}")
+
+        if compat["warnings"]:
+            lines.append(f"\n⚠️ *COMPATIBILITY WARNINGS:*")
+            for w in compat["warnings"]:
+                lines.append(f"  {w}")
+
+        if compat["recommendations"]:
+            lines.append(f"\n💡 *RECOMMENDATIONS:*")
+            for r in compat["recommendations"]:
+                lines.append(f"  {r}")
+
+        return "\n".join(lines)
+
+    def _extract_key_specs(self, category: str, comp: dict) -> str:
+        """Extract key specs for display."""
+        specs = []
+        if category == "sbc":
+            if comp.get("cpu"): specs.append(f"CPU: {comp['cpu'].split('@')[0].strip()[:30]}")
+            if comp.get("ram"): specs.append(f"RAM: {comp['ram']}")
+        elif category == "display":
+            if comp.get("size"): specs.append(f"{comp['size']}")
+            if comp.get("resolution"): specs.append(f"{comp['resolution']}")
+            if comp.get("display_type"): specs.append(f"{comp['display_type']}")
+        elif category == "power":
+            if comp.get("capacity"): specs.append(f"{comp['capacity']}")
+            if comp.get("runtime"): specs.append(f"Runtime: {comp['runtime']}")
+        elif category == "storage":
+            if comp.get("capacity"): specs.append(f"{comp['capacity']}")
+            if comp.get("read_speed"): specs.append(f"Read: {comp['read_speed']}")
+        elif category == "keyboard":
+            if comp.get("type"): specs.append(f"{comp['type']}")
+            if comp.get("switches"): specs.append(f"{comp['switches']}")
+        elif category == "enclosure":
+            if comp.get("protection"): specs.append(f"{comp['protection']}")
+        elif category == "connectivity":
+            if comp.get("standard"): specs.append(f"{comp['standard']}")
+        elif category == "camera":
+            if comp.get("resolution"): specs.append(f"{comp['resolution']}")
+        return " | ".join(specs) if specs else ""
+
+    def _get_missing_required(self, user_id: int) -> list:
+        """Get list of required categories not yet filled."""
+        build = self.builds.get(user_id, {})
+        missing = []
+        for cat_key, cat_info in self.CATEGORIES.items():
+            if cat_info["required"] and cat_key not in build:
+                missing.append(cat_key)
+        return missing
+
+    def clear_build(self, user_id: int):
+        """Clear a user's build."""
+        self.builds.pop(user_id, None)
 
 # ============================================================
 # MAIN AGENT

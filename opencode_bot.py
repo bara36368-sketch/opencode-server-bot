@@ -6564,11 +6564,121 @@ async def main():
                                     lines.append(f"{emoji} **{comp.get('name', cid)}** ({db_name}): {risk}")
                             await send(chat, "\n".join(lines))
 
+                        elif sub == "custombuild" or sub == "cb":
+                            from cyberdeck_agent import CustomBuildEngine
+                            cb_action = parts[2].lower() if len(parts) > 2 else "menu"
+
+                            if not hasattr(agent, '_custom_build_engine'):
+                                agent._custom_build_engine = CustomBuildEngine()
+                            engine = agent._custom_build_engine
+
+                            if cb_action == "menu" or cb_action == "start":
+                                engine.start_build(chat)
+                                cats = engine.CATEGORIES
+                                lines = ["🔧 **CYBERDECK CUSTOM BUILDER v5.2**\n"]
+                                lines.append("Pick components for each category. See prices instantly.\n")
+                                for key, cat in cats.items():
+                                    req = " *" if cat["required"] else ""
+                                    lines.append(f"{cat['icon']} `{key}` — {cat['name']}{req}")
+                                lines.append(f"\n* = Required component")
+                                lines.append("\n**Commands:**")
+                                lines.append("  `/cyberdeck cb list <category>` — See all options with prices")
+                                lines.append("  `/cyberdeck cb pick <category> <id>` — Select a component")
+                                lines.append("  `/cyberdeck cb remove <category>` — Remove a component")
+                                lines.append("  `/cyberdeck cb show` — Show current build + total cost")
+                                lines.append("  `/cyberdeck cb compat` — Check compatibility")
+                                lines.append("  `/cyberdeck cb summary` — Full build summary")
+                                lines.append("  `/cyberdeck cb clear` — Start over")
+                                await send(chat, "\n".join(lines))
+
+                            elif cb_action == "list":
+                                cat_name = parts[3].lower() if len(parts) > 3 else ""
+                                if not cat_name:
+                                    await send(chat, "Usage: `/cyberdeck cb list <category>`\nCategories: " + ", ".join(engine.CATEGORIES.keys()))
+                                    continue
+                                options = engine.get_category_options(cat_name)
+                                if not options:
+                                    await send(chat, f"Unknown category: {cat_name}\nAvailable: {', '.join(engine.CATEGORIES.keys())}")
+                                    continue
+                                cat_info = engine.CATEGORIES.get(cat_name, {})
+                                lines = [f"{cat_info.get('icon', '')} **{cat_info.get('name', cat_name)} Options:**\n"]
+                                for opt in options:
+                                    price_str = f"${opt['price']}" if isinstance(opt['price'], (int, float)) else str(opt['price'])
+                                    lines.append(f"  `{opt['id']}` — **{opt['name']}**")
+                                    lines.append(f"    💰 {price_str}")
+                                    if opt.get('key_specs'):
+                                        lines.append(f"    📋 {opt['key_specs']}")
+                                await send(chat, "\n".join(lines))
+
+                            elif cb_action == "pick":
+                                cat_name = parts[3].lower() if len(parts) > 3 else ""
+                                comp_id = parts[4].lower() if len(parts) > 4 else ""
+                                if not cat_name or not comp_id:
+                                    await send(chat, "Usage: `/cyberdeck cb pick <category> <component_id>`\nExample: `/cyberdeck cb pick sbc pi5_8gb`")
+                                    continue
+                                result = engine.select_component(chat, cat_name, comp_id)
+                                if "error" in result:
+                                    await send(chat, f"❌ {result['error']}")
+                                else:
+                                    await send(chat, f"✅ **{result['component']}** selected for {result['category']}\n💰 Price: {result['price']}\n📊 Running total: **{result['total_cost']}**")
+
+                            elif cb_action == "remove":
+                                cat_name = parts[3].lower() if len(parts) > 3 else ""
+                                if not cat_name:
+                                    await send(chat, "Usage: `/cyberdeck cb remove <category>`")
+                                    continue
+                                result = engine.remove_component(chat, cat_name)
+                                if "error" in result:
+                                    await send(chat, f"❌ {result['error']}")
+                                else:
+                                    await send(chat, f"🗑️ Removed {result['removed']}\n📊 Running total: **{result['total_cost']}**")
+
+                            elif cb_action == "show" or cb_action == "status":
+                                build = engine.get_build(chat)
+                                if not build["components"]:
+                                    await send(chat, "No components selected yet. Start with `/cyberdeck cb list sbc`")
+                                    continue
+                                lines = ["🔧 **YOUR CUSTOM BUILD:**\n"]
+                                for comp in build["components"]:
+                                    price_str = f"${comp['price']}" if isinstance(comp['price'], (int, float)) else str(comp['price'])
+                                    lines.append(f"{comp['icon']} **{comp['category_name']}**: {comp['name']}")
+                                    lines.append(f"  💰 {price_str} | 📋 {comp['specs']}")
+                                lines.append(f"\n💰 **TOTAL: {build['total_cost']}**")
+                                if build["required_missing"]:
+                                    lines.append(f"\n⚠️ Missing required: {', '.join(build['required_missing'])}")
+                                await send(chat, "\n".join(lines))
+
+                            elif cb_action == "compat":
+                                result = engine.check_compatibility(chat)
+                                lines = ["🔍 **COMPATIBILITY CHECK:**\n"]
+                                if result["compatible"]:
+                                    lines.append("✅ All selected components are compatible!")
+                                else:
+                                    for w in result["warnings"]:
+                                        lines.append(w)
+                                if result["recommendations"]:
+                                    lines.append("\n💡 **Recommendations:**")
+                                    for r in result["recommendations"]:
+                                        lines.append(r)
+                                await send(chat, "\n".join(lines))
+
+                            elif cb_action == "summary":
+                                summary = engine.generate_build_summary(chat)
+                                await send(chat, summary)
+
+                            elif cb_action == "clear":
+                                engine.clear_build(chat)
+                                await send(chat, "🗑️ Build cleared. Start fresh with `/cyberdeck cb start`")
+
+                            else:
+                                await send(chat, "Unknown custombuild action. Use: start, list, pick, remove, show, compat, summary, clear")
+
                         else:
-                            await send(chat, "🔧 **Cyberdeck Agent v4.1**\n\n"
+                            await send(chat, "🔧 **Cyberdeck Agent v5.2**\n\n"
                                 "**Build & Design:**\n"
                                 "  /cyberdeck build <desc> — Build (auto-detect category, most powerful parts)\n"
                                 "  /cyberdeck custom <name> <desc> — Custom category (AI fills everything)\n"
+                                "  /cyberdeck cb — **Custom Builder** (pick components, see prices, mix & match)\n"
                                 "  /cyberdeck categories — View all categories\n"
                                 "  /cyberdeck tiers — View budget tiers\n"
                                 "  /cyberdeck pick <type> [category] — Pick best component\n"
