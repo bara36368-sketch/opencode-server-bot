@@ -1,5 +1,5 @@
 {
-  "version": "3.7.136",
+  "version": "3.7.137",
   "updated": "2026-07-25",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -34,6 +34,7 @@
     "Webhook Mode \u2014 instant Telegram message delivery via webhooks + ngrok tunnel (set WEBHOOK_MODE=1 to enable)",
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)",
     "Cyberdeck Agent v4.0 -- 10 classes, 100 components, cable routing, pack generation, flaw detection, image/video understanding, 13 categories, 4 tiers, 100% compatibility, WiFi/LAN enforced, continuous learning (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status/pcb/wires/connectivity/cables/pack/flaws/learn/search-web/optimize/stats)",
+    "Cyberdeck Agent v5.0 -- 3359+ lines, 6 new styles, 6 new categories, peripheral recommendation engine, antenna calculator, battery sizing, forensics module, test equipment, ham radio, 15+ new databases (environmental, cameras, SDR, LoRa, NFC, fingerprint, haptics, IMU, color palettes, aesthetic materials, thermal interface)",
     "IoT Control Dashboard \u2014 ESP32/Arduino/Pi device control, GPIO pin management, sensor monitoring, alerts, schedules (/iot add/list/status/pin/sensor/alert/schedule/logs/simulate)",
     "Education & Games \u2014 quizzes with scoring, spaced repetition flashcards, Wordle, Hangman, math challenges, code challenges, leaderboards (/edu quiz/wordle/hangman/math/code/review/top/stats/achievements)",
     "Finance & Crypto Tracker \u2014 crypto prices, portfolio management, price alerts, watchlists, currency conversion (/fin price/market/convert/buy/sell/portfolio/alert/watch/info)",
@@ -290,6 +291,31 @@
       "Custom PCB -- /cyberdeck pcb-custom <desc> -- adapter templates for HDMI-to-DSI, USB-C PD, GPIO expansion, backward compatibility",
       "Component Risk Levels -- all components rated minimal/low/medium/high with risk factors",
       "New /cyberdeck commands: 3d, specs, video, pcb-custom, styles, risk"
+    ],
+    "3.7.137": [
+      "Cyberdeck Agent v5.0 -- 3359+ lines, 10 classes, 15+ new databases, 22 v5.0 features",
+      "6 New Style Presets -- nautical (sapele/brass/teal), solarpunk (green/wood/bamboo), cassette-futurism (black/white/red), feminine-craft (lavender/rose/cream), fallout (olive/khaki/rust), brutalist (raw gray/geometric)",
+      "6 New Categories -- drone/UAV, digital forensics, test equipment, weather station, home automation, edge AI",
+      "Peripheral Recommendation Engine -- suggest peripherals by category, use-case, or budget",
+      "Environmental Sensor Database -- 12 sensors (BME280/680, SCD30/40, PMS5003, LTR390, SGP40, BH1750, DHT22, DS18B20, Geiger)",
+      "Camera Module Database -- 6 cameras (Pi Camera 3, NoIR, Arducam IMX519, Global Shutter, FLIR Lepton, Seek Micro)",
+      "SDR Database -- HackRF One, RTL-SDR Blog V4, Airspy Mini with full specs",
+      "LoRa/Mesh Database -- RAK WisMesh, Seeed Wio L1, Heltec V3, Waveshare LoRa HAT",
+      "NFC/RFID Database -- PN532, ACR122U, MFRC522 with protocols and compatibility",
+      "Fingerprint Database -- R307, R503, GT-521F32 with capacity and interface specs",
+      "Haptic Feedback Database -- DRV2605L, ERM motors, LRA motors",
+      "IMU/Accelerometer Database -- Sense HAT, BNO055, MPU-6050 with DOF and fusion",
+      "Color Palette Database -- 10 palettes (Cyberpunk 2077, Synthwave, Vaporwave, Nautical, Solarpunk, etc.)",
+      "Aesthetic Material Database -- 10 materials (vinyl wrap, resin art, wood veneer, leather, carbon fiber, brass, etc.)",
+      "Antenna Selection Guide -- 9 bands (LoRa 868/915, WiFi, GPS, SDR, Ham VHF/UHF, LTE)",
+      "Thermal Interface Material Database -- Arctic MX-6, Thermal Grizzly Kryonaut, GELID pads, Kapton tape",
+      "Antenna Calculator -- wavelength, quarter-wave, cable loss, link budget calculations",
+      "Battery Sizing Calculator -- 18650 capacity, runtime estimates, cell recommendations",
+      "Forensics Module -- disk imaging, file carving, network/memory forensics, log analysis procedures",
+      "Test Equipment Module -- oscilloscope, logic analyzer, signal generator, multimeter, power supply",
+      "Ham Radio Module -- HF/VHF/UHF bands, digital modes (JS8Call, FT8, WSPR, Packet, SSTV)",
+      "Environmental Monitor -- real-time sensor readings with alerts, CSV export",
+      "Security Forensics Module -- 8 forensics tools with commands and purpose descriptions"
     ]
   }
 }

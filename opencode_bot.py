@@ -6603,7 +6603,7 @@ async def main():
                                 "  /cyberdeck learn — View agent learnings\n\n"
                                 "**History & Info:**\n"
                                 "  /cyberdeck list — View build history\n"
-                                "  /cyberdeck status — Agent status (v4.1)\n\n"
+                                "  /cyberdeck status — Agent status (v5.0)\n\n"
                                 "Types: sbc, display, keyboard, power, enclosure, cooling, pcb, wire_signal, wire_power, os\n"
                                 "Styles: futuristic, retro, industrial, minimal, steampunk, cyberpunk\n"
                                 "Sizes: small (compact), big (full power)\n"

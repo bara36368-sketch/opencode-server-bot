@@ -1,5 +1,5 @@
 """
-Cyberdeck Agent v4.1 — Full-featured cyberdeck builder, learner, and evolution engine.
+Cyberdeck Agent v5.0 — Full-featured cyberdeck builder, learner, and evolution engine.
 Watches videos, analyzes images, builds from prompts, picks best components,
 validates compatibility, generates tutorials, and gets smarter over time.
 
@@ -23,6 +23,26 @@ New in v4.1:
   - Video Creation (step-by-step build tutorial video scripts)
   - Custom PCB for backward compatibility (HDMI-to-DSI, USB-C power, GPIO expansion)
   - Component Risk Levels (minimal, low, medium, high)
+
+New in v5.0:
+  - 6 New Style Presets (nautical, solarpunk, cassette-futurism, feminine-craft, fallout, brutalist)
+  - 6 New Categories (drone, forensics, test-equipment, weather-station, home-automation, edge-ai)
+  - Peripheral Recommendation Engine (suggests peripherals by category/use-case)
+  - Environmental Sensor Database (BME680, SCD-30, PMS5003, LTR390, SGP40, etc.)
+  - Camera Module Database (Pi Camera 3, Arducam IR-CUT, Global Shutter, FLIR Lepton)
+  - SDR Database (HackRF One, RTL-SDR Blog V4, Airspy Mini)
+  - LoRa/Mesh Database (RAK WisMesh, Seeed Wio L1, Heltec V3, Meshtastic configs)
+  - NFC/RFID Database (Waveshare PN532, PiNFC)
+  - Fingerprint Database (PiFinger, R307, R503)
+  - Haptic Feedback Database (DRV2605L, vibration motors)
+  - IMU/Accelerometer Database (Sense HAT, BNO055, MPU-6050)
+  - Color Palette Database (cyberpunk hex codes, synthwave, vaporwave, nautical)
+  - Aesthetic Material Database (vinyl wrap, resin art, wood, leather, carbon fiber, brass)
+  - 67+ Build References with full component lists
+  - 170+ Source Tracking
+  - Battery Sizing Calculator Integration
+  - Thermal Pad/Paste Comparison Engine
+  - Antenna Selection Guide (LoRa, WiFi, GPS, SDR)
 """
 import os, json, time, logging, hashlib, re, base64
 from datetime import datetime
@@ -30,7 +50,7 @@ from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-VERSION = "4.1.0"
+VERSION = "5.0.0"
 LEARNINGS_FILE = "cyberdeck_learnings.json"
 BUILD_HISTORY_FILE = "cyberdeck_build_history.json"
 VIDEO_QUEUE_FILE = "cyberdeck_video_queue.json"
@@ -156,6 +176,90 @@ STYLE_PRESETS = {
         "wire_visibility": "neon-colored exposed",
         "bezel_style": "asymmetric angular",
         "enclosure_notes": "Asymmetric cuts, exposed PCB edges, neon LED strips, holographic stickers",
+    },
+    "nautical": {
+        "name": "Nautical / Aquatic",
+        "description": "Sapele wood, brass accents, teal/dark navy color, compass rose details",
+        "default_color": "#1a3a4a",
+        "accent_color": "#b8860b",
+        "screw_style": "brass slotted",
+        "surface": "sapele wood veneer",
+        "vent_style": "port-hole style round",
+        "led_channels": False,
+        "fillet_radius": 4,
+        "wire_visibility": "braided marine-grade",
+        "bezel_style": "brass compass frame",
+        "enclosure_notes": "Add compass rose inlay, rope-grip edges, brass corner caps, water-resistant seals, porthole-style display bezel",
+    },
+    "solarpunk": {
+        "name": "Solarpunk",
+        "description": "Green/nature colors, bamboo/wood, living plant integration, sustainable materials",
+        "default_color": "#2d5a27",
+        "accent_color": "#8b6914",
+        "screw_style": "hidden (wooden dowels)",
+        "surface": "bamboo or reclaimed wood",
+        "vent_style": "leaf-pattern perforations",
+        "led_channels": False,
+        "fillet_radius": 5,
+        "wire_visibility": "hidden (natural fiber wrapped)",
+        "bezel_style": "living-edge wood frame",
+        "enclosure_notes": "Incorporate living moss/air plants, solar panel integration, natural fiber cables, biodegradable accents, earth-tone palette",
+    },
+    "cassette_futurism": {
+        "name": "Cassette Futurism",
+        "description": "80s/90s tech aesthetic, black/white/grey/red, soft-touch plastics, button-heavy",
+        "default_color": "#2a2a2a",
+        "accent_color": "#cc0000",
+        "screw_style": "hidden (snap-fit)",
+        "surface": "soft-touch matte plastic",
+        "vent_style": "horizontal ribbed slots",
+        "led_channels": False,
+        "fillet_radius": 3,
+        "wire_visibility": "hidden",
+        "bezel_style": "chunky rounded",
+        "enclosure_notes": "Add membrane buttons, red LED indicators, cassette-slot inspired card reader, Walkman-style volume wheels, soft rubber grips",
+    },
+    "feminine_craft": {
+        "name": "Feminine / Craft",
+        "description": "Lavender/rose/cream palette, quilted textures, embroidered details, soft curves",
+        "default_color": "#e8d0e8",
+        "accent_color": "#c77dba",
+        "screw_style": "hidden (velvet-covered)",
+        "surface": "quilted fabric panels",
+        "vent_style": "lace-pattern perforations",
+        "led_channels": False,
+        "fillet_radius": 8,
+        "wire_visibility": "braided ribbon cable",
+        "bezel_style": "embroidered frame",
+        "enclosure_notes": "Add embroidered patches, pearl-button accents, floral engravings, soft-touch silicone edges, decorative lace trim",
+    },
+    "fallout": {
+        "name": "Fallout / Post-Apocalyptic",
+        "description": "Military surplus, olive drab/khaki/rust, weathered/distressed finish, riveted panels",
+        "default_color": "#4a5a3a",
+        "accent_color": "#8b4513",
+        "screw_style": "exposed hex (rusted)",
+        "surface": "distressed hammered paint",
+        "vent_style": "jagged cut-outs",
+        "led_channels": False,
+        "fillet_radius": 1,
+        "wire_visibility": "exposed braided",
+        "bezel_style": "dented metal frame",
+        "enclosure_notes": "Add radiation symbol decals, rust patina, military stenciling, hazard stripes, vacuum tube decorations, retro-futuristic dial knobs",
+    },
+    "brutalist": {
+        "name": "Brutalist",
+        "description": "Raw concrete/gray, heavy mass, geometric blocks, visible construction marks",
+        "default_color": "#6b6b6b",
+        "accent_color": "#999999",
+        "screw_style": "exposed industrial bolt",
+        "surface": "raw concrete texture (printed)",
+        "vent_style": "deep rectangular channels",
+        "led_channels": False,
+        "fillet_radius": 0,
+        "wire_visibility": "hidden in channels",
+        "bezel_style": "thick raw block",
+        "enclosure_notes": "Use heavy geometric blocks, exposed layer lines as feature, no decoration, raw material honesty, monumental proportions",
     },
 }
 
@@ -388,6 +492,66 @@ CATEGORIES = {
         "upgrade_path": "Multimeter integration > Thermal camera > Cable tester > Logic probe",
         "estimated_cost": "$350-$650", "aesthetic": "Toolbox, organized, labeled compartments",
         "default_color": "#ff6600", "default_style": "industrial", "size_preference": "small",
+    },
+    "drone": {
+        "name": "Drone / UAV Controller", "description": "Drone ground station, FPV control, telemetry monitoring, autonomous missions",
+        "budget_range": "$400-$1500", "best_sbc": "pi5_8gb", "best_display": "sunlight_readable_7",
+        "best_keyboard": "bbq20kbd", "best_power": "custom_18650_x6", "best_enclosure": "pelican_1450",
+        "best_cooling": "passive_heatsink", "best_connectivity": "hackrf_one", "best_pcb": "waveshare_phat",
+        "best_wire": "silicon_18awg",
+        "upgrade_path": "GPS module > MAVLink telemetry > LTE modem > Dual SDR",
+        "estimated_cost": "$500-$1200", "aesthetic": "Military field, sunlight readable",
+        "default_color": "#4a5d23", "default_style": "industrial", "size_preference": "big",
+    },
+    "forensics": {
+        "name": "Digital Forensics", "description": "Disk imaging, memory analysis, evidence collection, chain of custody",
+        "budget_range": "$400-$1500", "best_sbc": "pi5_16gb", "best_display": "hdmi_7inch_ips",
+        "best_keyboard": "mech_60", "best_power": "ups_h5180", "best_enclosure": "pelican_1450",
+        "best_cooling": "active_fan", "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat",
+        "best_wire": "silicon_24awg",
+        "upgrade_path": "Write-blocker > NVMe dock > LTE modem > Faraday bag",
+        "estimated_cost": "$500-$1200", "aesthetic": "Clean, labeled, evidence-grade",
+        "default_color": "#2d2d2d", "default_style": "industrial", "size_preference": "big",
+    },
+    "test-equipment": {
+        "name": "Test Equipment", "description": "Oscilloscope, logic analyzer, signal generator, multimeter, spectrum analyzer",
+        "budget_range": "$300-$1000", "best_sbc": "pi5_8gb", "best_display": "hdmi_7inch_ips",
+        "best_keyboard": "mech_60", "best_power": "ups_h5180", "best_enclosure": "3d_printed",
+        "best_cooling": "active_fan", "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat",
+        "best_wire": "silicon_24awg",
+        "upgrade_path": "USB oscilloscope > Logic analyzer > Signal generator > Thermal camera",
+        "estimated_cost": "$400-$800", "aesthetic": "Lab instrument, labeled ports",
+        "default_color": "#2d2d2d", "default_style": "industrial", "size_preference": "big",
+    },
+    "weather-station": {
+        "name": "Weather Station", "description": "Environmental monitoring, temperature/humidity, air quality, UV index",
+        "budget_range": "$200-$700", "best_sbc": "pi5_4gb", "best_display": "eink_7inch",
+        "best_keyboard": "bt_keyboard", "best_power": "solar_panel_18w", "best_enclosure": "pelican_1400",
+        "best_cooling": "passive_heatsink", "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat",
+        "best_wire": "silicon_18awg",
+        "upgrade_path": "Anemometer > Rain gauge > Lightning detector > MQTT dashboard",
+        "estimated_cost": "$300-$600", "aesthetic": "Weather-resistant, outdoor-rated",
+        "default_color": "#3d5c3a", "default_style": "industrial", "size_preference": "big",
+    },
+    "home-automation": {
+        "name": "Home Automation Hub", "description": "Home Assistant controller, Zigbee/Z-Wave gateway, smart home dashboard",
+        "budget_range": "$200-$600", "best_sbc": "pi5_4gb", "best_display": "hdmi_7inch_ips",
+        "best_keyboard": "bt_keyboard", "best_power": "ups_h5180", "best_enclosure": "3d_printed",
+        "best_cooling": "passive_heatsink", "best_connectivity": "usb_ethernet", "best_pcb": "waveshare_phat",
+        "best_wire": "silicon_24awg",
+        "upgrade_path": "Zigbee dongle > Z-Wave dongle > Thread border router > LTE backup",
+        "estimated_cost": "$250-$500", "aesthetic": "Clean, mounted, unobtrusive",
+        "default_color": "#f5f5f5", "default_style": "minimal", "size_preference": "small",
+    },
+    "edge-ai": {
+        "name": "Edge AI Inference", "description": "Local LLM, computer vision, NPU-accelerated ML, real-time inference",
+        "budget_range": "$500-$2000", "best_sbc": "jetson_orin_nano", "best_display": "hdmi_10inch",
+        "best_keyboard": "mech_60", "best_power": "ups_h5180", "best_enclosure": "3d_printed_vented",
+        "best_cooling": "active_fan_heatsink", "best_connectivity": "usb_ethernet", "best_pcb": "jetson_carrier",
+        "best_wire": "silicon_24awg",
+        "upgrade_path": "More VRAM > External GPU > Camera array > NVMe RAID",
+        "estimated_cost": "$600-$1800", "aesthetic": "Server rack, thermal management",
+        "default_color": "#1a1a2e", "default_style": "futuristic", "size_preference": "big",
     },
 }
 
@@ -738,8 +902,147 @@ CONNECTIVITY_DATABASE = {
 }
 
 # ============================================================
-# COMPATIBILITY RULES
+# v5.0 — ENVIRONMENTAL SENSOR DATABASE
 # ============================================================
+ENVIRONMENTAL_SENSOR_DATABASE = {
+    "bme280": {"name": "BME280 Temperature/Humidity/Pressure", "type": "Environmental", "interface": "I2C/SPI", "range": "-40-85C, 0-100%RH, 300-1100hPa", "accuracy": "±1C, ±3%RH, ±1hPa", "price": 5, "power": "1.8mA", "best_for": ["weather-station", "research", "survival"]},
+    "bme680": {"name": "BME680 Temp/Humidity/Pressure/Gas", "type": "Environmental", "interface": "I2C/SPI", "range": "-40-85C, 0-100%RH, 300-1100hPa, VOC", "accuracy": "±1C, ±3%RH", "price": 15, "power": "3.1mA", "best_for": ["weather-station", "research", "home-automation"]},
+    "scd30": {"name": "SCD30 CO2 Sensor", "type": "CO2", "interface": "I2C", "range": "400-10000ppm", "accuracy": "±(30ppm+3%)", "price": 50, "power": "19mA", "best_for": ["weather-station", "home-automation"]},
+    "scd40": {"name": "SCD40 Mini CO2 Sensor", "type": "CO2", "interface": "I2C", "range": "400-5000ppm", "accuracy": "±(40ppm+5%)", "price": 30, "power": "17mA", "best_for": ["weather-station", "home-automation"]},
+    "pms5003": {"name": "Plantower PMS5003 Particulate Matter", "type": "Air Quality", "interface": "UART", "range": "PM1.0/PM2.5/PM10", "accuracy": "±10μg/m3", "price": 20, "power": "100mA", "best_for": ["weather-station", "research"]},
+    "ltr390": {"name": "LTR390 UV/Ambient Light Sensor", "type": "UV/Light", "interface": "I2C", "range": "UV Index 0-20+", "accuracy": "±1 UV index", "price": 5, "power": "0.5mA", "best_for": ["weather-station", "research", "outdoor"]},
+    "sgp40": {"name": "SGP40 VOC Gas Sensor", "type": "VOC", "interface": "I2C", "range": "0-1000 VOC Index", "accuracy": "±15%", "price": 12, "power": "0.4mA", "best_for": ["weather-station", "home-automation"]},
+    "bh1750": {"name": "BH1750 Ambient Light Sensor", "type": "Light", "interface": "I2C", "range": "1-65535 lux", "accuracy": "±20%", "price": 3, "power": "0.12mA", "best_for": ["weather-station", "home-automation", "writerdeck"]},
+    "dht22": {"name": "DHT22 Temperature/Humidity", "type": "Environmental", "interface": "1-Wire", "range": "-40-80C, 0-100%RH", "accuracy": "±0.5C, ±2%RH", "price": 4, "power": "1.5mA", "best_for": ["weather-station", "home-automation", "survival"]},
+    "ds18b20": {"name": "DS18B20 Waterproof Temperature Probe", "type": "Temperature", "interface": "1-Wire", "range": "-55-125C", "accuracy": "±0.5C", "price": 3, "power": "1mA", "best_for": ["weather-station", "field-repair"]},
+    "geiger_tube": {"name": "SBM-20 Geiger-Müller Tube", "type": "Radiation", "interface": "Pulse Count", "range": "0.1-1000 μSv/h", "accuracy": "±15%", "price": 25, "power": "5mA", "best_for": ["survival", "research", "forensics"]},
+    "radiationd_pcb": {"name": "RadPcb Radiation Detector PCB", "type": "Radiation", "interface": "SPI", "range": "SBM-20/Tube compatible", "accuracy": "±20%", "price": 10, "power": "5mA", "best_for": ["survival", "research"]},
+}
+
+# ============================================================
+# v5.0 — CAMERA MODULE DATABASE
+# ============================================================
+CAMERA_MODULE_DATABASE = {
+    "pi_camera_3": {"name": "Raspberry Pi Camera Module 3", "sensor": "IMX708", "resolution": "12MP 4608x2592", "fps": "30fps@1080p, 60fps@720p", "focus": "Autofocus", "interface": "CSI", "price": 25, "pros": ["HDR", "Autofocus", "Official Pi"], "cons": ["Only CSI port"], "best_for": ["ai", "research", "security"]},
+    "pi_camera_3_noir": {"name": "Pi Camera Module 3 NoIR", "sensor": "IMX708 (No IR filter)", "resolution": "12MP 4608x2592", "fps": "30fps@1080p", "focus": "Autofocus", "interface": "CSI", "price": 25, "pros": ["Night vision with IR LED", "HDR", "Autofocus"], "cons": ["Needs IR LED for night"], "best_for": ["security", "research", "survival"]},
+    "arducam_imx519": {"name": "Arducam 16MP IMX519 Autofocus", "sensor": "IMX519", "resolution": "16MP 4656x3496", "fps": "30fps@1080p", "focus": "Autofocus (Motorized)", "interface": "CSI", "price": 35, "pros": ["High resolution", "Motorized focus", "Wide angle option"], "cons": ["More expensive"], "best_for": ["ai", "research"]},
+    "arducam_global_shutter": {"name": "Arducam Global Shutter IMX296", "sensor": "IMX296", "resolution": "1.3MP 1280x960", "fps": "60fps", "focus": "Fixed", "interface": "CSI", "price": 40, "pros": ["No motion blur", "Machine vision", "Industrial"], "cons": ["Low resolution"], "best_for": ["ai", "drone", "field-repair"]},
+    "flir_lepton": {"name": "FLIR Lepton 3.5 Thermal Camera", "sensor": "LWIR Microbolometer", "resolution": "160x120 thermal", "fps": "9fps", "focus": "Fixed", "interface": "SPI (via breakout)", "price": 200, "pros": ["Thermal imaging", "Compact", "Low power"], "cons": ["Expensive", "Low resolution"], "best_for": ["field-repair", "research", "security"]},
+    "seek_micro": {"name": "Seek Thermal CompactPRO", "sensor": "LWIR", "resolution": "320x240 thermal", "fps": "15fps", "focus": "Fixed", "interface": "USB-C", "price": 300, "pros": ["High resolution thermal", "USB-C plug and play"], "cons": ["Very expensive"], "best_for": ["field-repair", "research"]},
+}
+
+# ============================================================
+# v5.0 — SDR DATABASE (detailed)
+# ============================================================
+SDR_DATABASE = {
+    "hackrf_one": {"name": "HackRF One", "type": "SDR Transceiver", "frequency": "1MHz-6GHz", "bandwidth": "20MHz", "resolution": "8-bit", "interface": "USB 3.0", "price": 350, "tx_rx": "Full duplex (half-duplex TX/RX)", "pros": ["Huge frequency range", "TX+RX", "Industry standard"], "cons": ["Expensive", "8-bit ADC"], "best_for": ["security", "ham-radio", "research"]},
+    "rtl_sdr_v4": {"name": "RTL-SDR Blog V4", "type": "SDR Receiver", "frequency": "24MHz-1766MHz", "bandwidth": "3.2MHz", "resolution": "8-bit", "interface": "USB 2.0", "price": 30, "tx_rx": "RX only", "pros": ["Ultra cheap", "Wide frequency range", "HackRF alternative for RX"], "cons": ["Receive only"], "best_for": ["security", "research", "ham-radio", "survival"]},
+    "airspy_mini": {"name": "Airspy Mini", "type": "SDR Receiver", "frequency": "24MHz-1800MHz", "bandwidth": "6MHz", "resolution": "12-bit", "interface": "USB 2.0", "price": 100, "tx_rx": "RX only", "pros": ["High resolution 12-bit", "Wide bandwidth", "Clean signal"], "cons": ["RX only", "More expensive than RTL-SDR"], "best_for": ["security", "research", "ham-radio"]},
+}
+
+# ============================================================
+# v5.0 — LORA/MESH DATABASE
+# ============================================================
+LORA_MESH_DATABASE = {
+    "rak_wismesh": {"name": "RAK WisMesh Tap", "type": "LoRa Mesh", "chip": "SX1262", "frequency": "868/915MHz", "range": "10-15km", "firmware": "Meshtastic", "interface": "USB-C / BLE", "price": 50, "pros": ["Meshtastic", "Built-in battery", "Compact"], "cons": ["Needs LoRa antenna"], "best_for": ["survival", "drone", "research"]},
+    "seeed_wio_l1": {"name": "Seeed Wio L1 Module", "type": "LoRa Mesh", "chip": "SX1262", "frequency": "868/915MHz", "range": "5-10km", "firmware": "Meshtastic", "interface": "UART/SPI", "price": 15, "pros": ["Tiny", "Cheap", "Meshtastic"], "cons": ["Needs antenna", "Wiring"], "best_for": ["survival", "research"]},
+    "heltec_v3": {"name": "Heltec WiFi LoRa 32 V3", "type": "LoRa + WiFi ESP32", "chip": "SX1262 + ESP32-S3", "frequency": "868/915MHz", "range": "10-15km", "firmware": "Meshtastic", "interface": "USB-C", "price": 25, "pros": ["Built-in OLED", "WiFi + LoRa", "Meshtastic", "ESP32 ecosystem"], "cons": ["Small OLED"], "best_for": ["survival", "research", "home-automation"]},
+    "lora_phat": {"name": "Waveshare LoRa HAT for Raspberry Pi", "type": "LoRa HAT", "chip": "SX1262/SX1278", "frequency": "868/915/433MHz", "range": "5-10km", "firmware": "Custom/Meshtastic", "interface": "SPI (HAT)", "price": 30, "pros": ["Pi HAT form factor", "Antenna connector", "GPIO pass-through"], "cons": ["Needs Pi GPIO"], "best_for": ["survival", "drone", "ham-radio"]},
+}
+
+# ============================================================
+# v5.0 — NFC/RFID DATABASE
+# ============================================================
+NFC_RFID_DATABASE = {
+    "pn532": {"name": "Waveshare PN532 NFC HAT", "type": "NFC Reader/Writer", "protocols": "ISO14443A/B, ISO15693, FeliCa, MIFARE", "interface": "SPI/I2C/UART", "price": 15, "pros": ["Multi-protocol", "Read/write cards", "Arduino/Pi compatible"], "cons": ["Needs wiring"], "best_for": ["security", "forensics", "home-automation"]},
+    "acr122u": {"name": "ACS ACR122U USB NFC Reader", "type": "NFC Reader", "protocols": "ISO14443A/B, MIFARE", "interface": "USB", "price": 30, "pros": ["Plug and play", "Linux compatible", "MIFARE support"], "cons": ["USB dongle", "No write to MIFARE"], "best_for": ["security", "forensics"]},
+    "rc522": {"name": "MFRC522 RFID Module", "type": "RFID Reader", "protocols": "MIFARE 1K/4K, NTAG", "interface": "SPI", "price": 3, "pros": ["Ultra cheap", "MIFARE crackable", "Pi/Arduino"], "cons": ["13.56MHz only"], "best_for": ["security", "home-automation"]},
+}
+
+# ============================================================
+# v5.0 — FINGERPRINT DATABASE
+# ============================================================
+FINGERPRINT_DATABASE = {
+    "r307": {"name": "R307 Optical Fingerprint Sensor", "type": "Optical", "capacity": "1000 fingerprints", "interface": "UART", "price": 10, "pros": ["Cheap", "1000 templates", "Serial protocol"], "cons": ["Bulky", "Optical (less secure)"], "best_for": ["security", "home-automation"]},
+    "r503": {"name": "R503 Capacitive Fingerprint", "type": "Capacitive", "capacity": "1000 fingerprints", "interface": "UART", "price": 15, "pros": ["Capacitive (more secure)", "Slim"], "cons": ["More expensive"], "best_for": ["security", "home-automation"]},
+    "gt521f32": {"name": "GT-521F32 Fingerprint Scanner", "type": "Optical", "capacity": "3000 fingerprints", "interface": "UART", "price": 20, "pros": ["Large capacity", "Industrial"], "cons": ["Bulky"], "best_for": ["security", "forensics"]},
+}
+
+# ============================================================
+# v5.0 — HAPTIC FEEDBACK DATABASE
+# ============================================================
+HAPTIC_FEEDBACK_DATABASE = {
+    "drv2605l": {"name": "Adafruit DRV2605L Haptic Driver", "type": "Haptic Driver", "interface": "I2C", "effects": "123 built-in effects", "price": 8, "pros": ["Rich haptic library", "LRA/ERM support", "Audio-to-haptic"], "cons": ["Needs motor"], "best_for": ["conversation-piece", "writerdeck"]},
+    "er_ms_motor": {"name": "ERM Vibration Motor 3V", "type": "ERM Motor", "voltage": "3V", "price": 1, "pros": ["Ultra cheap", "Simple"], "cons": ["No smart control"], "best_for": ["conversation-piece", "writerdeck"]},
+    "lra_motor": {"name": "Precision LRA Vibration Motor", "type": "LRA Motor", "voltage": "1.2V", "price": 5, "pros": ["Precise", "Fast response", "Low power"], "cons": ["Needs driver"], "best_for": ["conversation-piece", "writerdeck"]},
+}
+
+# ============================================================
+# v5.0 — IMU/ACCELEROMETER DATABASE
+# ============================================================
+IMU_DATABASE = {
+    "sense_hat": {"name": "Raspberry Pi Sense HAT", "type": "IMU + Env + Display", "sensors": "Accel, Gyro, Magnetometer, Temp, Humidity, Pressure", "interface": "GPIO HAT", "price": 35, "pros": ["All-in-one", "Official Pi", "LED matrix", "Gyroscope"], "cons": ["Bulky HAT"], "best_for": ["drone", "weather-station", "research"]},
+    "bno055": {"name": "Adafruit BNO055 9-DOF IMU", "type": "9-DOF IMU", "sensors": "Accel + Gyro + Magnetometer + Fusion", "interface": "I2C", "price": 25, "pros": ["Sensor fusion built-in", "High accuracy", "Orientation output"], "cons": ["Needs I2C wiring"], "best_for": ["drone", "research"]},
+    "mpu6050": {"name": "MPU-6050 6-DOF IMU", "type": "6-DOF IMU", "sensors": "Accel + Gyro", "interface": "I2C", "price": 3, "pros": ["Ultra cheap", "Tiny", "Proven"], "cons": ["No magnetometer", "Needs calibration"], "best_for": ["drone", "conversation-piece"]},
+}
+
+# ============================================================
+# v5.0 — COLOR PALETTE DATABASE
+# ============================================================
+COLOR_PALETTE_DATABASE = {
+    "cyberpunk_2077": {"name": "Cyberpunk 2077", "primary": "#FCEE09", "secondary": "#00F0FF", "accent": "#FF003C", "bg": "#1A1A1A", "neon_glow": True},
+    "synthwave": {"name": "Synthwave / Retrowave", "primary": "#FF6EC7", "secondary": "#7B2FBE", "accent": "#00FFFF", "bg": "#1A0A2E", "neon_glow": True},
+    "vaporwave": {"name": "Vaporwave", "primary": "#FF71CE", "secondary": "#01CDFE", "accent": "#B967FF", "bg": "#050A30", "neon_glow": True},
+    "nautical": {"name": "Nautical", "primary": "#1A3A4A", "secondary": "#B8860B", "accent": "#4682B4", "bg": "#0D1B2A", "neon_glow": False},
+    "solarpunk": {"name": "Solarpunk", "primary": "#2D5A27", "secondary": "#8B6914", "accent": "#90EE90", "bg": "#F5F5DC", "neon_glow": False},
+    "cassette_futurism": {"name": "Cassette Futurism", "primary": "#2A2A2A", "secondary": "#CC0000", "accent": "#FFFFFF", "bg": "#1A1A1A", "neon_glow": False},
+    "brutalist": {"name": "Brutalist", "primary": "#6B6B6B", "secondary": "#999999", "accent": "#CC0000", "bg": "#333333", "neon_glow": False},
+    "military": {"name": "Military Tactical", "primary": "#4A5D23", "secondary": "#8B4513", "accent": "#DAA520", "bg": "#1C1C1C", "neon_glow": False},
+    "fallout": {"name": "Fallout / Post-Apocalyptic", "primary": "#4A5A3A", "secondary": "#8B4513", "accent": "#DAA520", "bg": "#2A2A2A", "neon_glow": False},
+    "minimal": {"name": "Minimal Clean", "primary": "#F5F5F5", "secondary": "#333333", "accent": "#0066CC", "bg": "#FFFFFF", "neon_glow": False},
+}
+
+# ============================================================
+# v5.0 — AESTHETIC MATERIAL DATABASE
+# ============================================================
+AESTHETIC_MATERIAL_DATABASE = {
+    "vinyl_wrap": {"name": "Vinyl Wrap (Oracal 651)", "finish": ["gloss", "matte", "satin", "metallic", "holographic"], "color_count": "100+", "price": "$10/roll", "application": "Peel and stick, heat gun for curves", "best_for": ["cyberpunk", "nautical", "solarpunk"]},
+    "resin_art": {"name": "Epoxy Resin Art", "finish": ["clear", "tinted", "glitter", "neon", "transparent"], "price": "$15/kit", "application": "Pour over surface, UV or 2-part", "best_for": ["conversation-piece", "cyberpunk"]},
+    "wood_veneer": {"name": "Wood Veneer Sheets", "finish": ["walnut", "oak", "cherry", "sapele", "bamboo"], "price": "$8/sheet", "application": "Glue + clamp, sand + finish", "best_for": ["nautical", "solarpunk", "writerdeck"]},
+    "leather_wrap": {"name": "Faux Leather Wrap", "finish": ["smooth", "textured", "distressed"], "price": "$12/sheet", "application": "Contact cement + wrap", "best_for": ["steampunk", "writerdeck", "retro"]},
+    "carbon_fiber": {"name": "Carbon Fiber Vinyl/Sheet", "finish": ["gloss", "matte"], "price": "$20/sheet", "application": "Heat gun + wrap or resin embed", "best_for": ["cyberpunk", "industrial"]},
+    "brass_accents": {"name": "Brass Sheet/Accents", "finish": ["polished", "brushed", "patina"], "price": "$15/sheet", "application": "Cut + bend + solder or glue", "best_for": ["steampunk", "nautical", "retro"]},
+    "sticker_bomb": {"name": "Sticker Bombing", "finish": ["random", "themed", "custom"], "price": "$5-20", "application": "Layer stickers, clear coat over", "best_for": ["conversation-piece", "cyberpunk"]},
+    "led_strip": {"name": "WS2812B Addressable LED Strip", "finish": ["RGB", "RGBW"], "price": "$8/meter", "application": "Cut to length, WLED controller", "best_for": ["cyberpunk", "conversation-piece"]},
+    "spray_paint": {"name": "Montana Gold / Krylon Fusion", "finish": ["matte", "gloss", "metallic", "chrome"], "price": "$6/can", "application": "Sand + prime + paint + clear coat", "best_for": ["ALL"]},
+    "3d_print_filigree": {"name": "3D Printed Filigree/Grille", "finish": ["PLA", "PETG", "resin"], "price": "Filament cost", "application": "Print decorative elements, glue on", "best_for": ["steampunk", "cyberpunk", "conversation-piece"]},
+}
+
+# ============================================================
+# v5.0 — ANTENNA SELECTION GUIDE
+# ============================================================
+ANTENNA_GUIDE = {
+    "lora_868": {"band": "868MHz", "type": "LoRa EU", "recommended": "Dipole 86.5cm", "gain": "2dBi", "connector": "SMA/RP-SMA", "notes": "Trim to 868MHz λ/4"},
+    "lora_915": {"band": "915MHz", "type": "LoRa US", "recommended": "Dipole 8.2cm", "gain": "2dBi", "connector": "SMA/RP-SMA", "notes": "Trim to 915MHz λ/4"},
+    "wifi_24ghz": {"band": "2.4GHz", "type": "WiFi", "recommended": "Omnidirectional 3dBi", "gain": "3-5dBi", "connector": "RP-SMA", "notes": "Standard WiFi antenna"},
+    "wifi_5ghz": {"band": "5GHz", "type": "WiFi 5", "recommended": "Omnidirectional 5dBi", "gain": "5dBi", "connector": "RP-SMA", "notes": "Shorter wavelength, higher gain needed"},
+    "gps_l1": {"band": "1575.42MHz", "type": "GPS L1", "recommended": "Patch antenna", "gain": "2-5dBi", "connector": "U.FL/SMA", "notes": "Needs sky view"},
+    "sdr_general": {"band": "24-1766MHz", "type": "SDR Wideband", "recommended": "Discone / wideband dipole", "gain": "2-6dBi", "connector": "SMA", "notes": "Wide frequency coverage"},
+    "ham_vhf": {"band": "144-148MHz", "type": "VHF Ham", "recommended": "Vertical 1/4 wave (50cm)", "gain": "2dBi", "connector": "PL-259/SO-239", "notes": "Line of sight"},
+    "ham_uhf": {"band": "420-450MHz", "type": "UHF Ham", "recommended": "Vertical 1/4 wave (17cm)", "gain": "2dBi", "connector": "PL-259/SO-239", "notes": "Good for repeaters"},
+    "lte": {"band": "700-2600MHz", "type": "LTE Cellular", "recommended": "LTE whip antenna", "gain": "3dBi", "connector": "SMA", "notes": "Match to carrier band"},
+}
+
+# ============================================================
+# v5.0 — THERMAL INTERFACE MATERIAL DATABASE
+# ============================================================
+THERMAL_INTERFACE_DATABASE = {
+    "arctic_mx6": {"name": "Arctic MX-6 Thermal Paste", "conductivity": "12.5 W/mK", "type": "Paste", "price": "$8", "application": "Spreader/pea method", "best_for": ["ai", "coding"]},
+    "thermal_grizzly_kryonaut": {"name": "Thermal Grizzly Kryonaut", "conductivity": "12.5 W/mK", "type": "Paste", "price": "$12", "application": "Spreader/pea method", "best_for": ["ai", "edge-ai"]},
+    "gelid_gp_ultra": {"name": "GELID GP-Ultimate Pad", "conductivity": "15 W/mK", "type": "Pad", "price": "$10", "application": "Cut to size, place on chip", "best_for": ["ai", "edge-ai"]},
+    "thermal_paste_arctic_silver": {"name": "Arctic Silver 5", "conductivity": "8.9 W/mK", "type": "Paste", "price": "$7", "application": "Line/pea method", "best_for": ["ALL"]},
+    "kapton_tape": {"name": "Kapton Tape (Polyimide)", "conductivity": "N/A (insulator)", "type": "Tape", "price": "$6", "application": "Mask components, secure wires", "best_for": ["ALL"]},
+}
 COMPAT_RULES = {
     "power_connector": {
         "pi5": "USB-C 5V/5A", "pi4": "USB-C 5V/3A",
@@ -2616,15 +2919,29 @@ class CyberdeckAgent:
     def get_status(self):
         return {
             "version": self.version,
-            "v4_1_features": [
-                "3D Model Color Picker + Downloadable STL",
-                "Detailed Component Specs",
-                "Waterproof + Battery Charging Components",
-                "Size Preference (Small vs Big)",
-                "3D Model Style Presets",
-                "Video Creation (Build Tutorial Scripts)",
-                "Custom PCB for Backward Compatibility",
-                "Component Risk Levels",
+            "v5_0_features": [
+                "6 New Style Presets (nautical, solarpunk, cassette-futurism, feminine-craft, fallout, brutalist)",
+                "6 New Categories (drone, forensics, test-equipment, weather-station, home-automation, edge-ai)",
+                "Peripheral Recommendation Engine",
+                "Environmental Sensor Database (12 sensors)",
+                "Camera Module Database (6 cameras)",
+                "SDR Database (3 SDRs)",
+                "LoRa/Mesh Database (4 modules)",
+                "NFC/RFID Database (3 readers)",
+                "Fingerprint Database (3 scanners)",
+                "Haptic Feedback Database (3 drivers)",
+                "IMU/Accelerometer Database (3 IMUs)",
+                "Color Palette Database (10 palettes)",
+                "Aesthetic Material Database (10 materials)",
+                "Antenna Selection Guide (9 bands)",
+                "Thermal Interface Material Database (5 materials)",
+                "Battery Sizing Calculator",
+                "Antenna Calculator",
+                "Forensics Module",
+                "Test Equipment Module",
+                "Ham Radio Module",
+                "Environmental Monitor",
+                "Security Forensics Module",
             ],
             "total_builds": len(self.build_history),
             "videos_learned": len(self.learner.learnings.get("video_knowledge", [])),
@@ -2639,6 +2956,18 @@ class CyberdeckAgent:
             "enclosure_count": len(ENCLOSURE_DATABASE), "cooling_count": len(COOLING_DATABASE),
             "pcb_count": len(PCB_DATABASE), "wire_count": len(WIRE_DATABASE),
             "connectivity_count": len(CONNECTIVITY_DATABASE), "os_count": len(OS_DATABASE),
+            "environmental_sensors": len(ENVIRONMENTAL_SENSOR_DATABASE),
+            "cameras": len(CAMERA_MODULE_DATABASE),
+            "sdr_options": len(SDR_DATABASE),
+            "lora_modules": len(LORA_MESH_DATABASE),
+            "nfc_readers": len(NFC_RFID_DATABASE),
+            "fingerprint_scanners": len(FINGERPRINT_DATABASE),
+            "haptic_drivers": len(HAPTIC_FEEDBACK_DATABASE),
+            "imu_modules": len(IMU_DATABASE),
+            "color_palettes": len(COLOR_PALETTE_DATABASE),
+            "aesthetic_materials": len(AESTHETIC_MATERIAL_DATABASE),
+            "antenna_bands": len(ANTENNA_GUIDE),
+            "thermal_materials": len(THERMAL_INTERFACE_DATABASE),
             "charging_components": 3,
             "waterproof_enclosures": 3,
             "video_queue_pending": self.video_queue.get_pending_count(),
@@ -2650,6 +2979,398 @@ class CyberdeckAgent:
                      "estimated_cost": v.get("estimated_cost", "?"), "default_style": v.get("default_style", "industrial"),
                      "default_color": v.get("default_color", "#2d2d2d"), "size_preference": v.get("size_preference", "big")}
                 for k, v in CATEGORIES.items()}
+
+
+# ============================================================
+# v5.0 — PERIPHERAL RECOMMENDATION ENGINE
+# ============================================================
+class PeripheralRecommendationEngine:
+    """Recommends peripherals by category, use-case, and budget."""
+
+    @staticmethod
+    def recommend_for_category(category: str, budget: float = 500.0) -> Dict[str, List]:
+        cat = CATEGORIES.get(category, {})
+        recommendations = {}
+
+        for db_name, db in [
+            ("sensors", ENVIRONMENTAL_SENSOR_DATABASE),
+            ("cameras", CAMERA_MODULE_DATABASE),
+            ("sdr", SDR_DATABASE),
+            ("lora", LORA_MESH_DATABASE),
+            ("nfc", NFC_RFID_DATABASE),
+            ("fingerprint", FINGERPRINT_DATABASE),
+            ("haptics", HAPTIC_FEEDBACK_DATABASE),
+            ("imu", IMU_DATABASE),
+        ]:
+            matches = []
+            for pid, pdata in db.items():
+                if category in pdata.get("best_for", []):
+                    matches.append({"id": pid, **pdata})
+            if matches:
+                recommendations[db_name] = sorted(matches, key=lambda x: x.get("price", 0))
+
+        if recommendations:
+            total = sum(items[0].get("price", 0) for items in recommendations.values() if items)
+            recommendations["_total_estimated_cost"] = round(total, 2)
+            recommendations["_budget_remaining"] = round(budget - total, 2)
+
+        return recommendations
+
+    @staticmethod
+    def recommend_for_use_case(use_case: str) -> Dict[str, List]:
+        results = {}
+        use_case_lower = use_case.lower()
+        all_dbs = {
+            "sensors": ENVIRONMENTAL_SENSOR_DATABASE,
+            "cameras": CAMERA_MODULE_DATABASE,
+            "sdr": SDR_DATABASE,
+            "lora": LORA_MESH_DATABASE,
+            "nfc": NFC_RFID_DATABASE,
+            "fingerprint": FINGERPRINT_DATABASE,
+            "haptics": HAPTIC_FEEDBACK_DATABASE,
+            "imu": IMU_DATABASE,
+        }
+        for db_name, db in all_dbs.items():
+            matches = []
+            for pid, pdata in db.items():
+                all_text = str(pdata).lower()
+                if use_case_lower in all_text:
+                    matches.append({"id": pid, **pdata})
+            if matches:
+                results[db_name] = matches
+        return results
+
+    @staticmethod
+    def suggest_by_style(style: str) -> List[Dict]:
+        suggestions = []
+        materials = AESTHETIC_MATERIAL_DATABASE
+        for mid, mdata in materials.items():
+            if style in mdata.get("best_for", []):
+                suggestions.append({"id": mid, **mdata})
+        return suggestions
+
+    @staticmethod
+    def suggest_by_color_palette(palette_name: str) -> Dict:
+        palette = COLOR_PALETTE_DATABASE.get(palette_name, {})
+        if not palette:
+            return {"error": f"Unknown palette: {palette_name}"}
+        return {
+            "palette": palette,
+            "materials": [
+                {"id": mid, **mdata}
+                for mid, mdata in AESTHETIC_MATERIAL_DATABASE.items()
+                if palette_name.replace("_", " ") in str(mdata).lower()
+                or any(p in str(mdata).lower() for p in palette.get("primary", "").lower().split())
+            ][:5],
+        }
+
+
+# ============================================================
+# v5.0 — ANTENNA CALCULATOR
+# ============================================================
+class AntennaCalculator:
+    """Calculates antenna dimensions and cable losses for cyberdeck builds."""
+
+    @staticmethod
+    def calculate_wavelength(frequency_mhz: float) -> float:
+        """Calculate wavelength in cm for given frequency in MHz."""
+        return 29979.2458 / frequency_mhz
+
+    @staticmethod
+    def quarter_wave(frequency_mhz: float) -> float:
+        """Quarter-wave antenna length in cm."""
+        return AntennaCalculator.calculate_wavelength(frequency_mhz) / 4
+
+    @staticmethod
+    def cable_loss_db(cable_type: str, frequency_mhz: float, length_m: float) -> float:
+        """Estimate cable loss in dB."""
+        loss_per_100m = {
+            "RG58": 0.4 * (frequency_mhz / 100),
+            "RG174": 0.6 * (frequency_mhz / 100),
+            "LMR200": 0.3 * (frequency_mhz / 100),
+            "LMR400": 0.1 * (frequency_mhz / 100),
+            "RG316": 0.35 * (frequency_mhz / 100),
+        }
+        base_loss = loss_per_100m.get(cable_type, 0.5 * (frequency_mhz / 100))
+        return round(base_loss * length_m, 2)
+
+    @staticmethod
+    def link_budget(power_dbm: float, tx_gain_dbi: float, rx_gain_dbi: float,
+                    cable_loss_db: float, frequency_mhz: float) -> Dict:
+        free_space_loss = 32.45 + 20 * (frequency_mhz / 1000) + 20 * 10  # assume 10km
+        budget = power_dbm + tx_gain_dbi + rx_gain_dbi - cable_loss_db - free_space_loss
+        return {
+            "free_space_loss_db": round(free_space_loss, 2),
+            "total_link_budget_db": round(budget, 2),
+            "max_range_km": round(10 ** (budget / (10 * 2)), 1),
+            "recommended": budget > 10,
+        }
+
+    @staticmethod
+    def recommend_connector(frequency_mhz: float) -> str:
+        if frequency_mhz < 300:
+            return "SMA (best for HF/VHF)"
+        elif frequency_mhz < 3000:
+            return "RP-SMA or SMA (best for WiFi/LoRa)"
+        else:
+            return "SMA or MMCX (best for 5GHz/SDR)"
+
+
+# ============================================================
+# v5.0 — BATTERY SIZING CALCULATOR
+# ============================================================
+class BatterySizingCalculator:
+    """Calculates battery requirements for cyberdeck builds."""
+
+    @staticmethod
+    def calculate_18650_capacity(cells: int, voltage: float = 3.7, capacity_mah: float = 3500,
+                                   efficiency: float = 0.9) -> Dict:
+        total_wh = cells * voltage * capacity_mah / 1000 * efficiency
+        return {
+            "cells": cells,
+            "voltage_nominal": voltage,
+            "total_wh": round(total_wh, 2),
+            "runtime_hours_5w": round(total_wh / 5, 1),
+            "runtime_hours_10w": round(total_wh / 10, 1),
+            "runtime_hours_15w": round(total_wh / 15, 1),
+            "weight_grams": cells * 45,
+        }
+
+    @staticmethod
+    def recommend_capacity(power_draw_w: float, runtime_hours: float, cells_available: int = 6) -> Dict:
+        needed_wh = power_draw_w * runtime_hours / 0.9
+        cells_needed = max(1, -(-int(needed_wh // (3.7 * 3.5)) ))  # ceiling division
+        return {
+            "power_draw_w": power_draw_w,
+            "runtime_hours": runtime_hours,
+            "needed_wh": round(needed_wh, 2),
+            "cells_recommended": cells_needed,
+            "cells_available": cells_available,
+            "sufficient": cells_needed <= cells_available,
+            "total_wh_available": round(cells_available * 3.7 * 3.5 * 0.9, 2),
+        }
+
+
+# ============================================================
+# v5.0 — FORENSICS MODULE
+# ============================================================
+class ForensicsModule:
+    """Digital forensics tools and procedures for cyberdeck builds."""
+
+    PROCEDURES = {
+        "disk_imaging": {
+            "name": "Disk Imaging (dd / dc3dd)",
+            "tool": "dd if=/dev/sdX of=backup.img bs=4M status=progress",
+            "dc3dd": "dc3dd if=/dev/sdX of=backup.img hash=sha256 log=audit.log",
+            "notes": "Always use write-blocker. Hash source and destination.",
+        },
+        "file_carving": {
+            "name": "File Carving (foremost / scalpel)",
+            "tool": "foremost -i /dev/sdX -o output/",
+            "notes": "Recovers deleted files by file headers.",
+        },
+        "network_forensics": {
+            "name": "Network Forensics (tcpdump / Wireshark)",
+            "tool": "tcpdump -i eth0 -w capture.pcap",
+            "notes": "Capture before powering down suspect device.",
+        },
+        "memory_forensics": {
+            "name": "Memory Forensics (Volatility)",
+            "tool": "volatility -f memory.dump imageinfo",
+            "notes": "Requires RAM dump via /proc/kcore or LiME.",
+        },
+        "log_analysis": {
+            "name": "Log Analysis (LogonTracer)",
+            "tool": "LogonTracer.py -i auth.log",
+            "notes": "Track authentication events, lateral movement.",
+        },
+    }
+
+    @staticmethod
+    def get_procedure(proc_name: str) -> Dict:
+        return ForensicsModule.PROCEDURES.get(proc_name, {"error": "Unknown procedure"})
+
+    @staticmethod
+    def list_procedures() -> List[str]:
+        return list(ForensicsModule.PROCEDURES.keys())
+
+
+# ============================================================
+# v5.0 — TEST EQUIPMENT MODULE
+# ============================================================
+class TestEquipmentModule:
+    """Portable test equipment for cyberdeck builds: oscilloscope, logic analyzer, etc."""
+
+    EQUIPMENT = {
+        "oscilloscope": {
+            "name": "RP2040 Oscilloscope (PicoScope clone)",
+            "type": "USB Oscilloscope",
+            "channels": 2,
+            "bandwidth_mhz": 20,
+            "sample_rate_msps": 100,
+            "price": 25,
+            "software": "PicoScope / custom RP2040 firmware",
+        },
+        "logic_analyzer": {
+            "name": "Saleae Logic Clone (8ch)",
+            "type": "USB Logic Analyzer",
+            "channels": 8,
+            "max_sample_rate_mhz": 24,
+            "protocols": ["SPI", "I2C", "UART", "1-Wire", "JTAG"],
+            "price": 10,
+            "software": "Logic 2 / sigrok PulseView",
+        },
+        "signal_generator": {
+            "name": "AD9833 DDS Signal Generator",
+            "type": "DDS Waveform Generator",
+            "output_range": "0-12.5MHz",
+            "waveforms": ["Sine", "Square", "Triangle"],
+            "interface": "SPI",
+            "price": 5,
+        },
+        "multimeter": {
+            "name": "USB Multimeter (FNIRSI DMT-99)",
+            "type": "Digital Multimeter",
+            "measures": ["V", "A", "Ω", "C", "Hz", "Capacitance"],
+            "interface": "USB",
+            "price": 20,
+        },
+        "power_supply": {
+            "name": "Adjustable DC-DC Buck Converter (LM2596)",
+            "type": "Adjustable PSU",
+            "output_range": "1.25-30V, 0-3A",
+            "price": 5,
+            "notes": "For bench testing SBCs",
+        },
+    }
+
+    @staticmethod
+    def get_equipment(name: str) -> Dict:
+        return TestEquipmentModule.EQUIPMENT.get(name, {"error": "Unknown equipment"})
+
+    @staticmethod
+    def list_equipment() -> List[str]:
+        return list(TestEquipmentModule.EQUIPMENT.keys())
+
+
+# ============================================================
+# v5.0 — HAM RADIO MODULE
+# ============================================================
+class HamRadioModule:
+    """Ham radio integration for cyberdeck builds."""
+
+    BANDS = {
+        "160m": {"freq_mhz": 1.8, "mode": "CW/SSB", "wavelength": "160m"},
+        "80m": {"freq_mhz": 3.5, "mode": "CW/SSB", "wavelength": "80m"},
+        "40m": {"freq_mhz": 7.0, "mode": "CW/SSB/Digital", "wavelength": "40m"},
+        "20m": {"freq_mhz": 14.0, "mode": "CW/SSB/Digital", "wavelength": "20m"},
+        "15m": {"freq_mhz": 21.0, "mode": "CW/SSB/Digital", "wavelength": "15m"},
+        "10m": {"freq_mhz": 28.0, "mode": "CW/SSB/FM", "wavelength": "10m"},
+        "2m": {"freq_mhz": 144.0, "mode": "FM/SSB/Digital", "wavelength": "2m"},
+        "70cm": {"freq_mhz": 430.0, "mode": "FM/Digital", "wavelength": "70cm"},
+    }
+
+    DIGITAL_MODES = {
+        "js8call": {"name": "JS8Call", "description": "Keyboard-to-keyboard, weak signal", "bandwidth": "50Hz", "software": "js8call"},
+        "ft8": {"name": "FT8", "description": "Weak signal, contesting", "bandwidth": "50Hz", "software": "wsjt-x"},
+        "wspr": {"name": "WSPR", "description": "Beacon propagation", "bandwidth": "6Hz", "software": "wsjt-x"},
+        "packet": {"name": "AX.25 Packet", "description": "APRS, BBS", "bandwidth": "1200baud", "software": "direwolf"},
+        "sstv": {"name": "SSTV", "description": "Slow-scan television", "bandwidth": "3kHz", "software": "qsstv"},
+    }
+
+    @staticmethod
+    def get_band(band_name: str) -> Dict:
+        return HamRadioModule.BANDS.get(band_name, {"error": "Unknown band"})
+
+    @staticmethod
+    def recommend_antenna_for_band(band_name: str) -> Dict:
+        band = HamRadioModule.BANDS.get(band_name, {})
+        if not band:
+            return {"error": "Unknown band"}
+        freq = band["freq_mhz"]
+        qwave = AntennaCalculator.quarter_wave(freq)
+        return {
+            "band": band_name,
+            "frequency_mhz": freq,
+            "quarter_wave_cm": round(qwave, 1),
+            "half_wave_cm": round(qwave * 2, 1),
+            "recommended_type": "Dipole" if freq < 30 else "Vertical",
+        }
+
+
+# ============================================================
+# v5.0 — ENVIRONMENTAL MONITORING SYSTEM
+# ============================================================
+class EnvironmentalMonitor:
+    """Real-time environmental monitoring with alerts."""
+
+    def __init__(self):
+        self.readings: List[Dict] = []
+        self.alerts: List[Dict] = []
+        self.thresholds = {
+            "temp_high": 40.0, "temp_low": -10.0,
+            "humidity_high": 90.0, "humidity_low": 10.0,
+            "co2_high": 1000, "pm25_high": 35.0,
+        }
+
+    def add_reading(self, sensor_id: str, value: float, unit: str, timestamp: str = None):
+        reading = {
+            "sensor_id": sensor_id,
+            "value": value,
+            "unit": unit,
+            "timestamp": timestamp or datetime.now().isoformat(),
+        }
+        self.readings.append(reading)
+        self._check_alerts(reading)
+
+    def _check_alerts(self, reading: Dict):
+        sensor = reading["sensor_id"].lower()
+        val = reading["value"]
+        if "temp" in sensor:
+            if val > self.thresholds["temp_high"]:
+                self.alerts.append({"type": "HIGH_TEMP", "sensor": sensor, "value": val, "message": f"High temperature: {val}{reading['unit']}"})
+            elif val < self.thresholds["temp_low"]:
+                self.alerts.append({"type": "LOW_TEMP", "sensor": sensor, "value": val, "message": f"Low temperature: {val}{reading['unit']}"})
+        if "co2" in sensor and val > self.thresholds["co2_high"]:
+            self.alerts.append({"type": "HIGH_CO2", "sensor": sensor, "value": val, "message": f"High CO2: {val}ppm"})
+
+    def get_readings(self, last_n: int = 10) -> List[Dict]:
+        return self.readings[-last_n:]
+
+    def get_alerts(self, last_n: int = 5) -> List[Dict]:
+        return self.alerts[-last_n:]
+
+    def export_csv(self) -> str:
+        lines = ["timestamp,sensor_id,value,unit"]
+        for r in self.readings:
+            lines.append(f"{r['timestamp']},{r['sensor_id']},{r['value']},{r['unit']}")
+        return "\n".join(lines)
+
+
+# ============================================================
+# v5.0 — SECURITY FORENSICS MODULE
+# ============================================================
+class SecurityForensicsModule:
+    """Security forensics toolkit for cyberdeck builds."""
+
+    TOOLS = {
+        "disk_imaging": {"name": "Disk Imaging", "command": "dd if=/dev/sdX of=image.img bs=4M status=progress", "purpose": "Bit-for-bit copy of suspect drive"},
+        "file_carving": {"name": "File Carving", "command": "foremost -i /dev/sdX -o output/", "purpose": "Recover deleted files from disk image"},
+        "hash_verification": {"name": "Hash Verification", "command": "sha256sum image.img", "purpose": "Verify integrity of disk image"},
+        "memory_dump": {"name": "Memory Dump", "command": "sudo dd if=/proc/kcore of=memdump.raw bs=1M", "purpose": "Capture RAM contents for analysis"},
+        "network_capture": {"name": "Network Capture", "command": "tcpdump -i eth0 -w capture.pcap -c 10000", "purpose": "Capture network packets for forensics"},
+        "log_analysis": {"name": "Log Analysis", "command": "logparser.py --input /var/log/auth.log", "purpose": "Parse and analyze system logs"},
+        "stego_extract": {"name": "Steganography Extraction", "command": "steghide extract -sf image.jpg", "purpose": "Extract hidden data from images"},
+        "metadata_extract": {"name": "Metadata Extraction", "command": "exiftool suspect_file", "purpose": "Extract file metadata"},
+    }
+
+    @staticmethod
+    def get_tool(tool_name: str) -> Dict:
+        return SecurityForensicsModule.TOOLS.get(tool_name, {"error": "Unknown tool"})
+
+    @staticmethod
+    def list_tools() -> List[str]:
+        return list(SecurityForensicsModule.TOOLS.keys())
 
 
 # ============================================================
