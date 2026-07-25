@@ -10,9 +10,10 @@ def _security_check():
     if os.path.exists(setenv):
         with open(setenv, encoding="utf-8") as f:
             content = f.read()
-        keys_found = _re.findall(r'export\s+\w+_KEY=["\']([^"\']+)["\']', content)
-        for k in keys_found:
-            if k and k != "set-via-env-var" and not k.startswith("$"):
+        keys_found = _re.findall(r'export\s+(\w+)="([^"]+)"', content)
+        credential_suffixes = ("_KEY", "_TOKEN", "_PASSWORD", "_SECRET", "_CREDENTIALS")
+        for name, val in keys_found:
+            if any(sfx in name for sfx in credential_suffixes) and val and val != "set-via-env-var" and not val.startswith("$"):
                 issues.append(f"Hardcoded API key in setenv.sh (masked in log)")
         providers = os.path.join(os.path.dirname(os.path.abspath(__file__)), "providers.json")
         if os.path.exists(providers):

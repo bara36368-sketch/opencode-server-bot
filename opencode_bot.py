@@ -8,8 +8,9 @@ def _security_check():
         with open(setenv, encoding="utf-8") as f:
             content = f.read()
         keys = _re.findall(r'export\s+(\w+)="([^"]+)"', content)
+        credential_suffixes = ("_KEY", "_TOKEN", "_PASSWORD", "_SECRET", "_CREDENTIALS")
         for name, val in keys:
-            if "_KEY" in name and val not in ("set-via-env-var", "", "skip-auth") and not val.startswith("$"):
+            if any(sfx in name for sfx in credential_suffixes) and val not in ("set-via-env-var", "", "skip-auth") and not val.startswith("$"):
                 issues.append(f"HARDCODED KEY: {name} in setenv.sh")
     providers = os.path.join(os.path.dirname(os.path.abspath(__file__)), "providers.json")
     if os.path.exists(providers):
