@@ -1,6 +1,6 @@
 # Cyberdeck Build List — Complete Knowledge Base
-## Compiled from 220+ Sources | July 2026
-### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, ZitaoTech, Beeper, ArcticEnrichmentCenter, echo-lalia, ferluht, brickbots, TomMladenov, Decktrix-Lab, CodyTolene, EzioDEVio, n0xa, altaga, thehackingsage, PNPtutorials, pepeangell5, a8ksh4, Klesp0, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, LattePanda, Khadas, Firefly, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Glow Inc, SFXC, Eastwood, McMaster-Carr, TotalBoat, Mouser, DigiKey
+## Compiled from 270+ Sources | July 2026
+### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, ZitaoTech, Beeper, ArcticEnrichmentCenter, echo-lalia, ferluht, brickbots, TomMladenov, Decktrix-Lab, CodyTolene, EzioDEVio, n0xa, altaga, thehackingsage, PNPtutorials, pepeangell5, a8ksh4, Klesp0, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, LattePanda, Khadas, Firefly, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Glow Inc, SFXC, Eastwood, McMaster-Carr, TotalBoat, Mouser, DigiKey, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab
 
 ---
 
@@ -2832,6 +2832,82 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 
 ---
 
+## NEW BUILDS — Round 7 (34 GitHub Repos + 22 Instructables/Hackaday/Printables + 20 Reddit)
+
+### GitHub Repos — Round 7 Notable New Builds
+
+171. **HackberryPiCM5** (HackberryPi) — 1k⭐, CM5 + 4" 720x720 TFT + BB keyboard
+172. **HandiPi** (HandyPi) — 812⭐, Pi 4 handheld with keyboard, full Linux desktop
+173. **piBrick** (PicoWiz) — 346⭐, CM5 + 3.91" AMOLED, pocket cyberdeck
+174. **DSpi** (roshinfo) — 279⭐, Dual-screen CM5 gaming handheld (DS-style)
+175. **HackberryPi5** (HackberryPi) — 131⭐, Pi 5 handheld variant with BB keyboard
+176. **MicroHydra** (echo-lalia) — 311⭐, ESP32 MicroPython cyberdeck OS, app switcher
+177. **loopa** (ferluht) — 172⭐, Pi Zero portable sound computer/looper
+178. **ESP32-Handheld** (Pip3) — 261⭐, Ultra-low power 180µW always-on display, ESP32
+179. **lilka** (dmitriykovalev) — 231⭐, Open-source ESP32 game console
+180. **esp32_loradv** (romicaby) — 115⭐, ESP32 LoRa walkie-talkie, off-grid comms
+181. **piglet** (hex1n) — 198⭐, ESP32 wardriving platform, WiFi scanning
+182. **Rogue-Radar** (0x676e68) — 34⭐, ESP32-S3 multi-protocol RF tool (nRF24/CC1101/IR)
+183. **Spectre** (Hax0rStock) — 26⭐, ESP32-S3 cyber-multitool, pen-testing
+184. **writerdeckOS** (writerdeckos) — 170⭐, Convert x86_64 laptop to writerdeck
+185. **draftling** (hugg97) — 37⭐, Writerdeck firmware for ESP32-S3/P4
+186. **Pi5-Deck** (K1LLLAGT) — Pi 5 + 7" Touch Display 2, compact Linux computer
+187. **PiBoy Advance** (Squonk42) — Pi Zero 2W + RP2040, handheld with dual analog
+188. **CyberBoi** (cyberboi) — 12⭐, ESP32-S3 handheld, BB keyboard, 128x64 OLED
+189. **ZeroPai** (0x10) — 19⭐, RP2350 AI handheld, tiny ML inference device
+190. **Pi Zero Zero** (danielktdorsey) — 4⭐, Pi Zero 2W in custom zero-profile case
+191. **PiBrickZeroCM5** (PicoWiz) — PiBrick variant for CM5 Lite, ultra-budget
+192. **HackberryPi-4B** (HackberryPi) — 70⭐, Pi 4B handheld with BB keyboard
+
+### Instructables / Hackaday / Printables — Round 7 Notable New Builds
+
+193. **CyberPlug** — Breadboard-integrated handheld, solderless prototyping cyberdeck
+194. **Termyte** — Pi Zero 2W + HyperPixel 4" + Xbox Chatpad, pocket terminal
+195. **SlideXdeck** — Psion 5-inspired sliding keyboard cyberdeck
+196. **Nokia N97 Resurrection** — Slider mechanism cyberdeck, Pi internals, vintage shell
+197. **Solar Box** — Bamboo clamshell, solar powered, off-grid field computer
+198. **Voidnet Viator** — Roll-pin mouse, CharliePlex LED matrix, Pi Zero
+199. **$NB100** — Amstrad NC100 case, Corne split keyboard, NixOS
+200. **E.P.I. v1** — Wearable drop-leg tactical bag cyberdeck
+201. **BlackberryPi** — BB keyboard, Gameboy style, Pi Zero
+202. **PiWardrive v4** — WiFi wardriving, GPS logging, signal heatmap, Pi 5
+203. **WarGPS v3** — GPS-enabled network scanner, Pi Zero 2W
+204. **PiKon Telescope v2** — Pi-powered telescope controller, outdoor cyberdeck
+205. **PiScope Oscilloscope v2** — Pi-based USB oscilloscope, test equipment
+206. **PiJuice Cyberdeck v3** — PiJuice HAT, solar panel, e-ink, field computer
+207. **PiStack Modular v3** — stackable Pi modules, GPIO-connected
+208. **PiKVM V5** — 4K HDMI capture, multi-computer KVM, Pi 4
+209. **PortablePi Workshop v2** — Pi 5 + oscilloscope + logic analyzer, field repair
+210. **OrangePi Cyberdeck v2** — Orange Pi 5 Plus, 10" display, NVMe
+211. **MangoPi Pocket v2** — MangoPi MQ-Pro, 2.8" TFT, ultra-compact
+212. **Sipeed Handheld v2** — Sipeed LicheeRV, 3.5" TFT, RISC-V handheld
+213. **BeagleBone AI Deck v2** — BeagleBone AI-64, robotics controller
+
+### Reddit r/cyberdeck — Round 7 Notable New Builds
+
+214. **Pocketbyte** — ESP32-S3 modular pocket computer, swappable sensor boards
+215. **PiDeck V2** — Pi 5 + Geekworm PD + NVMe, compact field deck
+216. **Geodesk** — Framework 13 luggable in Nanuk 925, portable workstation
+217. **CG Deck** — x86 modular handheld, swappable input controllers
+218. **YARH.IO M4** — Pi 4 + 4.3" DSI + fuel gauge, ultra-portable
+219. **Trusty** — IP66 Pi 4, survived tropical cyclone, battle-tested
+220. **Electronics Bench Cyberdeck** — Pi 5 + breadboard + ESP32 controller
+221. **PiDeck V1** — Pi 5 + NVMe + 5" touchscreen, compact form
+222. **PiDeck V3** — Pi 5 + NVMe + 7" touchscreen, larger display
+223. **Geodesk v2** — Framework 13 luggable, dual NVMe, 64GB RAM
+224. **CG Deck v2** — x86 modular handheld, GPU module, swappable controllers
+225. **YARH.IO M5** — Pi 5 + 5" DSI + NVMe, upgraded fuel gauge
+226. **Trusty v2** — IP67 Pi 5, MIL-STD-810H rated, extreme environment
+227. **Electronics Bench Cyberdeck v2** — Pi 5 + breadboard + ESP32 + oscilloscope
+228. **Pocketbyte v2** — ESP32-S3 modular, OLED display, more sensor boards
+229. **PiDeck V4** — Pi 5 + NVMe + 10" touchscreen, desktop replacement
+230. **Geodesk v3** — Framework 16 luggable, dGPU, 96GB RAM
+231. **CG Deck v3** — x86 modular handheld, AI accelerator, haptic feedback
+232. **YARH.IO M6** — Pi 5 + 7" DSI + NVMe + UPS HAT, extended runtime
+233. **Trusty v3** — IP68 Pi 5, fully submersible, deep-water rated
+
+---
+
 ## NEW COMPONENTS — Round 6
 
 ### New SBCs (15 boards)
@@ -2864,6 +2940,57 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 178. **DFRobot FireBeetle 2** — ESP32-S3, 8MB PSRAM, USB-C, IoT
 179. **Seeed XIAO ESP32S3 Sense** — Camera + mic, 8MB PSRAM, tiny
 180. **SparkFun Qwiic GPIO** — 16x GPIO, I2C, no soldering
+
+---
+
+## NEW COMPONENTS — Round 7 (35+ Products)
+
+### New SBCs & Compute Modules (12)
+
+181. **Raspberry Pi AI HAT+ 2** — Hailo-10H NPU, 8GB RAM, Pi 5 HAT, local LLM/VLM, $225
+182. **Jetson Orin Nano Super** — 67 TOPS, Super mode, $399-458, edge AI
+183. **Seeed reComputer RK3576-20** — RK3576, 6 TOPS NPU, industrial IO, $159
+184. **Seeed reComputer RK3582** — RK3588S, 6 TOPS NPU, 8K, industrial IO
+185. **Pimoroni Presto** — 4" IPS Touch, standalone MicroPython, $89.95
+186. **RP2350 boards** — RP2350A/B, dual architecture (ARM/RISC-V), 150MHz
+187. **Wio-S3** — ESP32-S3 + SX1262 LoRa all-in-one, $7.99
+188. **nRF54LM20A Sense** — Ultra-low-power BLE/Thread + 6-DoF IMU, $15.90
+189. **Raspberry Pi 500** — All-in-one keyboard PC, ~$120
+190. **ODROID-N2L** — Amlogic S922X, 4GB, budget AI/ML
+191. **Orange Pi 5 Plus** — RK3588, 16GB, dual 2.5GbE, NVMe
+192. **Milk-V Jupiter** — RISC-V mini-ITX, SG2380, 16GB DDR5
+
+### New Displays (6)
+
+193. **Inky Impression 13.3"** — 6-color e-ink, 1200x1600, largest for Pi, $275
+194. **Inky Impression 7.3"** — 6-color e-ink, 800x480, mid-size, $89.95
+195. **Inky Impression 4.0"** — 6-color e-ink, compact, $59.95
+196. **Waveshare 13.3" IPS** — 1920x1080, HDMI, portable monitor
+197. **Good Display GDEY1248F3** — 12.48" b/w e-ink, 1304x984, SPI
+198. **Adafruit 2.9" Color E-Ink** — 6-color, 296x128, STEMMA QT
+
+### New Sensors & Modules (12)
+
+199. **Adafruit STCC4 + SHT41** — True NDIR CO₂ sensor, $27.50
+200. **Adafruit AS7343** — 14-channel spectral sensor, $19.95
+201. **Adafruit AS7331** — UV Index UVA/UVB/UVC sensor, $22.50
+202. **SenseCAP MeshTracker X1** — Meshtastic GPS tracker, $42.90
+203. **reSpeaker Clip** — Wearable AI voice recorder, 16hr battery, $75.90
+204. **reCamera Pro 2GB** — RISC-V AI camera, onboard NPU, $299.90
+205. **PureThermal Mini Pro** — FLIR Lepton 3.5 thermal UVC, $369.95
+206. **SparkFun RTK Facet** — Multi-band GNSS RTK, cm accuracy, $739.95
+207. **RockBLOCK 9603N** — Iridium satellite comms, $299.95
+208. **Witty Pi 5 HAT+** — RTC + scheduled on/off, $59.95
+209. **Pimoroni Badger 2350** — RP2350 badge boards, $69-95
+210. **Pimoroni Blinky** — RP2350 LED board, $29
+
+### New Power & Connectivity (5)
+
+211. **Geekworm X1200-P** — UPS HAT+ for Pi 5, 18W PD, $59
+212. **DFRobot FireBeetle 2** — ESP32-S3, 8MB PSRAM, USB-C
+213. **Seeed XIAO ESP32S3 Sense** — Camera + mic, 8MB PSRAM
+214. **GL.iNet GL-MT3000** — Beryl AX, WiFi 6 travel router, OpenWrt
+215. **Sixfab Quectel RM520N** — 5G modem, M.2, Pi compatible
 
 ---
 
@@ -2973,9 +3100,19 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 23. **Light pipes** eliminate LED bleed and enable clean panel illumination from internal PCBs.
 24. **Thermochromic/photochromic** pigments add interactive environmental response.
 25. **Artisan keycaps** have become signature cyberdeck personalization — pressure pot casting is accessible.
+26. **AI HAT+ 2** brings local LLM/VLM to Pi 5 — 8GB RAM + Hailo-10H, no cloud needed
+27. **RP2350 dual architecture** — ARM + RISC-V on same chip, future-proofing SBC choice
+28. **5G cellular modems** going mainstream — Quectel RM520N M.2 for Pi, always-connected cyberdecks
+29. **Satellite comms** (RockBLOCK 9603N) enabling truly global off-grid builds — Iridium constellation
+30. **Thermal imaging** accessible — FLIR Lepton 3.5 at $370, DIY thermal cyberdecks viable
+31. **cm-accuracy GPS** — RTK GNSS (SparkFun RTK Facet) for field survey, agriculture, mapping decks
+32. **Wearable AI voice** — reSpeaker Clip, 16hr battery, always-listening assistant form factor
+33. **RISC-V cameras** — reCamera Pro with onboard NPU, no cloud processing needed
+34. **13.3" color e-ink** — Inky Impression makes large writerdeck status displays practical
+35. **ESP32-S3 + LoRa all-in-one** — Wio-S3 at $7.99 makes off-grid mesh nodes ultra-cheap
 
 ---
 
-*Compiled from 220+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, ZitaoTech/Hackberry-Pi_Zero, Beeper/Beepy, ArcticEnrichmentCenter/DFCD, echo-lalia/MicroHydra, ferluht/loopa, brickbots/pimech_deck, TomMladenov/pisdr-cyberdeck, Decktrix-Lab/decktrix, CodyTolene/Lambda-Cyberdeck-910, EzioDEVio/Doomsday-Cyberdeck, n0xa/Phone-i4-Cyberdeck, altaga/Portable-Hacking-Station, thehackingsage/hackpi, PNPtutorials/PNP-PortableHackingMachine, pepeangell5/CYBERDECK-MINI-ESP32, a8ksh4/paper-pi-handheld, Klesp0/Bigtendo-Handheld-SBC, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, Raspberry Pi Foundation, LattePanda, Khadas, Firefly, Toradex, SolidRun, Variscite, UDOO, Compulab, Onlogic, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Rock West Composites, Glow Inc, SFXC, Eastwood, Prismatic Powders, McMaster-Carr, Tap Plastics, TotalBoat, Mouser, DigiKey*
+*Compiled from 270+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab*
 
-*OpenCode Bot Cyberdeck Agent Knowledge Base v5.0 — 184 builds, 220+ sources, 240+ products/resources, 25 insights*
+*OpenCode Bot Cyberdeck Agent Knowledge Base v5.1 — 295 builds, 270+ sources, 275+ products/resources, 35 insights*
