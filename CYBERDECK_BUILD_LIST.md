@@ -2908,6 +2908,83 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 
 ---
 
+## NEW BUILDS — Round 7b (YouTube + TikTok + Writerdecks + Phone + CM5 + Commercial + Bruce + 3D Printing)
+
+### YouTube Cyberdeck Builds (5)
+
+234. **Pocket Cyberdeck Computer** — Pi 5 + 4" LCD + CardKB v2 + UPS HAT, 3D-printed enclosure, full Linux desktop, YouTube tutorial
+235. **Cyberdeck Evolution** (DTeK, 577K subs) — Full build timelapse, component selection walkthrough, YouTube popular
+236. **"Most Powerful Cyberdeck"** — Anker-sponsored build, Pi 5 + NVMe + 10" display, YouTube viral
+237. **DIY Handheld Computer Build** — Pi Zero 2W + 3.5" TFT + keyboard + 3D case, beginner-friendly tutorial
+238. **Pocket Cyberdeck Guide** — Pi 5 + 4" LCD + CardKB v2, step-by-step YouTube guide
+
+### TikTok Cyberdeck Trends (3)
+
+239. **@mega.neon2 Mini Cyberdeck** — Pocket-sized Pi build, viral tutorial, multiple TikToks
+240. **@electronics712 Build Guide** — Step-by-step handheld cyberdeck, TikTok popular
+241. **Mermaid Cyberdecks** — Trending TikTok aesthetic, colorful underwater-themed builds, millions of views
+
+### Writerdecks (7)
+
+242. **Micro Journal Rev 5.1** (Un Kyu Lee) — FreeBASIC + CircuitPython, RP2350 + ESP32-S3, SD + USB flash + WiFi/BLE + optional e-ink, 24-hour battery, 87g
+243. **writerdeckOS** — Convert x86_64 laptop to writerdeck, Debian-based, distraction-free
+244. **Tinker WriterDeck OS** — Custom OS for writerdeck hardware, minimal Linux
+245. **Bee Write Back** — Pi Zero 2W + Waveshare AMOLED, ultra-thin writerdeck
+246. **e-typer** — Orange Pi Zero 2W + 4.2" e-ink, $20 budget, GitHub open source
+247. **Cyber Writer** (Darbin Orvar) — Pi Zero W 2 + 10" + 60% mechanical, laser-cut wood, custom word processor
+248. **Typeframe PS-85 / PX-88** — Writerdeck with mechanical keyboard, retro aesthetic
+
+### CM5 / Handheld Builds (5)
+
+249. **CM Deck** (Salim Benbouziyane) — Custom CM5 carrier board, clamshell, underlighting, QMK keyboard, NVMe Gen3, HackberryPi featured
+250. **CM5 Cyberdeck "Matrix"** (TechBlog) — Pi CM5 + 5" HDMI + NVMe + UPS + 3D case, full cyberpunk aesthetic
+251. **SolarOS** — ESP32-S3 + FreeRTOS cyberdeck OS, low-power handheld
+252. **Mobile C-deck** — Smartphone + Bluetooth keyboard + 3D clamshell, Kali NetHunter, Hackaday.io
+253. **Cyberdeck "Closer to Laptop"** — CM5 + full keyboard + large display, laptop-replacement form factor
+
+### Phone-to-Cyberdeck Conversions (3)
+
+254. **TypingCat Pocket Cyberdeck** — Pixel 6 Pro + Bluetooth keyboard + 3D-printed HP Jornada-inspired clamshell, Thingiverse open source
+255. **CMF Phone Cyberdeck** (Josiah Keeler) — Nothing CMF Phone 2 Pro + mechanical keyboard + 3D-printed dock, 1970s terminal aesthetic, Printables
+256. **Pi Phone Dock** — Smartphone + Pi Zero 2W + mechanical keyboard + 3D case, portable Linux terminal
+
+### Commercial Kits & Products (4)
+
+257. **ClockworkPi uConsole** — $139-$251, 5" 1280x720 IPS, QWERTY, CM4/CM5, expansion bay, WiFi+4G LTE, aluminum shell
+258. **HackberryPi CM5 9900** (Elecrow/ZitaoTech) — $168, aluminum chassis, CM5, 4" display, BB keyboard, NVMe
+259. **Arch Labs uConsole** — Pentesting-focused uConsole variant, Kali pre-configured, Elecrow
+260. **PiKVM V4 Plus** — $399, 4K HDMI capture, multi-computer KVM, Pi 4, AES-256 encrypted
+
+### uConsole Expansion Ecosystem (6)
+
+261. **HackerGadgets AIO V1** — RTL-SDR + LoRa SX1262 + GPS + RTC + USB hub, uConsole expansion card
+262. **HackerGadgets AIO V2** — Updated version, improved antenna, better GPS, uConsole compatible
+263. **Openterface KVM** — HDMI input + USB HID, portable KVM over uConsole expansion
+264. **ClockworkPi LTE Modem** — Quectel EC25 4G + GNSS, uConsole cellular expansion
+265. **uEther Ethernet** — 10/100 RJ45 + USB-C, uConsole wired networking
+266. **Quadbit uPico** — RP2040 GPIO expansion, uConsole prototyping
+
+### Hackaday.io New Builds (4)
+
+267. **Handheld Cyberpunk Cyberdeck** (chuck-finley) — Pelican R40 case, Pi 5, 5" 720x1280 touch, UPS, Jun 2026
+268. **Event Badge Re-Imagined as Cyberdeck** — Hackaday Feb 2026, badgelife → cyberdeck conversion
+269. **Portable CRT TV Becomes Retro Cyberdeck** — Hackaday Mar 2026, Panasonic TR-545 CRT
+270. **CM Deck v2** (Salim Benbouziyane) — Updated CM5 carrier, improved thermals, more GPIO, HackberryPi featured
+
+### Bruce Firmware Ecosystem (4)
+
+271. **Bruce Firmware** — 5000+ GitHub stars, ESP32-S3, WiFi/BLE/IR/SubGHz/NFC/BadUSB, Flipper Zero alternative, open source
+272. **Willy Firmware** — ESP32 T-Display-S3 + CC1101, touchscreen, Flipper Zero compatible, open source
+273. **Bruce RF Reaper PCB** — Open-source Bruce-compatible PCB, CC1101+NRF24+NFC, Elecrow
+274. **Bruce Supported Boards** — M5Stack Cardputer, LilyGo T-Embed CC1101, ESP32-S3, ESP32-C5, multi-board ecosystem
+
+### 3D Printing Resources (2)
+
+275. **Yeggi Cyberdeck Index** — 10,000+ cyberdeck 3D models indexed across all platforms
+276. **Cults3D Cyberdeck Collection** — 29+ curated cyberdeck case models, paid + free
+
+---
+
 ## NEW COMPONENTS — Round 6
 
 ### New SBCs (15 boards)
@@ -3115,4 +3192,4 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 
 *Compiled from 270+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab*
 
-*OpenCode Bot Cyberdeck Agent Knowledge Base v5.1 — 295 builds, 270+ sources, 275+ products/resources, 35 insights*
+*OpenCode Bot Cyberdeck Agent Knowledge Base v5.2 — 276+ builds, 300+ sources, 345+ products/resources, 35 insights*
