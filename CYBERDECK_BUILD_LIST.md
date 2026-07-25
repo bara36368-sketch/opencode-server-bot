@@ -1066,5 +1066,218 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 
 ---
 
-*Compiled from Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck — July 2026*
-*OpenCode Bot Cyberdeck Agent Knowledge Base v1.0*
+## ICONIC BUILDS REFERENCE (Expanded)
+
+### Penkesu Computer (Penk Chen)
+- **SBC:** Raspberry Pi Zero 2 W
+- **Display:** 7.9" ultrawide 1280x400 touchscreen
+- **Keyboard:** 48-key low-profile ortholinear mechanical
+- **Enclosure:** Clamshell with Game Boy Advance SP hinges
+- **Key Feature:** Smallest, most elegant clamshell cyberdeck
+- **Files:** penkesu.computer (build guide), github.com/penk/penkesu (STL, BOM, firmware)
+- **Difficulty:** Intermediate
+
+### Chonky Palmtop (Daniel Norris)
+- **SBC:** Raspberry Pi 4
+- **Display:** 7" touchscreen
+- **Keyboard:** Corne split keyboard on pivot mechanism
+- **Key Feature:** Split keyboard swings out on clever pivot
+- **Difficulty:** Advanced
+
+### Mermaid in the Shell (cc/bossbratox)
+- **SBC:** Raspberry Pi 3A+
+- **Display:** 3.5" touchscreen
+- **Keyboard:** ZitaoTech BB Q20 (white)
+- **Enclosure:** Pink seashell frame clutch purse
+- **Key Feature:** TikTok viral (1M+ views), thrifting, "mermaid" aesthetic
+- **Difficulty:** Beginner
+
+### Cyberdore 2064 (Tommi Laukkanen)
+- **SBC:** Raspberry Pi Zero + Pi Pico
+- **Display:** 128x64 pixel OLED
+- **Input:** Built-in keyboard + oversized KY-040 rotary encoder scroll wheel
+- **Key Feature:** Scroll wheel, anti-doomscrolling design
+- **Difficulty:** Intermediate
+
+### Typeframe PS-85 / PX-88 (Jeff Merrick)
+- **SBC:** Raspberry Pi
+- **Display:** Built-in LCD
+- **Keyboard:** 40% / 65% mechanical, custom keycaps
+- **Key Feature:** Retro-industrial writerdeck, Epson portable computer inspired, Alien movie aesthetic
+- **Difficulty:** Intermediate
+
+### Altoids Tin Mini Cyberdeck (Exercising Ingenuity)
+- **SBC:** Raspberry Pi (small form)
+- **Display:** Small LCD
+- **Enclosure:** Altoids tin, clamshell design
+- **Key Feature:** Linux in an Altoids tin, world's smallest cyberdeck
+- **Files:** hackaday.io/project/205598-altoids-tin-mini-cyberdeck
+- **Difficulty:** Advanced
+
+### Portable CRT Cyberdeck
+- **SBC:** Raspberry Pi
+- **Display:** Portable CRT TV
+- **Key Feature:** Retro CRT as display, 80s aesthetic
+- **Difficulty:** Advanced
+
+### The Cyberdeck (Lucas Dul)
+- **SBC:** Raspberry Pi 4
+- **Display:** 5" CRT (Magnavox portable radio-TV)
+- **Keyboard:** Gateron Silent Brown switches, custom
+- **Enclosure:** Repurposed Magnavox portable radio-TV
+- **Key Feature:** Fallout universe inspired, CRT display, touchpad
+- **Difficulty:** Advanced
+
+### Crash Recovery Device (Evan Meaney)
+- **SBC:** Raspberry Pi
+- **Display:** 7" touchscreen
+- **Keyboard:** Mechanical (built into lid)
+- **Enclosure:** Pelican case with grounded copper Faraday cage
+- **Power:** 12,000mAh battery + solar panels
+- **Key Feature:** EMP protection, offline Wikipedia/Wikivoyage, DHCP server, GPS, radio, radiation detector
+- **Difficulty:** Advanced
+
+### Clockwork uConsole
+- **SBC:** Modular (supports Pi CM4/CM5, etc.)
+- **Display:** Built-in
+- **Keyboard:** Built-in
+- **Key Feature:** Commercial kit, most "laptop-like" cyberdeck, modular design
+- **Difficulty:** Beginner (kit)
+
+### Bumble Berry Pi (MakerSam)
+- **SBC:** Raspberry Pi
+- **Display:** Small LCD
+- **Key Feature:** Budget handheld, community-driven
+- **Files:** github.com/samcervantes/bumble-berry-pi
+- **Difficulty:** Beginner
+
+### Solar OS Reflective LCD (nilseuropa)
+- **SBC:** ESP32-S3 (Waveshare board)
+- **Display:** 4.2" reflective LCD
+- **Key Feature:** Solar-powered, reflective LCD (readable in sunlight), homebrew OS
+- **Files:** github.com/nilseuropa/solar_os
+- **Difficulty:** Intermediate
+
+### Tactical Wedge Cyberdeck
+- **SBC:** Raspberry Pi 5
+- **Key Feature:** Fully custom command console, designed for FDM printability
+- **Files:** hackaday.io/project/206103
+- **Difficulty:** Intermediate
+
+---
+
+## GITHUB REPOSITORIES
+
+| Repository | Description | Stars | Link |
+|-----------|-------------|-------|------|
+| **Penkesu** | Clamshell cyberdeck with Pi Zero 2W | Growing | github.com/penk/penkesu |
+| **cyberdeck-platform** | Modular Pi cyberdeck with OS hardening | Growing | github.com/RealPhantomLee/cyberdeck-platform |
+| **Pelican-Deck** | Open-source Pelican case framework | Growing | github.com/Jake-Simek/Pelican-Deck |
+| **bumble-berry-pi** | Budget handheld cyberdeck | Growing | github.com/samcervantes/bumble-berry-pi |
+| **RPI_DEV** | Pi development platform | Growing | github.com/sector07-dev/RPI_DEV |
+| **solar_os** | Homebrew OS for reflective LCD | Growing | github.com/nilseuropa/solar_os |
+| **Altoids Tin Cyberdeck** | Linux in an Altoids tin | Growing | hackaday.io/project/205598 |
+| **Tactical Wedge** | Pi 5 modular command console | Growing | hackaday.io/project/206103 |
+
+---
+
+## TIKTOK VIRAL BUILDS
+
+| Build | Creator | Views | Key Feature |
+|-------|---------|-------|-------------|
+| **Mermaid in the Shell** | @ubeboobey | 1M+ | Pink seashell clutch purse, thrifted materials |
+| **DIY Cyberdeck** | @metamerd | Viral | Portable computer build walkthrough |
+| **Compact Cyberdeck** | @carternosko | Viral | Pocket-sized workstation |
+| **Mermaid Cyberdeck** | @alexinexxx | Viral | Newbie journey, female audience 11%→40% |
+
+### TikTok Trends
+- **Thrift store finds** — Clutch purses, vintage cases, old toys as enclosures
+- **"Girly" aesthetic** — Moving away from rugged cyberpunk toward personal expression
+- **Media archiving** — Physical copies of movies, music, books (anti-subscription)
+- **Newbie journeys** — First-time builders documenting the process
+- **Cross-demographic** — Female builders driving growth (11%→40% audience shift)
+
+---
+
+## SOFTWARE & TOOLS
+
+### Window Managers (Popular with Cyberdeck Users)
+- **i3** (i3wm.org) — Tiling window manager, keyboard-driven, low resource
+- **Awesome WM** — Customizable tiling WM
+- **Sway** — Wayland alternative to i3
+
+### Terminal & UI
+- **Cool Retro Term** (github.com/Swordfish90/cool-retro-term) — CRT terminal emulator
+- **LVGL** (lvgl.io) — Graphics library for custom UI development
+- **QMK Firmware** (qmk.fm) — Custom keyboard firmware
+
+### Offline Knowledge
+- **Kiwix** (kiwix.org) — Offline Wikipedia and thousands of resources
+- **Internet Archive** (archive.org) — Books, software, content
+- **Project Gutenberg** (gutenberg.org) — Public-domain books
+
+### Useful Software
+- **Raspberry Pi Imager** — OS flashing
+- **balenaEtcher** — SD card flashing
+- **Octoprint** — If using Pi for 3D printer monitoring
+- **Grafana + Prometheus** — Monitoring dashboards
+
+---
+
+## COMPONENT SUPPLIERS (Expanded)
+
+### Primary Suppliers
+| Supplier | Specialty | URL |
+|----------|-----------|-----|
+| **Adafruit** | Displays, batteries, accessories | adafruit.com |
+| **Pimoroni** | Pi accessories, HATs | shop.pimoroni.com |
+| **PiShop.us** | US Pi specialist | pishop.us |
+| **The Pi Hut** | UK Pi specialist | thepihut.com |
+| **CanaKit** | Complete Pi kits | canakit.com |
+| **AliExpress** | Budget components | aliexpress.com |
+| **DigiKey** | Professional components | digikey.com |
+| **Mouser** | Professional components | mouser.com |
+
+### Keyboard Suppliers
+| Supplier | Specialty | URL |
+|----------|-----------|-----|
+| **Drop** | Planck, Preonic, custom boards | drop.com |
+| **KBDfans** | Custom keyboards, kits | kbdfans.com |
+| **NovelKeys** | Switches, keycaps | novelkeys.com |
+| **Solder Party** | BB Q20 keyboard breakout, cyberdeck modules | solder.party |
+| **r/mechmarket** | Secondhand keyboard market | reddit.com/r/mechmarket |
+
+### Enclosure Suppliers
+| Supplier | Product | URL |
+|----------|---------|-----|
+| **Pelican** | Watertight cases | pelican.com |
+| **Apache (Harbor Freight)** | Budget Pelican alternative | harborfreight.com |
+| **Nanuk** | Premium cases | nanuk.com |
+| **SKB** | Professional cases | skbcases.com |
+
+### 3D Print Resources
+| Resource | Type | URL |
+|----------|------|-----|
+| **Thingiverse** | STL files | thingiverse.com/search?q=cyberdeck |
+| **Printables** | STL files | printables.com/search/models?q=cyberdeck |
+| **Hackaday Projects** | Build logs | hackaday.io |
+
+---
+
+## COMMUNITY RESOURCES
+
+| Resource | Type | URL |
+|----------|------|-----|
+| **Cyberdeck Cafe** | Community hub + Discord | cyberdeck.cafe |
+| **r/cyberDeck** | Reddit community | reddit.com/r/cyberDeck |
+| **r/writerDeck** | Writerdeck subreddit | reddit.com/r/writerDeck |
+| **Hackaday Cyberdeck** | Build documentation | hackaday.com/tag/cyberdeck |
+| **Hackaday Cyberdeck Contest** | Annual competition | hackaday.io/contests |
+| **Raspberry Pi Blog** | Official cyberdeck coverage | raspberrypi.com/news |
+| **Pinterest Cyberdeck** | Inspiration boards | pinterest.com/search?q=cyberdeck |
+| **r/unixporn** | Linux desktop customization | reddit.com/r/unixporn |
+
+---
+
+*Compiled from 15+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok (@ubeboobey, @alexinexxx, @metamerd, @carternosko), SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek — July 2026*
+*OpenCode Bot Cyberdeck Agent Knowledge Base v2.0*
