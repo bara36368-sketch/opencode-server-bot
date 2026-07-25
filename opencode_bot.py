@@ -246,6 +246,16 @@ except Exception:
     rt2_mod = None
 
 try:
+    import computer_vision as cv_mod
+except Exception:
+    cv_mod = None
+
+try:
+    import n8n_workflow as n8n_mod
+except Exception:
+    n8n_mod = None
+
+try:
     import aiohttp
 except Exception:
     aiohttp = None
@@ -6741,6 +6751,174 @@ async def main():
                             await send(chat, build_finance_commands())
                     except Exception as e:
                         await send(chat, f"Finance error: {str(e)[:200]}")
+
+                elif cmd == "/cv":
+                    try:
+                        from computer_vision import handle_cv_command, get_cv_manager
+                        sub = parts[1].lower() if len(parts) > 1 else ""
+                        user_id = str(uid)
+                        mgr = get_cv_manager()
+
+                        if sub == "objects":
+                            from computer_vision import analyze_objects_mock, COMMON_OBJECTS, AnalysisResult
+                            objects = analyze_objects_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="objects",
+                                timestamp=time.time(), processing_time=0.15, objects=objects)
+                            mgr.save_result(result)
+                            lines = ["🔍 **Object Detection:**\n"]
+                            for obj in objects:
+                                icon = COMMON_OBJECTS.get(obj.label, "📦")
+                                lines.append(f"{icon} **{obj.label.title()}** — {obj.confidence*100:.1f}%")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "faces":
+                            from computer_vision import analyze_faces_mock, EMOTION_ICONS, AnalysisResult
+                            faces = analyze_faces_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="faces",
+                                timestamp=time.time(), processing_time=0.22, faces=faces)
+                            mgr.save_result(result)
+                            lines = ["👤 **Face Analysis:**\n"]
+                            for i, face in enumerate(faces):
+                                icon = EMOTION_ICONS.get(face.emotion, "😐")
+                                lines.append(f"Face {i+1}: ~{face.age_estimate:.0f}y {face.gender} {icon} {face.emotion.title()}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "ocr":
+                            from computer_vision import analyze_ocr_mock, AnalysisResult
+                            ocr = analyze_ocr_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="ocr",
+                                timestamp=time.time(), processing_time=0.18, ocr=ocr)
+                            mgr.save_result(result)
+                            await send(chat, f"📝 **OCR:**\n```\n{ocr.text}\n```\nConfidence: {ocr.confidence*100:.1f}%")
+                        elif sub == "classify":
+                            from computer_vision import classify_image_mock, AnalysisResult
+                            cls = classify_image_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="classify",
+                                timestamp=time.time(), processing_time=0.12, classification=cls)
+                            mgr.save_result(result)
+                            lines = ["🏷️ **Classification:**\n"]
+                            for cat, conf in sorted(cls.items(), key=lambda x: x[1], reverse=True):
+                                bar = "█" * int(conf * 20) + "░" * (20 - int(conf * 20))
+                                lines.append(f"**{cat.title()}**: {bar} {conf*100:.1f}%")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "describe":
+                            from computer_vision import describe_image_mock, AnalysisResult
+                            desc = describe_image_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="describe",
+                                timestamp=time.time(), processing_time=0.35, description=desc)
+                            mgr.save_result(result)
+                            await send(chat, f"🖼️ **Description:**\n{desc}")
+                        elif sub == "colors":
+                            from computer_vision import extract_colors_mock, AnalysisResult
+                            colors = extract_colors_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="colors",
+                                timestamp=time.time(), processing_time=0.10, colors=colors)
+                            mgr.save_result(result)
+                            lines = ["🎨 **Color Palette:**\n"]
+                            for c in colors:
+                                lines.append(f"**{c.name}** `{c.hex}` — {c.percentage:.1f}%")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "barcode":
+                            from computer_vision import scan_barcode_mock, AnalysisResult
+                            barcode = scan_barcode_mock()
+                            result = AnalysisResult(
+                                result_id=f"cv_{int(time.time()*1000) % 100000}",
+                                user_id=user_id, analysis_type="barcode",
+                                timestamp=time.time(), processing_time=0.08, barcode=barcode)
+                            mgr.save_result(result)
+                            await send(chat, f"📊 **Barcode:** `{barcode}`")
+                        elif sub == "stats":
+                            stats = mgr.get_stats(user_id)
+                            await send(chat, f"📊 **CV Stats:**\nTotal: {stats['total']}\nTypes: {stats['by_type']}")
+                        elif sub == "history":
+                            profile = mgr.get_profile(user_id)
+                            if not profile.analyses:
+                                await send(chat, "No history yet.")
+                            else:
+                                lines = ["📜 **Recent:**\n"]
+                                for a in reversed(profile.analyses[-5:]):
+                                    ts = datetime.fromtimestamp(a.timestamp).strftime("%H:%M")
+                                    lines.append(f"`{ts}` {a.analysis_type}")
+                                await send(chat, "\n".join(lines))
+                        else:
+                            from computer_vision import build_cv_commands
+                            await send(chat, build_cv_commands())
+                    except Exception as e:
+                        await send(chat, f"CV error: {str(e)[:200]}")
+
+                elif cmd == "/n8n":
+                    try:
+                        from n8n_workflow import handle_n8n_command, get_n8n_manager
+                        sub = parts[1].lower() if len(parts) > 1 else ""
+                        user_id = str(uid)
+                        mgr = get_n8n_manager()
+
+                        if sub == "templates":
+                            templates = mgr.list_templates()
+                            lines = ["📋 **Templates:**\n"]
+                            for t in templates:
+                                lines.append(f"**{t['id']}** — {t['name']} ({t['nodes']} nodes)")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "use" and len(parts) >= 2:
+                            wf = mgr.create_from_template(parts[2], user_id, " ".join(parts[3:]) if len(parts) > 3 else "")
+                            if wf:
+                                await send(chat, f"✅ Created: **{wf.name}** (`{wf.workflow_id}`)\nNodes: {len(wf.nodes)}\nExport: /n8n export {wf.workflow_id}")
+                            else:
+                                await send(chat, f"❌ Template not found. /n8n templates")
+                        elif sub == "create" and len(parts) >= 2:
+                            desc = " ".join(parts[2:])
+                            wf = mgr.generate_from_description(user_id, desc)
+                            nodes_list = "\n".join(f"  {i+1}. `{n.node_type.split('.')[-1]}` — {n.name}" for i, n in enumerate(wf.nodes))
+                            await send(chat, f"✅ Generated: **{wf.name}**\nID: `{wf.workflow_id}`\n\n**Nodes:**\n{nodes_list}\n\nExport: /n8n export {wf.workflow_id}")
+                        elif sub == "list":
+                            wfs = mgr.get_user_workflows(user_id)
+                            if not wfs:
+                                await send(chat, "No workflows. /n8n create or /n8n use")
+                            else:
+                                lines = ["📁 **Workflows:**\n"]
+                                for wf in wfs:
+                                    icon = "🟢" if wf.active else "⚪"
+                                    lines.append(f"{icon} **{wf.name}** (`{wf.workflow_id}`) — {len(wf.nodes)} nodes")
+                                await send(chat, "\n".join(lines))
+                        elif sub == "export" and len(parts) >= 2:
+                            n8n_json = mgr.export_workflow(parts[2])
+                            if n8n_json:
+                                json_str = json.dumps(n8n_json, indent=2)
+                                await send(chat, f"📦 **n8n JSON:**\n```json\n{json_str[:2000]}\n```")
+                            else:
+                                await send(chat, "❌ Not found.")
+                        elif sub == "delete" and len(parts) >= 2:
+                            ok = mgr.delete_workflow(parts[2], user_id)
+                            await send(chat, "✅ Deleted." if ok else "❌ Not found.")
+                        elif sub == "toggle" and len(parts) >= 2:
+                            ok = mgr.toggle_workflow(parts[2])
+                            if ok:
+                                wf = mgr.workflows.get(parts[2])
+                                status = "activated" if wf and wf.active else "deactivated"
+                                await send(chat, f"✅ {status}.")
+                            else:
+                                await send(chat, "❌ Not found.")
+                        elif sub == "nodes":
+                            cats = mgr.get_node_categories()
+                            lines = ["📖 **Node Categories:**\n"]
+                            for cat, nodes in cats.items():
+                                lines.append(f"**{cat.title()}**: {', '.join(n.split('.')[-1] for n in nodes)}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            from n8n_workflow import build_n8n_commands
+                            await send(chat, build_n8n_commands())
+                    except Exception as e:
+                        await send(chat, f"n8n error: {str(e)[:200]}")
 
                 elif cmd == "/style":
                     if not styles_mod:

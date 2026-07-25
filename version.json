@@ -1,5 +1,5 @@
 {
-  "version": "3.7.130",
+  "version": "3.7.131",
   "updated": "2026-07-24",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -36,7 +36,9 @@
     "Cyberdeck Agent \u2014 full electronics picking, 3D printing, BOM generation, compatibility checking, video learning (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status)",
     "IoT Control Dashboard \u2014 ESP32/Arduino/Pi device control, GPIO pin management, sensor monitoring, alerts, schedules (/iot add/list/status/pin/sensor/alert/schedule/logs/simulate)",
     "Education & Games \u2014 quizzes with scoring, spaced repetition flashcards, Wordle, Hangman, math challenges, code challenges, leaderboards (/edu quiz/wordle/hangman/math/code/review/top/stats/achievements)",
-    "Finance & Crypto Tracker \u2014 crypto prices, portfolio management, price alerts, watchlists, currency conversion (/fin price/market/convert/buy/sell/portfolio/alert/watch/info)"
+    "Finance & Crypto Tracker \u2014 crypto prices, portfolio management, price alerts, watchlists, currency conversion (/fin price/market/convert/buy/sell/portfolio/alert/watch/info)",
+    "Computer Vision Bot \u2014 object detection, face analysis, OCR, image classification, color palette extraction, barcode scanning (/cv objects/faces/ocr/classify/describe/colors/barcode/stats/history)",
+    "n8n Workflow Generator \u2014 natural language to n8n workflow JSON, template library, import/export (/n8n create/use/templates/list/export/toggle/nodes)"
   ],
   "whats_new": {
     "3.6.0": [],
@@ -235,7 +237,9 @@
     "3.7.130": [
       "IoT Control Dashboard -- /iot add/list/status/pin/sensor/alert/schedule/logs/simulate -- ESP32/Arduino/RPi device control, GPIO management, sensor monitoring with alerts and automation schedules",
       "Education & Games -- /edu quiz/wordle/hangman/math/code/review/addcards/top/stats/achievements -- Quiz system with scoring, Wordle, Hangman, math problems, code challenges, flashcards with spaced repetition, leaderboards and achievements",
-      "Finance & Crypto Tracker -- /fin price/market/convert/buy/sell/portfolio/alert/watch/transactions/info -- Crypto price tracking, portfolio management, price alerts, watchlists, currency conversion, transaction history"
+      "Finance & Crypto Tracker -- /fin price/market/convert/buy/sell/portfolio/alert/watch/transactions/info -- Crypto price tracking, portfolio management, price alerts, watchlists, currency conversion, transaction history",
+      "Computer Vision Bot -- /cv objects/faces/ocr/classify/describe/colors/barcode/stats/history -- Object detection with emoji labels, face analysis with age/gender/emotion, OCR text extraction, image classification, color palette, barcode scanning",
+      "n8n Workflow Generator -- /n8n create/use/templates/list/export/toggle/nodes -- Natural language to n8n workflow JSON, 8 built-in templates, node category reference, import/export"
     ]
   }
 }
