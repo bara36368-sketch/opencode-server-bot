@@ -2636,6 +2636,9 @@ async def announce_update(old_v, new_v, changes, state):
     total_new = len(new_features) + len(new_exp)
     if total_new < 5:
         log(f"Update skipped: v{old_v} -> v{new_v} (only {total_new} new items, need 5+)")
+        state["last_version"] = new_v
+        state["last_announced_version"] = new_v
+        save_version_state(state)
         return state
     lines = []
     lines.append("🚀 ==============================")
@@ -2683,9 +2686,9 @@ async def announce_update(old_v, new_v, changes, state):
     if new_exp:
         state.setdefault("announced_experimental", []).extend(new_exp)
     log(f"Update announced: v{old_v} -> v{new_v} to {sent_count} chats (features={len(new_features)}, experimental={len(new_exp)})")
-    if sent_count > 0:
-        state["last_version"] = new_v
-        save_version_state(state)
+    state["last_version"] = new_v
+    state["last_announced_version"] = new_v
+    save_version_state(state)
     return state
 
 def get_git_commit():
@@ -2767,6 +2770,7 @@ async def auto_version_checker():
             current_ver = current.get("version", "unknown")
             state = load_version_state()
             last_ver = state.get("last_version", "")
+            announced_ver = state.get("last_announced_version", "")
             last_git = state.get("last_git_commit", "")
             cur_git = get_git_commit()
             if cur_git and cur_git != last_git and current_ver == last_ver:
@@ -2779,11 +2783,11 @@ async def auto_version_checker():
                 state["last_version"] = new_ver
                 state["last_git_commit"] = cur_git
                 await announce_update(last_ver, new_ver, changes, state)
-            elif current_ver != "unknown" and current_ver != last_ver:
+            elif current_ver != "unknown" and current_ver != announced_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
-                log(f"Auto-check: version changed {last_ver or 'initial'} -> {current_ver}")
+                log(f"Auto-check: version changed {announced_ver or 'initial'} -> {current_ver}")
                 state["last_git_commit"] = cur_git
-                await announce_update(last_ver or "initial", current_ver, changes, state)
+                await announce_update(announced_ver or "initial", current_ver, changes, state)
         except Exception as e:
             log(f"Auto version check error: {e}")
 
@@ -2812,13 +2816,16 @@ async def run_startup_check():
             changes = version_info.get("whats_new", {}).get(ver, [])
             log(f"startup: version changed {old_ver} -> {ver}")
             state["last_git_commit"] = cur_git
+            state["last_announced_version"] = ver
             await announce_update(old_ver, ver, changes, state)
         elif not old_ver and ver != "unknown":
             changes = version_info.get("whats_new", {}).get(ver, [])
             state["last_git_commit"] = cur_git
+            state["last_announced_version"] = ver
             await announce_update("initial", ver, changes, state)
         else:
             state["last_version"] = ver
+            state["last_announced_version"] = ver
             state["last_git_commit"] = cur_git
             save_version_state(state)
         log(f"Bot v{BOT_VERSION} started")

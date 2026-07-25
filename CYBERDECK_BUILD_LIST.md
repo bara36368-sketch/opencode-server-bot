@@ -1584,10 +1584,87 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 16. MakeUseOf — Best Raspberry Pi cyberdecks
 17. TheWearify — Best cyberdecks
 18. Jalexine Lab — Build your first cyberdeck
+19. YouTube — Pocket Cyberdeck Pi 5 + 4" touchscreen + CardKB (Jul 2026)
+20. Raspberry Pi Magazine — Backpack Cyberdeck (Pi 4, plywood+3D frame, RTL-SDR, bike-mounted)
+21. DigiKey — Custom cyberdeck build guide (Pi Zero W, detailed wiring)
+22. InsightArea — Practical DIY guide (May 2026)
+23. SlashGear — 4 Cool Raspberry Pi Cyberdeck Projects (CRD, uConsole, Recovery Kit, PortaPack)
+24. GitHub therebelrobot/dinodeck-2026 — Solar-powered off-grid Pi Zero 2W + LTE + LoRa/Meshtastic
 
 ---
 
-## v4.0 AGENT FEATURES (July 2026)
+## NEW BUILD IDEAS (July 2026)
+
+### 1. Pocket Cyberdeck (Pi 5 + 4" Touchscreen)
+- **SBC**: Raspberry Pi 5 (4GB or 8GB)
+- **Display**: 4" HD touchscreen (800x480 or 1024x600)
+- **Keyboard**: CardKB mini keyboard (thumb-sized)
+- **Power**: 3000mAh LiPo + PiSugar 3
+- **Enclosure**: 3D printed compact case, 10cm x 7cm x 3cm
+- **Category**: writerdeck / field-repair
+- **Tier**: Intermediate ($200-400)
+- **Style**: Minimal / Cyberpunk
+- **Key feature**: Fits in pocket, full Linux computer
+
+### 2. Backpack Cyberdeck (Pi 4 + Plywood Frame)
+- **SBC**: Raspberry Pi 4 (8GB, slightly overclocked)
+- **Display**: 10" HDMI IPS
+- **Keyboard**: Full-size mechanical
+- **Power**: 20000mAh USB-C power bank
+- **Enclosure**: Plywood + 3D printed mounts, fits in standard backpack
+- **Category**: security / ham-radio
+- **Tier**: Intermediate ($300-600)
+- **Style**: Industrial / Exposed hardware
+- **Key feature**: Bike-mounted, RTL-SDR for wireless analysis, GNU Radio + Kali Linux
+- **Source**: Raspberry Pi Magazine Issue 167
+
+### 3. DineDeck 2026 (Solar + Off-Grid)
+- **SBC**: Raspberry Pi Zero 2W
+- **Display**: 3.5" DPI display (GPIO-driven)
+- **Keyboard**: XIAO SAMD21 microcontroller keyboard
+- **Power**: Solar panel + LiPo + BMS
+- **Enclosure**: Thrifted enclosure, solarpunk aesthetic
+- **Category**: survival / field-repair
+- **Tier**: Advanced ($200-500)
+- **Style**: Retro / Solarpunk
+- **Key feature**: Off-grid, cellular + LoRa/Meshtastic mesh networking, solar powered
+- **Source**: GitHub therebelrobot/dinodeck-2026
+
+### 4. Modular Cyberdeck (NATO Rail System)
+- **SBC**: Raspberry Pi 5
+- **Display**: Sliding screen (retracts for portability)
+- **Keyboard**: Mechanical with custom keycaps
+- **Power**: Modular battery system
+- **Enclosure**: 3D printed with NATO rails for swappable modules
+- **Category**: coding / maker
+- **Tier**: Advanced ($400-800)
+- **Style**: Futuristic / Industrial
+- **Key feature**: Swappable modules (SDR, sensors, batteries), trackball, upgradeable
+- **Source**: Geeky Gadgets, Jankbu project
+
+### 5. Post-Apocalyptic CRD (Catastrophe Recovery Deck)
+- **SBC**: Raspberry Pi 4 or 5
+- **Display**: 7" sunlight-readable
+- **Keyboard**: rugged mechanical
+- **Power**: Large battery + solar charging
+- **Enclosure**: Pelican 1450, waterproof
+- **Category**: survival
+- **Tier**: Advanced ($400-800)
+- **Style**: Industrial / Military
+- **Key feature**: Offline Wikipedia + Wikivoyage, regional maps, medical guides, DHCP server for mesh networking
+- **Source**: SlashGear
+
+### 6. Clockwork uConsole (Commercial Kit)
+- **SBC**: Raspberry Pi CM4 or CM5
+- **Display**: 5" IPS
+- **Keyboard**: Built-in thumb keyboard
+- **Power**: 18650 battery
+- **Enclosure**: Aluminum clamshell
+- **Category**: coding / writerdeck
+- **Tier**: Beginner ($250-400)
+- **Style**: Minimal / Retro
+- **Key feature**: Commercially available kit, easy assembly, modular SBC slot
+- **Source**: ClockworkPi
 
 ### Cable Routing Management
 - **Auto-optimized routing**: Agent calculates optimal cable paths between components
