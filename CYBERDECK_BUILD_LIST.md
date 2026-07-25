@@ -1,6 +1,6 @@
 # Cyberdeck Build List — Complete Knowledge Base
-## Compiled from 9 Sources | July 2026
-### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck
+## Compiled from 45+ Sources | July 2026
+### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, PCBSync, No Starch Press, Tom's Hardware, Hackaday.io, Printables.com, YouTube (Pi Flux, Jalexine Lab, Ben Makes Everything, Cyberdeck Build Series), Alibaba, Ubu.com, BestBudge, TheWearify
 
 ---
 
@@ -1818,6 +1818,66 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 - **Style**: Minimal / Retro
 - **Key feature**: Most refined single-purpose writing machine, 4 iterations, custom-built units available
 - **Source**: Un Kyu Lee / GitHub
+
+### 16. Tactical Wedge Cyberdeck (Agnostic Grid)
+- **SBC**: Raspberry Pi 5
+- **Display**: 7" capacitive touchscreen
+- **Keyboard**: Mechanical with custom keycaps
+- **Power**: 18650 cells
+- **Enclosure**: FDM 3D printed with modular rail system
+- **Category**: coding / maker
+- **Tier**: Intermediate ($250-500)
+- **Style**: Industrial / Futuristic
+- **Key feature**: "Agnostic Grid" internal rail system — swap SBCs by printing new $2 adapter plate, over-center clamshell latches, thermal chimney ventilation
+- **Source**: Hackaday.io (Ephraim Onimisi PRAXIS)
+
+### 17. RPI DEV CyberStation (Dual Screen)
+- **SBC**: Raspberry Pi 4 or 5
+- **Display**: 2x 9" touchscreen displays
+- **Keyboard**: External USB
+- **Power**: External PSU
+- **Enclosure**: 3D printed with buttons
+- **Category**: coding / maker
+- **Tier**: Advanced ($400-800)
+- **Style**: Industrial / Minimal
+- **Key feature**: Dual screens, internal USB hub, external I2C port, external 40-pin GPIO, external USB — full development platform
+- **Source**: GitHub sennimesh/CyberDeck
+
+### 18. 3D-Printable Pi Cyberdeck (Minimal)
+- **SBC**: Raspberry Pi 5
+- **Display**: 3.5" display
+- **Keyboard**: Rii miniature keyboard
+- **Power**: USB-C
+- **Enclosure**: 3D printed (0.08mm layer height, 5% infill)
+- **Category**: writerdeck / field-repair
+- **Tier**: Beginner ($100-200)
+- **Style**: Minimal
+- **Key feature**: Ultra-lightweight, minimal infill, functional proof-of-concept
+- **Source**: Raspberry Pi Magazine Issue 166 (MakerWorld)
+
+### 19. Zerowriter Fold (E-Ink Clamshell)
+- **SBC**: ESP32
+- **Display**: E-ink display
+- **Keyboard**: Mechanical keyboard
+- **Power**: Internal battery
+- **Enclosure**: Clamshell design
+- **Category**: writerdeck
+- **Tier**: Intermediate ($200-400)
+- **Style**: Minimal / Retro
+- **Key feature**: Clamshell e-ink writerdeck, tilted screen for better ergonomics, distraction-free
+- **Source**: Liliputing / Crowdfunding
+
+### 20. AUTEUR (E-Ink Typewriter)
+- **SBC**: ESP32 or similar
+- **Display**: 6" E-ink display
+- **Keyboard**: Mechanical keyboard
+- **Power**: Internal battery
+- **Enclosure**: Minimal case
+- **Category**: writerdeck
+- **Tier**: Intermediate ($150-300)
+- **Style**: Minimal / Retro
+- **Key feature**: Boots in 10 seconds, dumps directly into word processor, no WiFi/internet, pure distraction-free
+- **Source**: Liliputing / Crowdfunding
 
 ### Cable Routing Management
 - **Auto-optimized routing**: Agent calculates optimal cable paths between components
