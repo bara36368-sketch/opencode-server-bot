@@ -1587,5 +1587,80 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 
 ---
 
-*Compiled from 15+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok (@ubeboobey, @alexinexxx, @metamerd, @carternosko), SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek — July 2026*
-*OpenCode Bot Cyberdeck Agent Knowledge Base v2.0*
+## v4.0 AGENT FEATURES (July 2026)
+
+### Cable Routing Management
+- **Auto-optimized routing**: Agent calculates optimal cable paths between components
+- **Cable type selection**: Silicon 26AWG for signals, 18AWG for power, JST-PH 2.0mm for connectors
+- **Accessories**: Zip ties, cable clips, braided sleeving, heat shrink, cable channels
+- **Routing rules**: Power cables separate from signal, short runs preferred, strain relief at connectors
+
+### Pack Generation
+- **Combined output**: Image + video + text pack for each build
+- **Markdown export**: Full build document with BOM, tutorial, cable plan, upgrades, ideas
+- **Ready to share**: Export-friendly format for posting to forums/GitHub
+
+### Build Optimization (Flaw Detection)
+- **Critical flaws**: No power protection, no cooling, missing WiFi/LAN, battery without BMS
+- **High flaws**: Pi 5 without active cooling, undersized power supply, no Ethernet option
+- **Medium flaws**: No strain relief, no power switch, exposed wiring
+- **Auto-fix**: Agent swaps problematic components automatically
+- **Manual review**: Issues that need user decision (custom enclosures, unique layouts)
+
+### Image Understanding
+- **Component identification**: Recognize SBCs, displays, keyboards, PCBs from photos
+- **Category detection**: Auto-suggest build category based on visual analysis
+- **Upgrade suggestions**: Recommend better components based on what's visible
+- **Compatibility check**: Validate identified components work together
+
+### Video Learning Queue
+- **Background processing**: Queue YouTube/TikTok URLs for learning while offline
+- **Component extraction**: Identify parts mentioned in videos
+- **Tip collection**: Gather assembly tips and tricks from builders
+- **Trend tracking**: Track what components are trending in the community
+
+### 13 Categories (Enhanced)
+Each category now includes: best_sbc, best_display, best_keyboard, best_power, best_enclosure, best_cooling, best_pcb, best_wire, best_connectivity, best_os, upgrade_path, estimated_cost
+
+| Category | Best SBC | Best Connectivity | Budget Range |
+|----------|----------|-------------------|--------------|
+| Coding | Pi 5 16GB | USB Ethernet + Cat6 | $400-1200 |
+| Writerdeck | Pi Zero 2W | Built-in WiFi | $150-400 |
+| Security | Pi 5 16GB | Alfa AWUS036ACH + Ethernet | $500-2000 |
+| Gaming | Pi 5 8GB | USB Ethernet | $300-800 |
+| Research | Pi 5 16GB | WiFi + Ethernet | $400-1200 |
+| AI | Jetson Orin Nano | WiFi + Ethernet | $500-1500 |
+| Survival | Pi 5 8GB | LoRa + Cellular + WiFi | $400-1200 |
+| Media | Pi 5 8GB | WiFi + HDMI out | $300-800 |
+| Conversation | Orange Pi 5 | WiFi | $200-600 |
+| Retro | Pi 5 4GB | WiFi | $200-500 |
+| Maker | LattePanda 3 Delta | WiFi + Ethernet | $500-1500 |
+| Ham Radio | Pi 5 8GB | RTL-SDR + LoRa | $300-800 |
+| Field Repair | Pi 5 8GB | WiFi + Cellular | $300-800 |
+
+### 4 Tiers (Enhanced)
+| Tier | Budget | Soldering | Skills | Build Time |
+|------|--------|-----------|--------|------------|
+| Beginner | $100-300 | Optional | Plug together, basic Linux | 1-3 days |
+| Intermediate | $300-700 | Optional but helpful | 3D printing, cable management | 1-2 weeks |
+| Advanced | $700-2000 | Recommended | Soldering, PCB design, QMK | 2-8+ weeks |
+| Expert | $2000+ | Required | Full custom, CNC, metalwork | 1-3 months |
+
+### 100% Compatibility Enforcement
+- **Power validation**: Voltage/current matching, UPS capacity, battery protection
+- **Physical validation**: Display fits enclosure, keyboard layout, SBC mounting
+- **Connector validation**: HDMI/DSI/CSI compatibility, USB ports, GPIO headers
+- **Driver validation**: OS supports all components, kernel modules available
+- **Thermal validation**: Cooling adequate for SBC TDP, enclosure airflow
+- **Auto-fix**: Incompatible components swapped automatically with explanation
+
+### Mandatory Requirements
+- **WiFi/LAN**: Every build must include networking (built-in WiFi minimum, Ethernet recommended)
+- **Cooling**: Every build must have cooling solution (active for Pi 5, passive acceptable for Zero)
+- **Power Protection**: UPS HAT or battery with BMS for portable builds
+- **Enclosure**: No bare-board builds (even 3D printed minimum)
+
+---
+
+*Compiled from 18+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek — July 2026*
+*OpenCode Bot Cyberdeck Agent Knowledge Base v4.0*

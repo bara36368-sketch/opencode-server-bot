@@ -6301,7 +6301,7 @@ async def main():
 
                         elif sub == "status":
                             status = agent.get_status()
-                            lines = ["🔧 **Cyberdeck Agent v3.0 Status:**\n"]
+                            lines = ["🔧 **Cyberdeck Agent v4.0 Status:**\n"]
                             lines.append(f"Version: {status.get('version', '?')}")
                             lines.append(f"Total Builds: {status.get('total_builds', 0)}")
                             lines.append(f"Videos Learned: {status.get('videos_learned', 0)}")
@@ -6315,35 +6315,158 @@ async def main():
                             lines.append(f"PCBs: {status.get('pcb_count', 0)} | Wires: {status.get('wire_count', 0)}")
                             lines.append(f"Connectivity: {status.get('connectivity_count', 0)} | OS Options: {status.get('os_count', 0)}")
                             lines.append(f"Video Queue: {status.get('video_queue_pending', 0)} pending")
+                            lines.append(f"Learnings: {len(agent.learnings) if hasattr(agent, 'learnings') else 0}")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "cables":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            routing = build.get("cable_plan", {})
+                            lines = ["🔌 **Cable Routing Plan:**\n"]
+                            if routing:
+                                routes = routing.get("routes", [])
+                                for route in routes:
+                                    if isinstance(route, dict):
+                                        lines.append(f"  • **{route.get('from', '?')}** → **{route.get('to', '?')}**")
+                                        lines.append(f"    Cable: {route.get('cable', '?')} | Length: {route.get('length', '?')}")
+                                    else:
+                                        lines.append(f"  • {route}")
+                                accessories = routing.get("accessories", [])
+                                if accessories:
+                                    lines.append(f"\n**Accessories:** {', '.join(accessories) if isinstance(accessories, list) else accessories}")
+                            else:
+                                lines.append("No cable routing generated.")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "pack":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            pack = await agent.generate_pack(build)
+                            lines = ["📦 **Build Pack Generated:**\n"]
+                            lines.append(f"Cables: {pack.get('cable_plan', {}).get('total_cables', 0)}")
+                            lines.append(f"Upgrades: {len(pack.get('upgrades', []))}")
+                            lines.append(f"Ideas: {len(pack.get('ideas', []))}")
+                            lines.append(f"\nMarkdown pack saved ({len(pack.get('markdown', ''))} chars)")
+                            md = pack.get("markdown", "")
+                            if md:
+                                lines.append(f"\n{md[:1500]}")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "flaws":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            flaws = await agent.detect_flaws(build)
+                            lines = ["🔍 **Flaw Detection Report:**\n"]
+                            if flaws:
+                                for flaw in flaws:
+                                    severity = flaw.get('severity', 'low')
+                                    emoji = '🔴' if severity == 'high' else '🟡' if severity == 'medium' else '🟢'
+                                    lines.append(f"{emoji} **{flaw.get('component', 'N/A')}**: {flaw.get('issue', 'Unknown')}")
+                                    if flaw.get('fix'):
+                                        lines.append(f"  Fix: {flaw['fix']}")
+                            else:
+                                lines.append("✅ No flaws detected! Build is solid.")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "learn":
+                            learnings = agent.learner.learnings if hasattr(agent, 'learner') else {}
+                            lines = ["🧠 **Agent Learnings:**\n"]
+                            lines.append(f"Total learnings: {len(learnings)}")
+                            for key, value in list(learnings.items())[:10]:
+                                if isinstance(value, dict):
+                                    lines.append(f"  • {key}: {list(value.keys())[:3]}")
+                                elif isinstance(value, list):
+                                    lines.append(f"  • {key}: {len(value)} items")
+                                else:
+                                    lines.append(f"  • {key}: {str(value)[:100]}")
+                            if not learnings:
+                                lines.append("No learnings yet. Watch videos or chat to start learning!")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "search-web":
+                            query = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            if not query:
+                                await send(chat, "Usage: /cyberdeck search-web <query>\nExample: /cyberdeck search-web raspberry pi cyberdeck build 2026")
+                                continue
+                            await send(chat, f"🌐 Searching web for: {query}")
+                            results = await agent.search_web(query)
+                            lines = [f"🌐 **Web Search Results:** {query}\n"]
+                            platforms = results.get("platforms", {})
+                            for platform, info in platforms.items():
+                                lines.append(f"**{platform.title()}:**")
+                                lines.append(f"  🔗 {info.get('url', '')}")
+                                lines.append(f"  {info.get('note', '')}")
+                                lines.append("")
+                            if not platforms:
+                                lines.append("No results found.")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "optimize":
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else ""
+                            build = await agent.build(prompt_text or "budget cyberdeck")
+                            optimized = await agent.optimize_build(build)
+                            lines = ["⚡ **Optimized Build:**\n"]
+                            opt_info = optimized.get("optimizer", {})
+                            lines.append(f"Flaws found: {opt_info.get('flaws_found', 0)}")
+                            lines.append(f"Flaws fixed: {opt_info.get('flaws_fixed', 0)}")
+                            lines.append(f"Status: {opt_info.get('status', 'unknown')}")
+                            comps = optimized.get("components", {})
+                            if comps:
+                                lines.append("\n**Components:**")
+                                for key, comp in comps.items():
+                                    if comp and isinstance(comp, dict):
+                                        lines.append(f"  {key.replace('_', ' ').title()}: **{comp.get('name', key)}**")
+                            await send(chat, "\n".join(lines))
+
+                        elif sub == "stats":
+                            status = agent.get_status()
+                            lines = ["📊 **Component Database Stats:**\n"]
+                            lines.append(f"  SBCs: {status.get('sbc_count', 0)}")
+                            lines.append(f"  Displays: {status.get('display_count', 0)}")
+                            lines.append(f"  Keyboards: {status.get('keyboard_count', 0)}")
+                            lines.append(f"  Power: {status.get('power_count', 0)}")
+                            lines.append(f"  Enclosures: {status.get('enclosure_count', 0)}")
+                            lines.append(f"  Cooling: {status.get('cooling_count', 0)}")
+                            lines.append(f"  PCBs: {status.get('pcb_count', 0)}")
+                            lines.append(f"  Wires: {status.get('wire_count', 0)}")
+                            lines.append(f"  Connectivity: {status.get('connectivity_count', 0)}")
+                            lines.append(f"  OS Options: {status.get('os_count', 0)}")
                             await send(chat, "\n".join(lines))
 
                         else:
-                            await send(chat, "🔧 **Cyberdeck Agent v3.0**\n\n"
+                            await send(chat, "🔧 **Cyberdeck Agent v4.0**\n\n"
                                 "**Build & Design:**\n"
                                 "  /cyberdeck build <desc> — Build (auto-detect category, most powerful parts)\n"
                                 "  /cyberdeck custom <name> <desc> — Custom category (AI fills everything)\n"
-                                "  /cyberdeck categories — View all 9 categories\n"
-                                "  /cyberdeck tiers — View budget tiers (beginner/intermediate/advanced)\n"
+                                "  /cyberdeck categories — View all categories\n"
+                                "  /cyberdeck tiers — View budget tiers\n"
                                 "  /cyberdeck pick <type> [category] — Pick best component\n"
                                 "  /cyberdeck compat <sbc> [display] [power] [enclosure] — Check compatibility\n"
                                 "  /cyberdeck bom <desc> — Bill of materials\n"
                                 "  /cyberdeck tutorial <desc> — Word-by-word assembly guide\n"
                                 "  /cyberdeck upgrade <desc> — Suggest upgrades\n"
+                                "  /cyberdeck cables <desc> — Cable routing plan\n"
+                                "  /cyberdeck pack <desc> — Generate build pack (image+video+text)\n"
+                                "  /cyberdeck flaws <desc> — Run flaw detection\n"
+                                "  /cyberdeck optimize <desc> — Optimize build for cost/performance\n"
                                 "  /cyberdeck cooling — View cooling options\n"
                                 "  /cyberdeck pcb — View PCB/carrier board database\n"
                                 "  /cyberdeck wires — View wire/cable database\n"
-                                "  /cyberdeck connectivity — View WiFi/LAN/LoRa/cellular database\n\n"
+                                "  /cyberdeck connectivity — View WiFi/LAN/LoRa/cellular database\n"
+                                "  /cyberdeck stats — Component database statistics\n\n"
                                 "**Research & Learn:**\n"
                                 "  /cyberdeck search <query> — Search for parts\n"
+                                "  /cyberdeck search-web <query> — Search YouTube/TikTok/GitHub/web\n"
                                 "  /cyberdeck watch <url> — Learn from YouTube/TikTok video\n"
                                 "  /cyberdeck queue <url> — Queue video for offline learning\n"
                                 "  /cyberdeck process-queue — Process queued videos\n"
                                 "  /cyberdeck analyze — Analyze a cyberdeck photo (AI vision)\n"
                                 "  /cyberdeck code <task> — Generate electronics code\n"
-                                "  /cyberdeck ideas [category] — Get cyberdeck ideas\n\n"
+                                "  /cyberdeck ideas [category] — Get cyberdeck ideas\n"
+                                "  /cyberdeck learn — View agent learnings\n\n"
                                 "**History & Info:**\n"
                                 "  /cyberdeck list — View build history\n"
-                                "  /cyberdeck status — Agent status (v3.0)\n\n"
+                                "  /cyberdeck status — Agent status (v4.0)\n\n"
                                 "Types: sbc, display, keyboard, power, enclosure, cooling, pcb, wire_signal, wire_power, os\n"
                                 "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation\n"
                                 "Custom: /cyberdeck custom <any_name> <description>")
