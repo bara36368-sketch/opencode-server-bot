@@ -2788,11 +2788,13 @@ async def auto_version_checker():
                 log(f"Auto-check: version bumped {last_ver} -> {new_ver}")
                 state["last_version"] = new_ver
                 state["last_git_commit"] = cur_git
+                save_version_state(state)
                 await announce_update(last_ver, new_ver, changes, state)
             elif current_ver != "unknown" and current_ver != announced_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
                 log(f"Auto-check: version changed {announced_ver or 'initial'} -> {current_ver}")
                 state["last_git_commit"] = cur_git
+                save_version_state(state)
                 await announce_update(announced_ver or "initial", current_ver, changes, state)
         except Exception as e:
             log(f"Auto version check error: {e}")

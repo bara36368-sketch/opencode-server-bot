@@ -1514,6 +1514,24 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 
 **Key Trend:** Young women driving cyberdeck movement on TikTok — turning purses, caboodles, and vintage cases into fully functional computers. WIRED called cyberdecks "the hottest anti-AI gadget" (Apr 2026). CNN covered the rise (Apr 2026). TechCrunch featured the movement (Jun 2026).
 
+### New YouTube Build Channels (2026)
+| Channel | Content | Link |
+|---------|---------|------|
+| **Pi Flux** | Pi 5 security workstation tutorial | youtube.com/@piflux |
+| **Cyberdeck Build Series** | Playlist of cyberdeck builds | youtube.com playlist |
+| **Jalexine Lab** | 8-episode Raspberry Pi beginner course | youtube.com/@jalexine |
+
+### Key Media Coverage (2026)
+| Publication | Article | Date |
+|------------|---------|------|
+| **WIRED** | "The Hottest Anti-AI Gadget Is a Cyberdeck" | Apr 2026 |
+| **CNN** | "Inside the rise of cyberdecks" | Apr 2026 |
+| **TechCrunch** | Cyberdecks rejecting big tech | Jun 2026 |
+| **Forbes** | AI-powered cyberdecks | May 2026 |
+| **Hola** | Women driving cyberdeck movement | 2026 |
+| **TechJuice** | Gen Z building cyberdecks | Jul 2026 |
+| **Raspberry Pi Magazine** | Issue 167 — Backpack Cyberdeck | Jul 2026 |
+
 ### New GitHub Cyberdeck Repos (2026)
 | Repo | SBC | Features | URL |
 |------|-----|----------|-----|
@@ -1666,6 +1684,114 @@ Every cyberdeck needs cooling. The Pi 5 runs hot under load (TDP ~12W), and encl
 - **Key feature**: Commercially available kit, easy assembly, modular SBC slot
 - **Source**: ClockworkPi
 
+### 7. Pi Flux Cyberdeck (Security Workstation)
+- **SBC**: Raspberry Pi 5 (8GB)
+- **Display**: 7" HDMI IPS touchscreen
+- **Keyboard**: 60% mechanical
+- **Power**: 20000mAh USB-C
+- **Enclosure**: 3D printed tactical case
+- **Category**: security
+- **Tier**: Intermediate ($350-700)
+- **Style**: Futuristic / Cyberpunk
+- **Key feature**: Pre-loaded Kali Linux, WiFi pentesting, full cybersecurity workstation
+- **Source**: YouTube "Pi Flux Cyberdeck: The Complete Build Tutorial"
+
+### 8. Mermaid in the Shell (Clutch Purse)
+- **SBC**: Raspberry Pi 3A+
+- **Display**: 3.5" touchscreen
+- **Keyboard**: ZitaoTech BB Q10 (white, thumb)
+- **Power**: LiPo battery
+- **Enclosure**: Frame clutch purse (pink seashell shape)
+- **Category**: conversation-piece
+- **Tier**: Beginner ($150-300)
+- **Style**: Kawaii / Mermaid
+- **Key feature**: Feminine cyberdeck aesthetic, hinges from purse, decorative shells/pearls
+- **Source**: Hackaday "Mermaid Clutch-Purse Cyberdeck"
+
+### 9. LattePanda μ x86 Cyberdeck
+- **SBC**: LattePanda μ (x86, Windows/Linux)
+- **Display**: 7" 1080p touchscreen
+- **Keyboard**: Thumb-typing keyboard
+- **Power**: Custom BMS battery pack
+- **Enclosure**: 36mm case, aluminum faceplate, translucent resin shell
+- **Category**: coding / maker
+- **Tier**: Advanced ($500-1000)
+- **Style**: Minimal / Industrial
+- **Key feature**: Full x86 computing, runs Windows/Linux, desktop-class apps
+- **Source**: Ben Makes Everything / Geeky Gadgets
+
+### 10. Mini Music Workstation
+- **SBC**: Raspberry Pi 4
+- **Display**: 3.5" Waveshare DSI (800x480)
+- **Keyboard**: Rii Mini X1
+- **Power**: 10,000mAh battery
+- **Enclosure**: 3D printed compact case
+- **Category**: media
+- **Tier**: Intermediate ($250-500)
+- **Style**: Minimal / Cyberpunk
+- **Key feature**: Teensy 4.1 runs headless M8 tracker, portable music production
+- **Source**: Adafruit Blog
+
+### 11. Radxa X2L Cyberdeck (Large Screen)
+- **SBC**: Radxa X2L (ARM SBC)
+- **Display**: 12.3" touchscreen
+- **Keyboard**: External Bluetooth
+- **Power**: USB-C power bank
+- **Enclosure**: Custom ABS plastic case
+- **Category**: coding / research
+- **Tier**: Intermediate ($300-600)
+- **Style**: Minimal / Industrial
+- **Key feature**: Large screen for coding/research, affordable ARM SBC
+- **Source**: Class Central YouTube course
+
+### 12. Vintage TV Cyberdeck
+- **SBC**: Raspberry Pi 5
+- **Display**: Original CRT TV screen (via HDMI RF modulator)
+- **Keyboard**: 60% foldable mechanical
+- **Power**: Li-ion battery pack in repurposed battery tray
+- **Enclosure**: Vintage TV shell (fully reversible mod)
+- **Category**: retro / conversation-piece
+- **Tier**: Advanced ($300-700)
+- **Style**: Retro / Steampunk
+- **Key feature**: Original TV aesthetics preserved, RF modulator to antenna input, reversible mod
+- **Source**: Hackaday
+
+### 13. Cyberdore 2064 (Scroll Wheel Deck)
+- **SBC**: Raspberry Pi Zero + Pi Pico
+- **Display**: 128x64 OLED
+- **Keyboard**: Built-in mini keyboard
+- **Power**: Small LiPo
+- **Enclosure**: 3D printed compact case
+- **Category**: writerdeck / retro
+- **Tier**: Beginner ($100-200)
+- **Style**: Retro / Minimal
+- **Key feature**: Oversized KY-040 rotary encoder scroll wheel, anti-doomscrolling design
+- **Source**: Tommi Laukkanen / codeof.me
+
+### 14. Typeframe PS-85 Writerdeck
+- **SBC**: Raspberry Pi Zero 2W
+- **Display**: Small e-ink or OLED
+- **Keyboard**: 40% mechanical, custom keycaps (Alien theme)
+- **Power**: LiPo battery
+- **Enclosure**: 3D printed retro-industrial case
+- **Category**: writerdeck
+- **Tier**: Intermediate ($200-400)
+- **Style**: Retro / Industrial
+- **Key feature**: Inspired by early-80s Epson portables, Alien movie aesthetic
+- **Source**: Jeff Merrick
+
+### 15. Micro Journal (4 Generations)
+- **SBC**: Raspberry Pi Zero 2W
+- **Display**: Small LCD
+- **Keyboard**: Ortholinear mechanical
+- **Power**: LiPo
+- **Enclosure**: 3D printed palmtop case
+- **Category**: writerdeck
+- **Tier**: Intermediate ($200-400)
+- **Style**: Minimal / Retro
+- **Key feature**: Most refined single-purpose writing machine, 4 iterations, custom-built units available
+- **Source**: Un Kyu Lee / GitHub
+
 ### Cable Routing Management
 - **Auto-optimized routing**: Agent calculates optimal cable paths between components
 - **Cable type selection**: Silicon 26AWG for signals, 18AWG for power, JST-PH 2.0mm for connectors
@@ -1739,5 +1865,5 @@ Each category now includes: best_sbc, best_display, best_keyboard, best_power, b
 
 ---
 
-*Compiled from 18+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek — July 2026*
+*Compiled from 33+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Hackaday, TikTok, SlashGear, Geeky Gadgets, Webman.tech, InsightArea, Raspberry Pi Blog, HowToGeek, Adafruit, Class Central, Forbes, Hola, TechJuice, DigiKey, Ben Makes Everything, Jeff Merrick, Un Kyu Lee, Tommi Laukkanen — July 2026*
 *OpenCode Bot Cyberdeck Agent Knowledge Base v4.0*
