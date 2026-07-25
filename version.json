@@ -1,5 +1,5 @@
 {
-  "version": "3.7.131",
+  "version": "3.7.132",
   "updated": "2026-07-24",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
@@ -33,12 +33,13 @@
     "Location & Distance -- /loc set/range/here/nearby/dist/status \u2014 set home location, restrict responses to within 14km, track user distances",
     "Webhook Mode \u2014 instant Telegram message delivery via webhooks + ngrok tunnel (set WEBHOOK_MODE=1 to enable)",
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)",
-    "Cyberdeck Agent \u2014 full electronics picking, 3D printing, BOM generation, compatibility checking, video learning (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status)",
+    "Cyberdeck Agent v3.0 -- full electronics picking, 3D printing, BOM generation, compatibility checking, video learning, image analysis, PCB/wire databases, tier system, tutorials, code generation, idea generation, continuous evolution (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status/pcb/wires)",
     "IoT Control Dashboard \u2014 ESP32/Arduino/Pi device control, GPIO pin management, sensor monitoring, alerts, schedules (/iot add/list/status/pin/sensor/alert/schedule/logs/simulate)",
     "Education & Games \u2014 quizzes with scoring, spaced repetition flashcards, Wordle, Hangman, math challenges, code challenges, leaderboards (/edu quiz/wordle/hangman/math/code/review/top/stats/achievements)",
     "Finance & Crypto Tracker \u2014 crypto prices, portfolio management, price alerts, watchlists, currency conversion (/fin price/market/convert/buy/sell/portfolio/alert/watch/info)",
     "Computer Vision Bot \u2014 object detection, face analysis, OCR, image classification, color palette extraction, barcode scanning (/cv objects/faces/ocr/classify/describe/colors/barcode/stats/history)",
-    "n8n Workflow Generator \u2014 natural language to n8n workflow JSON, template library, import/export (/n8n create/use/templates/list/export/toggle/nodes)"
+    "n8n Workflow Generator \u2014 natural language to n8n workflow JSON, template library, import/export (/n8n create/use/templates/list/export/toggle/nodes)",
+    "Cyberdeck Agent v3.0 \u2014 full electronics picking, 3D printing, BOM generation, compatibility checking, video learning, image analysis, PCB/wire databases, tier system, tutorials, code generation, idea generation, continuous evolution (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status/pcb/wires)"
   ],
   "whats_new": {
     "3.6.0": [],
@@ -240,6 +241,18 @@
       "Finance & Crypto Tracker -- /fin price/market/convert/buy/sell/portfolio/alert/watch/transactions/info -- Crypto price tracking, portfolio management, price alerts, watchlists, currency conversion, transaction history",
       "Computer Vision Bot -- /cv objects/faces/ocr/classify/describe/colors/barcode/stats/history -- Object detection with emoji labels, face analysis with age/gender/emotion, OCR text extraction, image classification, color palette, barcode scanning",
       "n8n Workflow Generator -- /n8n create/use/templates/list/export/toggle/nodes -- Natural language to n8n workflow JSON, 8 built-in templates, node category reference, import/export"
+    ],
+    "3.7.132": [
+      "Cyberdeck Agent v3.0 -- complete rewrite: 1952 lines, 11 SBCs, 9 displays, 7 keyboards, 5 power, 7 enclosures, 6 cooling, 7 PCBs, 8 wires, 11 OS",
+      "PCB Database -- Waveshare HATs, Jetson carrier, CM5/CM4 carriers, Adafruit, Penkesu, SparkFun, custom neon PCBs",
+      "Wire Database -- 26-16AWG silicon, ribbon cables, JST connectors, USB-C PD, neon accent wires",
+      "Image Understanding -- analyze photos to identify components, suggest category, flag issues",
+      "Video Learning -- queue YouTube/TikTok for background processing while offline/online",
+      "Smart Building -- auto-detect category from prompts, most powerful parts per category, compatibility validation",
+      "Tier System -- Beginner/Intermediate/Advanced with soldering/skill requirements",
+      "Compatibility Engine -- validates all component pairs with auto-fix",
+      "Word-by-Word Tutorials, Code Generation, Idea Generator, Continuous Evolution",
+      "New /cyberdeck pcb and /cyberdeck wires commands"
     ]
   }
 }
