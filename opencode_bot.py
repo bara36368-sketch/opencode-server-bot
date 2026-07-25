@@ -230,6 +230,7 @@ _http = None
 _save_counter = 0
 
 _rate_limits = {}
+_announced_versions = set()
 def _check_rate_limit(key, max_calls=5, window=60):
     now = time.time()
     window_start = now - window
@@ -2609,6 +2610,14 @@ def save_version_state(state):
     _atomic_save(VERSION_STATE_FILE, state)
 
 async def announce_update(old_v, new_v, changes, state):
+    global _announced_versions
+    if new_v in _announced_versions:
+        log(f"announce_update: skipping v{new_v} (already announced this session)")
+        state["last_announced_version"] = new_v
+        state["last_version"] = new_v
+        save_version_state(state)
+        return state
+    _announced_versions.add(new_v)
     known_chats = set()
     try:
         for cid in sessions:
@@ -2790,12 +2799,14 @@ async def auto_version_checker():
                 state["last_git_commit"] = cur_git
                 save_version_state(state)
                 await announce_update(last_ver, new_ver, changes, state)
+                save_version_state(state)
             elif current_ver != "unknown" and current_ver != announced_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
                 log(f"Auto-check: version changed {announced_ver or 'initial'} -> {current_ver}")
                 state["last_git_commit"] = cur_git
                 save_version_state(state)
                 await announce_update(announced_ver or "initial", current_ver, changes, state)
+                save_version_state(state)
         except Exception as e:
             log(f"Auto version check error: {e}")
 
@@ -2819,18 +2830,24 @@ async def run_startup_check():
             log(f"startup: auto-bumped {old_ver} -> {new_ver}")
             state["last_version"] = new_ver
             state["last_git_commit"] = cur_git
+            save_version_state(state)
             await announce_update(old_ver, new_ver, changes, state)
+            save_version_state(state)
         elif old_ver and old_ver != ver:
             changes = version_info.get("whats_new", {}).get(ver, [])
             log(f"startup: version changed {old_ver} -> {ver}")
             state["last_git_commit"] = cur_git
             state["last_announced_version"] = ver
+            save_version_state(state)
             await announce_update(old_ver, ver, changes, state)
+            save_version_state(state)
         elif not old_ver and ver != "unknown":
             changes = version_info.get("whats_new", {}).get(ver, [])
             state["last_git_commit"] = cur_git
             state["last_announced_version"] = ver
+            save_version_state(state)
             await announce_update("initial", ver, changes, state)
+            save_version_state(state)
         else:
             state["last_version"] = ver
             state["last_announced_version"] = ver
