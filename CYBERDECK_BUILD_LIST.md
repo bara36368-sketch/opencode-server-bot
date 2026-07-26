@@ -1,5 +1,5 @@
 # Cyberdeck Build List — Complete Knowledge Base
-## Compiled from 310+ Sources | July 2026
+## Compiled from 405+ Sources | July 2026
 ### Sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, ZitaoTech, Beeper, ArcticEnrichmentCenter, echo-lalia, ferluht, brickbots, TomMladenov, Decktrix-Lab, CodyTolene, EzioDEVio, n0xa, altaga, thehackingsage, PNPtutorials, pepeangell5, a8ksh4, Klesp0, Orange Pi, Radxa, Banana Pi, ODROID, Milk-V, StarFive, SiFive, DeepComputing, Sipeed, MangoPi, Espressif, LattePanda, Khadas, Firefly, Cerakote, Caswell Plating, Smooth-On, Fibre Glast, Glow Inc, SFXC, Eastwood, McMaster-Carr, TotalBoat, Mouser, DigiKey, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab, therebelrobot, trevjohnand, pcwleo0404, andywarburton, amarullz, SoulSircuit, CarbonComputers, dapperrogue, ian-maday, superradmaker, _kniives, Michael Klements, Vagabondvivant, TypeSlate, Liliputing
 
 ---
@@ -3233,6 +3233,93 @@ MobilePenBerry, ThePwnPal (5000mAh, 8-10hrs), EtherOS, SwissArmyPi, Raspi_Hackbo
 
 ---
 
-*Compiled from 270+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab*
+## NEW BUILDS — Rounds 18-20 (14 Builds + 5 Products + 15 Components + 20 Aesthetics + 4 Insights)
 
-*OpenCode Bot Cyberdeck Agent Knowledge Base v5.2 — 300+ builds, 310+ sources, 360+ products/resources, 35 insights*
+### New Builds (14)
+
+| # | Name | Creator | Platform | Key Features | Price |
+|---|------|---------|----------|--------------|-------|
+| 301 | Offline Pi 5 Cyberdeck | shaunakperi | Pi 5 | Offline Wikipedia, maps, music server, Docker, no internet needed | ~$200 |
+| 302 | Pico Cyberdeck | Jake Walker | ESP32-S3 + RP2040 | SHARP Memory LCD, ARTSEY chording keyboard, custom KiCad PCB | ~$80 |
+| 303 | TRS-80 Keyboard Deck | Brent-Tec | RP2350 | 1980s TRS-80 keyboard revived via CircuitPython + KMK | ~$30 |
+| 304 | CM5 NVMe Split-Keyboard Deck | Bit Rebels | Pi CM5 | 12" Waveshare IPS, custom carrier PCB, NVMe, split ortho mech | ~$400+ |
+| 305 | Ducktop2 | EwoudVV | LattePanda Mu (N305) | 16" 120Hz, 6-layer custom PCB, Cherry MX ULP, VHF/UHF radio, GNSS | ~$800+ |
+| 306 | E Ink Typewriter WriterDeck | Jamie / Myth Made | Pi Zero 2W | Waveshare 4.2" ePaper, typewriter body, rack-and-pinion screen lift | ~$120 |
+| 307 | SimpleDeck | pgattic | Pi 4 | Zero solder, OpenSCAD parametric case, 4.3" DSI touch | ~$80 |
+| 308 | MuleCube | Kyriakos Papadopoulos | Pi 5 | Offline Wikipedia, Ollama LLM, Meshtastic, Jellyfin, 50Wh UPS, 10-15hr | €499 |
+| 309 | NOMAD | pat-gc | LattePanda Mu (N100) | 14" HD, ThinkPad keyboard, internal RTL-SDR, passive cooling, 1.7cm thin | ~$300-400 |
+| 310 | Ultra Minimal Cyberdeck | NickZero | Pi Zero 2W | Gherkin 30% keyboard, 7" Waveshare, Adafruit Powerboost, 3D printed | ~$60 |
+| 311 | GMKTec NucBox G5 Cyberdeck | WillTechBuilds | Intel N97 (x86) | ThinkPad trackpoint keyboard, USB-C battery, laptop-like feel | ~$150 |
+| 312 | PhoenixDeck | M4YH3M-DEV | Pi 5 | Modular handheld, detachable ESP32 hacking module, RFID, LoRa, IR | ~$200+ |
+| 313 | Event Badge Deck | Rootkit Labs | ESP32-P4 | WHY2025 badge fork, Flipper Blackhat, Linux on badge | ~$80 |
+| 314 | ThePwnPal | Shlucus | Pi | Pocket network pentesting device, LCD touch, standalone power | ~$150 |
+
+### New Products (5)
+
+| # | Name | Type | Description | Price |
+|---|------|------|-------------|-------|
+| 101 | DSG-22.6 GHz RF Signal Generator | Test Equipment | Open-source 150 MHz-22.6 GHz signal gen | $1,590 |
+| 102 | PolyCast5 5-Radio Remote | Connectivity | ESP32-C5 WiFi 6+BLE+LoRa+ESP-NOW+IR | ~$35-60 |
+| 103 | EKOS ePaper Dashboard | Display | ESP32-S3, oak+aluminum enclosure, local-first | ~$80-120 |
+| 104 | Meterbit Pixlpal | LED Matrix + Audio | 11.25" RGB matrix, Hi-Fi DAC, smart home ticker | ~$50-80 |
+| 105 | Khadas Mind xPlay | Portable Display | Display + keyboard combo for Mind mini PC | ~$150-250 |
+
+### New Components (15)
+
+| Category | Component | Description |
+|----------|-----------|-------------|
+| SBC | Radxa NIO 5A | RK3588-based SBC, NVMe, 2.5GbE |
+| SBC | Radxa Dragon Q8B/Q5E | Compact SBC variants |
+| SBC | Pi CM0 | Raspberry Pi Compute Module 0 |
+| SBC | Makerfabs CM0IQ | CM0 carrier board with IQ |
+| SBC | Titan Mini | Miniature SBC for embedded |
+| SBC | Rimer SBC | 40-key keyboard SBC |
+| SBC | Kode Dot | ESP32-based development board |
+| SBC | Maker Go ESP32P4C5 | ESP32-P4 development kit |
+| SBC | Sipeed MaixCAM2 | RISC-V AI camera module |
+| SBC | EDATEC ED-IPC1200 | Industrial Pi CM5 carrier |
+| Display | Makerfabs MaTouch 10.1" 4G LTE | 10.1" touch with LTE |
+| Firmware | Purplx- OS | Cyberpunk OS for M5Stack Cardputer ADV |
+| Firmware | ESP32-S3 Cyber OS | NES emulator, DOOM, BLE spam, cloud music |
+| Tool | uconsole-cybertui | Rust TUI for uConsole management |
+| Tool | Cyber-Controller | ESP32/Flipper/Pi security controller dashboard |
+
+### New Aesthetics (20)
+
+| # | Name | Description | Visual Keywords |
+|---|------|-------------|-----------------|
+| 297 | Glitch Gothic | Liquid chrome + gothic romanticism + 3D-printed organic + techno-mysticism | Liquid chrome, gothic arches, sacred geometry, angelic cyborg |
+| 298 | Cyber-Deco | Cyberpunk neon + Art Deco geometric elegance | Chevron patterns, fan arches, gold trim, skyscraper silhouette |
+| 299 | Wabi-Cyber-Sabi | Japanese wabi-sabi + electronics repair + kintsugi | Kintsugi gold seams, cracked circuits, resin-filled fractures |
+| 300 | Crystalpunk | Crystalline/mineral forms, geode-like enclosures | Faceted crystal, geode cross-section, mineral veins, raw quartz |
+| 301 | Salvage Punk | Discarded electronics/e-waste as primary material | E-waste assemblage, dead circuit boards, vacuum tubes |
+| 302 | Blacklight Deck | UV-reactive/fluorescent materials, dual-state devices | UV reactive, blacklight, fluorescent, hidden patterns |
+| 303 | Biofabricated | Enclosures grown from living organisms | Mycelium texture, fungal surfaces, bio-composite, grown-not-made |
+| 304 | Glitchy Glam | Intentional asymmetry and "wrongness" as beauty | Asymmetry, mismatched pairs, split-tone, lopsided beauty |
+| 305 | Tech Spec | Engineered precision aesthetics, aerospace documentation | Wide tracking, numeric codes, industrial icons, lab readout |
+| 306 | Notes App Chic | Rough drafts, scrapbooks, hand-cut collage elements | Handwritten labels, scrapbook collage, lo-fi, doodle marks |
+| 307 | Vamp Romantic | After-dark gothic glamour, seductively dark | Jet black gloss, deep crimson, smoky translucent, rose gold |
+| 308 | Laced Up | Lace/crochet patterns on hard surfaces | Doily patterns, crochet texture, lace overlay, textile-tech |
+| 309 | Bronze Age | Metallic warmth, bronze tones, mineral textures | Bronze patina, warm metallic, aged copper, ancient-future |
+| 310 | Mystic Outlands | Mystical otherworldly aesthetics, arcane symbols | Arcane symbols, star charts, fog diffusion, cosmic mysticism |
+| 311 | Wilderkind | Animal-inspired delicacy, forest magic | Butterfly wing iridescence, fawn spots, fox orange, antler forms |
+| 312 | Neo Deco | Art Deco modern remix, chrome-edged geometric | Chevron, fan arch, chrome edge, brass inlay, sunburst motif |
+| 313 | Opera Aesthetic | Dramatic drapery, red roses, dark cabaret energy | Theater curtain, spotlight LED, deep red velvet, ornate frame |
+| 314 | Explorecore | Maps, field guides, compass motifs, discovery journals | Map overlay, compass rose, field guide, exploration badge |
+| 315 | GrannyWave | Heritage craft revival, grandmother's house aesthetics | Handwoven textile, heritage pattern, ancestral craft, cultural weaving |
+| 316 | Post-Human Aesthetic | AI consciousness + raw brutalist matter | Concrete monolith, crystal data, emergent pattern, AI-generated form |
+
+### New Insights (4)
+
+| # | Name | Description |
+|---|------|-------------|
+| 36 | Offline-First Cyberdecks | Builds designed for zero internet — Wikipedia, maps, music, LLMs all local |
+| 37 | Chording Keyboard Renaissance | ARTSEY and other chording layouts making comeback in cyberdeck builds |
+| 38 | Reflective LCD Revival | No-backlight reflective displays for outdoor/sunlight-readable decks |
+| 39 | Custom Carrier PCBs | CM5 custom carrier boards enabling full laptop-class cyberdecks |
+
+---
+
+*Compiled from 310+ sources: Vapor95, GitHub/BenMakesEverything, PCBSync, Betechit, MakeUseOf, Cyberdeck.cafe, Thewearify, Jalexine Lab, Reddit r/cyberDeck, Mashable, Teen Vogue, WIRED, CNN, TechCrunch, Forbes, The Verge, Hybrid Rituals, Adafruit, Hackaday, Hackster.io, Prism News, 2much.net, Field Test, PCWorld, SlashGear, DigiKey, InsightArea, Raspberry Pi Blog, Raspberry Pi Magazine, writerdeck.org, Liliputing, Geeky Gadgets, Tom's Hardware, Core Electronics, No Starch Press, Alibaba, Ubu.com, BestBudge, TheWearify, 3druck.com, Thingiverse, CNX Software, XDA Developers, GBAtemp.net, TechRadar, NY Mag, sfwordsmith.com, Levenger.com, mateuszurbanowicz.com, Carbon Computers, Jakew.me, Printables.com, MakerWorld, TurkeyBoards, beekeeb.com, xkeeb.com, 40percent.club, keeb.io, Ploopy.co, Pimoroni, Seeed Studio, RAK Wireless, Elecrow, SenseCAP, Heltec, OWC, Satechi, StarTech, FLIR, Great Scott Gadgets, PiSDR, AB Electronics, DFRobot, SunFounder, Waveshare, SparkFun, Orient Display, Beetronics, SIHOVISION, HiFiBerry, Sonocotta, Plantower, Nova, Granz Scientific, ANAVI, Plugable, PiKVM, GL-iNet, Geekworm, Thermal Grizzly, Fujipoly, Gelid, Arctic Silver, GTT Wireless, Sixfab, PiLink, Matho, maaad, pidiylab.com, YARH.IO, TheHomeServerBlog, Simulations4All, NixOS, Artix Linux, Void Linux, CachyOS, Armbian, FreeBSD, OpenBSD, Tiny Core Linux, Puppy Linux, AntiX, Parrot, BlackArch, Kali, Pentoo, Recalbox, RetroPie, Lakka, JELOS, Batocera, EmuELEC, WareWoolf, ZeroWriter, TypeWryter, writerDeckOS, CyberWriter, FocusWriter, WordGrinder, i3wm, Sway, Hyprland, labwc, bspwm, dwm, Pi-hole, AdGuard, Tailscale, Cockpit, MobilePenBerry, ThePwnPal, EtherOS, SwissArmyPi, Ploopy, EFOG, Azoteq, 3DPut, Creality, Wesley Treat, Christan Workshop, Evan Ohl, 3M, YesWrap, DOCOResin, Framedeck, Eccentric Decals, Sticky Studios, Kadee, Bedlam Creations, Phoxy Design, UHAB, LaBonte, Moondeck, OpenClaw, Pikku Dial, Techno Glow, GLO Effex, SpaceBeams, ColorMagic, DuskTools, HackberryPi, PicoWiz, roshinfo, HandyPi, Pip3, dmitriykovalev, romicaby, hex1n, 0x676e68, Hax0rStock, writerdeckos, hugg97, Squonk42, cyberboi, 0x10, danielktdorsey, Seeed Studio, SparkFun, FLIR, Great Scott Gadgets, Pimoroni, Waveshare, SenseCAP, GL.iNet, Sixfab*
+
+*OpenCode Bot Cyberdeck Agent Knowledge Base v5.2 — 509+ builds, 405+ sources, 435+ products/resources, 82+ insights*
