@@ -1,6 +1,6 @@
 {
-  "version": "3.7.138",
-  "updated": "2026-07-25",
+  "version": "3.7.139",
+  "updated": "2026-07-26",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -317,6 +317,21 @@
       "Ham Radio Module -- HF/VHF/UHF bands, digital modes (JS8Call, FT8, WSPR, Packet, SSTV)",
       "Environmental Monitor -- real-time sensor readings with alerts, CSV export",
       "Security Forensics Module -- 8 forensics tools with commands and purpose descriptions"
+    ],
+    "3.7.138": [
+      "Cyberdeck Agent v5.2 -- Custom Builder (/cyberdeck cb): interactive mix-and-match component picker",
+      "CustomBuildEngine class -- 300+ lines, 11 categories, real-time pricing, compatibility warnings",
+      "6 new SBCs -- Radxa Dragon Q8B ($350), Orange Pi RV2 ($70), Banana Pi BPI-F3 ($80), ArmSoM CM1 ($15), ZimaBoard 2 ($120), Pi 500 ($120)",
+      "7 new displays -- Pimoroni Presto 4\" ($90), Waveshare 13.3\" e-ink ($200), Inky Impression 7.3\" ($90), 4\" RPi LCD ($30), sunlight-readable 7\" ($120), 5\" HDMI IPS ($25), 1.3\" OLED ($8)",
+      "Storage database -- 11 NVMe/SD/eMMC options (Samsung 970 EVO, WD SN770, Kingston NV2, MicroSD, eMMC)",
+      "uConsole expansion database -- 5 cards (HackerGadgets AIO V1/V2, Openterface KVM, LTE Modem, uEther)",
+      "Total 200+ components across 19 databases with full specs and prices"
+    ],
+    "3.7.139": [
+      "Round 8 build list compiled -- 300+ builds, 310+ sources, 360+ products",
+      "19 new builds added (GitHub, Hackaday.io, Commercial, Writerdecks)",
+      "5 new components -- ESP32-S3 Touch LCD, RP2040 Zero, Feather RP2040, LattePanda μ, Tactile Switches",
+      "Updated source list with new GitHub contributors (therebelrobot, trevjohnand, amarullz, etc.)"
     ]
   }
 }
