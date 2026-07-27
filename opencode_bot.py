@@ -2529,7 +2529,14 @@ async def call_provider(messages, provider, override=None):
         r = await c.post(p["url"], json=body, headers=headers)
         log(f"{provider} API: {r.status_code}")
         if r.status_code == 200:
-            return r.json().get("choices", [{}])[0].get("message", {}).get("content", str(r.json()))
+            data = r.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if content:
+                return content
+            for k in ("answer", "result", "response", "message", "text", "data", "content"):
+                if k in data and isinstance(data[k], str):
+                    return data[k]
+            return str(data)[:2000]
         return f"{provider.title()} error: {r.status_code} - {r.text[:500]}"
 
 def resolve_provider(agent_name=None):
