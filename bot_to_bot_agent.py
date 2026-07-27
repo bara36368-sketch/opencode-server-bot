@@ -446,6 +446,25 @@ class CyberdeckAgent(BaseAgent):
             elif any(kw in message for kw in ["code", "script", "python", "arduino"]):
                 code = await agent.generate_code(message)
                 result["code"] = code
+            elif any(kw in message for kw in ["career", "template", "profession", "job"]):
+                from cyberdeck_agent import CAREER_TEMPLATES
+                result["careers"] = {k: v["name"] for k, v in CAREER_TEMPLATES.items()}
+            elif any(kw in message for kw in ["dashboard", "html", "web ui", "visualize"]):
+                from cyberdeck_agent import InteractiveDashboard
+                dashboard = InteractiveDashboard()
+                result["dashboard"] = "Interactive HTML dashboard ready"
+            elif any(kw in message for kw in ["search-web", "youtube", "tiktok", "instagram"]):
+                from cyberdeck_agent import WebSearchEngine
+                result["search"] = WebSearchEngine.search(query=message)
+            elif any(kw in message for kw in ["flaw", "fix", "detect"]):
+                from cyberdeck_agent import FlawDetector
+                result["flaw_detector"] = "FlawDetector ready"
+            elif any(kw in message for kw in ["upgrade", "improve", "better"]):
+                from cyberdeck_agent import UpgradePlanner
+                result["upgrade_planner"] = "UpgradePlanner ready"
+            elif any(kw in message for kw in ["risk", "danger", "safe"]):
+                from cyberdeck_agent import RiskAssessor
+                result["risk"] = "RiskAssessor ready"
             else:
                 build = await agent.build_from_prompt(message)
                 result["build"] = build.get("build", build)
@@ -1120,7 +1139,7 @@ class BotToBotManager:
             AgentConfig(id="analysis", name="Data Analyzer", agent_type=AgentType.ANALYSIS, capabilities=["data analysis", "statistics", "comparison"], prompt="You are a data analysis specialist."),
             AgentConfig(id="writing", name="Content Writer", agent_type=AgentType.WRITING, capabilities=["content creation", "copywriting", "editing"], prompt="You are a professional content writer."),
             AgentConfig(id="coding", name="Code Specialist", agent_type=AgentType.CODING, capabilities=["programming", "debugging", "code review"], prompt="You are a coding specialist."),
-            AgentConfig(id="cyberdeck", name="Cyberdeck Builder", agent_type=AgentType.CYBERDECK, capabilities=["electronics picking", "3d printing", "enclosure design", "bom generation", "compatibility checking", "soldering guidance", "component selection", "image analysis", "video learning", "pcb database", "wire database", "connectivity database", "tier system", "tutorial generation", "code generation", "idea generation", "flaw fixing", "cable routing", "pack generation", "build optimization", "continuous evolution", "peripheral recommendation", "antenna calculator", "environmental monitoring", "color palette", "aesthetic materials", "ham radio", "forensics", "test equipment", "battery sizing", "custom builder", "custombuild", "component pricing", "mix and match"], prompt="You are a cyberdeck and electronics expert v5.2. Help users design, pick components, build, and troubleshoot cyberdecks and portable computing projects. You have access to SBC, display, keyboard, power, storage, enclosure, cooling, PCB, wire, connectivity, camera, sensor, SDR, LoRa, NFC, fingerprint, haptic, IMU, and uConsole expansion databases with full specs and prices. You can run the Custom Builder (/cyberdeck cb) for interactive mix-and-match component selection with real-time pricing and compatibility checks. Always validate 100% compatibility before recommending. Enforce WiFi/LAN and cooling in every build. Generate cable routing plans and build packs. Detect and auto-fix flaws. Recommend peripherals by category and budget. Calculate antenna dimensions and cable losses. Monitor environmental conditions. Learn from every interaction."),
+            AgentConfig(id="cyberdeck", name="Cyberdeck Builder", agent_type=AgentType.CYBERDECK, capabilities=["electronics picking", "3d printing", "enclosure design", "bom generation", "compatibility checking", "soldering guidance", "component selection", "image analysis", "video learning", "pcb database", "wire database", "connectivity database", "tier system", "tutorial generation", "code generation", "idea generation", "flaw fixing", "cable routing", "pack generation", "build optimization", "continuous evolution", "peripheral recommendation", "antenna calculator", "environmental monitoring", "color palette", "aesthetic materials", "ham radio", "forensics", "test equipment", "battery sizing", "custom builder", "custombuild", "component pricing", "mix and match", "vision module", "career templates", "interactive dashboard", "web search", "build from prompt", "upgrade planner", "compatibility engine", "smart learner", "risk assessment", "pcb generator", "sbc database high quality", "wire management", "3d model color picker", "solar panel integration", "ddr4 ddr5 support", "component details full specs"], prompt="You are a cyberdeck and electronics expert v6.0. Help users design, pick components, build, and troubleshoot cyberdecks and portable computing projects. You have access to 20+ databases: SBC, display, keyboard, power, storage, enclosure, cooling, PCB, wire, connectivity, camera, sensor, SDR, LoRa, NFC, fingerprint, haptic, IMU, uConsole expansion, color palettes, aesthetic materials, thermal interface, and career templates. Vision module understands images and videos. Interactive HTML dashboard with 3D visualization, component picker, and customization. Natural language build-from-prompt engine. Flaw detector with auto-fix. Upgrade planner for existing builds. 100% compatibility validation engine. Smart learner learns from chats, videos, and builds. Web search across YouTube, TikTok, Instagram, GitHub, Reddit, and web. Risk assessment for every component and build. Custom PCB generator with backward compatibility. High-quality SBC database with full specs. Cable routing with measurements and cut lists. 3D model generator with color picker and STL download. Solar panel integration in every build. DDR4/DDR5 RAM support. Always validate 100% compatibility before recommending. Enforce WiFi/LAN and cooling in every build. Learn from every interaction."),
         ]
         agent_classes = {"triage": TriageAgent, "research": ResearchAgent, "analysis": AnalysisAgent, "writing": WritingAgent, "coding": CodingAgent, "cyberdeck": CyberdeckAgent}
         for cfg in configs:

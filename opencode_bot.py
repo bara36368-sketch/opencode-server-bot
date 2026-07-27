@@ -6564,6 +6564,43 @@ async def main():
                                     lines.append(f"{emoji} **{comp.get('name', cid)}** ({db_name}): {risk}")
                             await send(chat, "\n".join(lines))
 
+                        elif sub == "career":
+                            from cyberdeck_agent import CAREER_TEMPLATES
+                            career_type = parts[2].lower() if len(parts) > 2 else ""
+                            if not career_type or career_type == "list":
+                                lines = ["💼 **Career Templates (v6.0):**\n"]
+                                for cid, ct in CAREER_TEMPLATES.items():
+                                    lines.append(f"• **{ct['name']}** (`{cid}`)")
+                                    lines.append(f"  {ct.get('description', '')[:80]}")
+                                    lines.append(f"  Budget: {ct.get('budget', '?')} | Tier: {ct.get('tier', '?')}")
+                                lines.append("\nUsage: /cyberdeck career <type> (e.g., coding, gaming, ai_ml, security, writer)")
+                                await send(chat, "\n".join(lines))
+                            elif career_type in CAREER_TEMPLATES:
+                                ct = CAREER_TEMPLATES[career_type]
+                                lines = [f"💼 **{ct['name']}:**\n"]
+                                lines.append(f"Description: {ct.get('description', '')}")
+                                lines.append(f"Budget: {ct.get('budget', '?')} | Tier: {ct.get('tier', '?')}")
+                                lines.append(f"SBC: {ct.get('sbc', '?')} | Display: {ct.get('display', '?')}")
+                                lines.append(f"Power: {ct.get('power', '?')} | Enclosure: {ct.get('enclosure', '?')}")
+                                lines.append(f"Key Features: {', '.join(ct.get('features', [])[:5])}")
+                                lines.append(f"\n💡 Use /cyberdeck build {ct.get('description', career_type)} to create this build!")
+                                await send(chat, "\n".join(lines))
+                            else:
+                                await send(chat, f"Unknown career: {career_type}\nAvailable: {', '.join(CAREER_TEMPLATES.keys())}")
+
+                        elif sub == "dashboard":
+                            from cyberdeck_agent import InteractiveDashboard
+                            dashboard = InteractiveDashboard()
+                            prompt_text = " ".join(parts[2:]) if len(parts) > 2 else "budget coding cyberdeck"
+                            build = await agent.build(prompt_text)
+                            html = dashboard.generate_dashboard(build)
+                            lines = ["🌐 **Interactive Dashboard Generated (v6.0):**\n"]
+                            lines.append(f"HTML size: {len(html)} chars")
+                            lines.append(f"Features: 3D visualization, component picker, color customization, cable guide, tutorials")
+                            lines.append(f"\n💡 The dashboard is saved as cyberdeck_dashboard.html")
+                            lines.append("Open it in a browser to interact with your build!")
+                            await send(chat, "\n".join(lines))
+
                         elif sub == "custombuild" or sub == "cb":
                             from cyberdeck_agent import CustomBuildEngine
                             cb_action = parts[2].lower() if len(parts) > 2 else "menu"
@@ -6674,7 +6711,7 @@ async def main():
                                 await send(chat, "Unknown custombuild action. Use: start, list, pick, remove, show, compat, summary, clear")
 
                         else:
-                            await send(chat, "🔧 **Cyberdeck Agent v5.2**\n\n"
+                            await send(chat, "🔧 **Cyberdeck Agent v6.0**\n\n"
                                 "**Build & Design:**\n"
                                 "  /cyberdeck build <desc> — Build (auto-detect category, most powerful parts)\n"
                                 "  /cyberdeck custom <name> <desc> — Custom category (AI fills everything)\n"
@@ -6700,24 +6737,28 @@ async def main():
                                 "  /cyberdeck stats — Component database statistics\n"
                                 "  /cyberdeck styles — View 3D model styles\n"
                                 "  /cyberdeck risk — View component risk levels\n\n"
+                                "**v6.0 New Features:**\n"
+                                "  /cyberdeck career <type> — Career-specific templates (coding, gaming, ai, security, writer, etc.)\n"
+                                "  /cyberdeck dashboard — Generate interactive HTML dashboard with 3D visualization\n"
+                                "  /cyberdeck search-web <query> — Search YouTube/TikTok/GitHub/Reddit/web\n"
+                                "  /cyberdeck ideas [category] — Get cyberdeck ideas with trend analysis\n"
+                                "  /cyberdeck learn — View agent learnings from chat/video/builds\n"
+                                "  /cyberdeck analyze — Analyze a cyberdeck photo (AI vision)\n"
+                                "  /cyberdeck specs <id> — Detailed component specs (OLED/IPS, size, resolution, etc.)\n\n"
                                 "**Research & Learn:**\n"
                                 "  /cyberdeck search <query> — Search for parts\n"
-                                "  /cyberdeck search-web <query> — Search YouTube/TikTok/GitHub/web\n"
                                 "  /cyberdeck watch <url> — Learn from YouTube/TikTok video\n"
                                 "  /cyberdeck queue <url> — Queue video for offline learning\n"
                                 "  /cyberdeck process-queue — Process queued videos\n"
-                                "  /cyberdeck analyze — Analyze a cyberdeck photo (AI vision)\n"
-                                "  /cyberdeck code <task> — Generate electronics code\n"
-                                "  /cyberdeck ideas [category] — Get cyberdeck ideas\n"
-                                "  /cyberdeck specs <id> — Detailed component specs\n"
-                                "  /cyberdeck learn — View agent learnings\n\n"
+                                "  /cyberdeck code <task> — Generate electronics code\n\n"
                                 "**History & Info:**\n"
                                 "  /cyberdeck list — View build history\n"
-                                "  /cyberdeck status — Agent status (v5.0)\n\n"
+                                "  /cyberdeck status — Agent status (v6.0)\n\n"
                                 "Types: sbc, display, keyboard, power, enclosure, cooling, pcb, wire_signal, wire_power, os\n"
-                                "Styles: futuristic, retro, industrial, minimal, steampunk, cyberpunk\n"
+                                "Styles: futuristic, retro, industrial, minimal, steampunk, cyberpunk, nautical, solarpunk, cassette-futurism, feminine-craft, fallout, brutalist\n"
                                 "Sizes: small (compact), big (full power)\n"
-                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation, retro, maker, ham-radio, field-repair")
+                                "Careers: coding, gaming, ai_ml, security, writer, field_research, robotics, media_production, ham_radio, home_automation, portable_hacking\n"
+                                "Categories: coding, writerdeck, security, gaming, research, ai, survival, media, conversation, retro, maker, ham-radio, field-repair, drone, forensics, test-equipment, weather, home-automation, edge-ai")
 
                     except Exception as e:
                         await send(chat, f"Cyberdeck error: {str(e)[:200]}")

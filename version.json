@@ -1,6 +1,6 @@
 {
-  "version": "3.7.140",
-  "updated": "2026-07-26",
+  "version": "3.7.141",
+  "updated": "2026-07-27",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -33,7 +33,7 @@
     "Location & Distance -- /loc set/range/here/nearby/dist/status \u2014 set home location, restrict responses to within 14km, track user distances",
     "Webhook Mode \u2014 instant Telegram message delivery via webhooks + ngrok tunnel (set WEBHOOK_MODE=1 to enable)",
     "Mini Apps \u2014 full HTML dashboards and tools inside Telegram (/miniapp status/pages/data/url, /experimental enable mini-apps)",
-    "Cyberdeck Agent v4.0 -- 10 classes, 100 components, cable routing, pack generation, flaw detection, image/video understanding, 13 categories, 4 tiers, 100% compatibility, WiFi/LAN enforced, continuous learning (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/list/status/pcb/wires/connectivity/cables/pack/flaws/learn/search-web/optimize/stats)",
+    "Cyberdeck Agent v6.0 -- 5000+ lines, 20+ classes, vision module, career templates, interactive HTML dashboard, build-from-prompt, flaw detector, upgrade planner, compatibility engine, web search, smart learner, risk assessor, PCB generator, cable manager, pack generator, 5000+ builds compiled, 5500+ products, 3700+ sources (/cyberdeck build/pick/compat/bom/tutorial/upgrade/search/watch/analyze/code/ideas/career/dashboard/cables/pack/flaws/optimize/3d/video/pcb-custom/pcb/wires/connectivity/cooling/risk/specs/styles/custom/list/status)",
     "Cyberdeck Agent v5.0 -- 3359+ lines, 6 new styles, 6 new categories, peripheral recommendation engine, antenna calculator, battery sizing, forensics module, test equipment, ham radio, 15+ new databases (environmental, cameras, SDR, LoRa, NFC, fingerprint, haptics, IMU, color palettes, aesthetic materials, thermal interface)",
     "Cyberdeck Agent v5.2 -- Custom Builder (/cyberdeck cb): interactive mix-and-match component picker with real-time pricing, compatibility checks, build summaries. 6 new SBCs (Radxa Dragon Q8B, Orange Pi RV2, Banana Pi BPI-F3, ArmSoM CM1, ZimaBoard 2, Pi 500), 7 new displays (Pimoroni Presto, Waveshare 13.3\" e-ink, Inky Impression 7.3\", 4\" RPi LCD), NVMe SSD database (6 options), MicroSD/eMMC storage, uConsole expansion cards (5), total 200+ components with full specs and prices",
     "IoT Control Dashboard \u2014 ESP32/Arduino/Pi device control, GPIO pin management, sensor monitoring, alerts, schedules (/iot add/list/status/pin/sensor/alert/schedule/logs/simulate)",
@@ -340,6 +340,26 @@
       "CYBERDECK_BUILD_LIST.md at 502+ builds with 398+ sources",
       "New aesthetics: 251+ entries (Glitch Gothic, Cyber-Deco, Wabi-Cyber-Sabi, Crystalpunk, Salvage Punk, Blacklight Deck, Biofabricated, Post-Human Aesthetic, etc.)",
       "New insights: 77+ (Offline-First, Chording Renaissance, Reflective LCD, Custom Carrier PCBs, Heritage Keyboards, Parametric Design)"
+    ],
+    "3.7.141": [
+      "Cyberdeck Agent v6.0 -- 5000+ lines, 20+ classes, 5000 builds, 5500+ products, 3700+ sources",
+      "VisionModule -- image/video understanding via AI vision API, analyze cyberdeck photos, generate build video scripts",
+      "Career Templates -- 11 career configs (coding, gaming, ai_ml, security, writer, field_research, robotics, media_production, ham_radio, home_automation, portable_hacking)",
+      "Interactive HTML Dashboard -- 3D visualization, component picker, color customization, cable guide, tutorials (generates cyberdeck_dashboard.html)",
+      "Pack Generator -- complete build packs with README, BOM, tutorial, cable guide, OpenSCAD files",
+      "BuildFromPrompt -- natural language to complete cyberdeck build generator",
+      "FlawDetector -- pre-delivery quality checks with auto-fix",
+      "UpgradePlanner -- upgrade paths for existing builds",
+      "CompatibilityEngine -- 100% component compatibility validation",
+      "WebSearchEngine -- YouTube, TikTok, Instagram, GitHub, Reddit, web search",
+      "SmartLearner -- learns from chat history, video content, user preferences",
+      "TutorialGenerator -- word-by-word assembly instructions with tools, risks, tips",
+      "RiskAssessor -- component and build risk assessment",
+      "CableManager -- cable routing, wire recommendations, cut lists with measurements",
+      "PCB_DATABASE -- 5 custom PCB designs for backward compatibility",
+      "SBC_DATABASE -- 5 high-quality SBCs with full specs",
+      "WIRE_DATABASE -- 15 wire/connector types with gauge, current, flexibility, prices",
+      "New /cyberdeck career and /cyberdeck dashboard commands added"
     ]
   }
 }

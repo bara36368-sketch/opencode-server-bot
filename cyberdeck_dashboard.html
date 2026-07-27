@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyberdeck Builder Dashboard v6.0</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0f; color: #e0e0e0; }
+.header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; text-align: center; border-bottom: 2px solid #00f0ff; }
+.header h1 { color: #00f0ff; font-size: 2em; text-shadow: 0 0 20px rgba(0,240,255,0.3); }
+.header p { color: #888; margin-top: 5px; }
+.nav { display: flex; justify-content: center; gap: 10px; padding: 15px; background: #111; flex-wrap: wrap; }
+.nav button { background: #1a1a2e; color: #00f0ff; border: 1px solid #00f0ff; padding: 10px 20px; cursor: pointer; border-radius: 5px; transition: all 0.3s; }
+.nav button:hover, .nav button.active { background: #00f0ff; color: #000; }
+.dashboard { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
+.sidebar { background: #111; border-radius: 10px; padding: 20px; border: 1px solid #333; }
+.main { background: #111; border-radius: 10px; padding: 20px; border: 1px solid #333; }
+h2 { color: #00f0ff; margin-bottom: 15px; font-size: 1.2em; }
+.component-card { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: all 0.3s; }
+.component-card:hover { border-color: #00f0ff; transform: translateX(5px); }
+.component-card.selected { border-color: #00f0ff; background: #0f3460; }
+.component-card h3 { color: #fff; font-size: 0.95em; }
+.component-card p { color: #888; font-size: 0.85em; margin-top: 5px; }
+.component-card .price { color: #00f0ff; font-weight: bold; }
+.component-card .specs { color: #666; font-size: 0.8em; margin-top: 8px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+.stat { background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #333; }
+.stat .value { color: #00f0ff; font-size: 1.5em; font-weight: bold; }
+.stat .label { color: #888; font-size: 0.8em; margin-top: 5px; }
+.tier-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold; }
+.tier-beginner { background: #2d5a27; color: #90EE90; }
+.tier-intermediate { background: #5a4a27; color: #FFD700; }
+.tier-advanced { background: #5a2727; color: #FF6B6B; }
+.tier-expert { background: #4a275a; color: #DDA0DD; }
+.compatibility { margin-top: 15px; padding: 15px; background: #1a2e1a; border: 1px solid #2d5a27; border-radius: 8px; }
+.btn { background: #00f0ff; color: #000; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px; }
+.btn:hover { background: #00d4e0; }
+.btn.secondary { background: #333; color: #fff; }
+.btn.secondary:hover { background: #444; }
+.hidden { display: none; }
+.search-box { width: 100%; padding: 10px; background: #1a1a2e; border: 1px solid #333; border-radius: 5px; color: #fff; margin-bottom: 15px; }
+.color-picker { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+.color-swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+.color-swatch.selected { border-color: #fff; }
+#three-d-view { width: 100%; height: 300px; background: #0a0a0f; border: 1px solid #333; border-radius: 8px; margin-top: 15px; }
+.category-header { color: #00f0ff; margin: 15px 0 10px; font-size: 1em; }
+.build-item { background: #0f3460; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.build-item h4 { color: #fff; font-size: 0.9em; }
+.build-item .meta { color: #666; font-size: 0.8em; margin-top: 4px; }
+.cable-route { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.cable-route h4 { color: #00f0ff; font-size: 0.9em; }
+.cable-route .detail { color: #888; font-size: 0.8em; margin-top: 5px; }
+.tutorial-step { background: #1a1a2e; border-left: 3px solid #00f0ff; padding: 12px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
+.tutorial-step h4 { color: #00f0ff; }
+.tutorial-step p { color: #888; font-size: 0.85em; margin-top: 5px; }
+.tutorial-step .tools { color: #FFD700; font-size: 0.8em; margin-top: 5px; }
+.tutorial-step .risk { color: #FF6B6B; font-size: 0.8em; margin-top: 3px; }
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Cyberdeck Builder Dashboard</h1>
+<p>Interactive component picker, 3D preview, and build customizer — v6.0</p>
+</div>
+<div class="nav">
+<button class="active" onclick="showTab('builder')">Builder</button>
+<button onclick="showTab('components')">Components</button>
+<button onclick="showTab('templates')">Career Templates</button>
+<button onclick="showTab('3d')">3D Preview</button>
+<button onclick="showTab('cables')">Cable Guide</button>
+<button onclick="showTab('tutorials')">Tutorials</button>
+<button onclick="showTab('builds')">Build Database</button>
+</div>
+<div class="dashboard">
+<div class="sidebar">
+<h2>Categories</h2>
+<input type="text" class="search-box" placeholder="Search components..." oninput="filterComponents(this.value)">
+<div id="category-list"></div>
+<h2 style="margin-top:20px">Selected Components</h2>
+<div id="selected-list"><p style="color:#666">No components selected</p></div>
+<h2 style="margin-top:20px">Build Summary</h2>
+<div id="build-summary">
+<div class="stats">
+<div class="stat"><div class="value" id="total-price">$0</div><div class="label">Total Cost</div></div>
+<div class="stat"><div class="value" id="total-power">0W</div><div class="label">Power Draw</div></div>
+<div class="stat"><div class="value" id="compat-score">100%</div><div class="label">Compatibility</div></div>
+<div class="stat"><div class="value" id="build-tier">-</div><div class="label">Tier</div></div>
+</div>
+</div>
+</div>
+<div class="main">
+<div id="tab-builder">
+<h2>Component Picker</h2>
+<div id="component-grid"></div>
+</div>
+<div id="tab-components" class="hidden">
+<h2>All Components Database</h2>
+<div id="all-components"></div>
+</div>
+<div id="tab-templates" class="hidden">
+<h2>Career Templates</h2>
+<div id="template-grid"></div>
+</div>
+<div id="tab-3d" class="hidden">
+<h2>3D Preview</h2>
+<div class="color-picker" id="color-picker"></div>
+<canvas id="three-d-view"></canvas>
+<div style="margin-top:10px">
+<button class="btn" onclick="downloadSTL()">Download STL</button>
+<button class="btn secondary" onclick="resetView()">Reset View</button>
+</div>
+</div>
+<div id="tab-cables" class="hidden">
+<h2>Cable Routing Guide</h2>
+<div id="cable-info"></div>
+</div>
+<div id="tab-tutorials" class="hidden">
+<h2>Build Tutorial</h2>
+<div id="tutorial-content"></div>
+</div>
+<div id="tab-builds" class="hidden">
+<h2>Build Database (3,700+ Builds)</h2>
+<div id="builds-list"></div>
+</div>
+</div>
+</div>
+<script>
+const COMPONENTS = {
+    sbc: [
+        {id:"pi5_8gb", name:"Raspberry Pi 5 8GB", price:80, power:12, specs:"BCM2712, Cortex-A76 2.4GHz x4, 8GB LPDDR4X, NVMe, WiFi 5", tier:"intermediate"},
+        {id:"pi5_4gb", name:"Raspberry Pi 5 4GB", price:60, power:12, specs:"BCM2712, Cortex-A76 2.4GHz x4, 4GB LPDDR4X, NVMe, WiFi 5", tier:"intermediate"},
+        {id:"pi_zero_2w", name:"Raspberry Pi Zero 2W", price:15, power:3, specs:"RP3A0, Cortex-A53 1GHz x4, 512MB, WiFi 4", tier:"beginner"},
+        {id:"opi5plus", name:"Orange Pi 5 Plus 16GB", price:120, power:15, specs:"RK3588, A76 2.4GHz x4 + A55 1.8GHz x4, 16GB LPDDR5, 2x NVMe, WiFi 6", tier:"advanced"},
+        {id:"lattepanda_sigma", name:"LattePanda Sigma", price:250, power:18, specs:"Intel N100, Alder Lake-N x4, 8-16GB DDR5, NVMe, WiFi 6", tier:"advanced"},
+        {id:"jetson_orin", name:"NVIDIA Jetson Orin Nano 8GB", price:250, power:25, specs:"GA10B, Cortex-A78AE x6, Ampere 1024-core GPU, 8GB LPDDR5, NVMe", tier:"expert"}
+    ],
+    display: [
+        {id:"hdmi_7ips", name:"7\" HDMI IPS 1024x600", price:45, power:3, specs:"IPS, 1024x600, HDMI, capacitive touch", tier:"beginner"},
+        {id:"hdmi_10ips", name:"10.1\" HDMI IPS 1920x1200", price:90, power:5, specs:"IPS, 1920x1200, HDMI, capacitive touch", tier:"intermediate"},
+        {id:"dsi_7", name:"7\" DSI Official Touch", price:60, power:3, specs:"DSI, 800x480, official RPi touch", tier:"beginner"},
+        {id:"eink_79", name:"7.9\" E-Ink Display", price:120, power:0.5, specs:"E-Ink, 1872x1404, SPI, sunlight readable", tier:"intermediate"},
+        {id:"oled_13", name:"1.3\" OLED SSD1306", price:8, power:0.1, specs:"OLED, 128x64, I2C, ultra low power", tier:"beginner"},
+        {id:"oled_096", name:"0.96\" OLED SSD1306", price:6, power:0.1, specs:"OLED, 128x64, I2C, tiny", tier:"beginner"}
+    ],
+    keyboard: [
+        {id:"mech_60", name:"60% Mechanical (Keychron)", price:70, power:0.5, specs:"Cherry MX, USB-C, compact", tier:"beginner"},
+        {id:"ortho_planck", name:"Planck Ortholinear", price:100, power:0.5, specs:"40% ortholinear, hot-swap, split option", tier:"intermediate"},
+        {id:"corne_split", name:"Corne Split Keyboard", price:120, power:0.5, specs:"Split ergonomic, 42 keys, hot-swap", tier:"advanced"},
+        {id:"bluetooth_ergo", name:"Bluetooth Ergonomic", price:50, power:0.1, specs:"Wireless, ergonomic, battery", tier:"beginner"},
+        {id:"thumb_kbd", name:"Thumb Keyboard", price:30, power:0.1, specs:"Compact thumb-type, handheld", tier:"beginner"}
+    ],
+    power: [
+        {id:"ups_h5180", name:"UPS HAT 5180mAh", price:35, power:0, specs:"18650x2, 5180mAh, USB-C PD, UPS protection", tier:"beginner"},
+        {id:"pisugar3", name:"PiSugar 3 Plus", price:40, power:0, specs:"3000mAh, RTC, button, compact HAT", tier:"beginner"},
+        {id:"lipo_20ah", name:"20Ah LiPo Battery", price:40, power:0, specs:"20Ah, 74Wh, USB-C PD, BMS", tier:"intermediate"},
+        {id:"solar_10w", name:"10W Solar Panel + Charger", price:30, power:0, specs:"10W panel, TP4056, outdoor", tier:"intermediate"},
+        {id:"usbc_pd_65w", name:"USB-C PD 65W Supply", price:25, power:0, specs:"65W PD, 20V/3.25A, barrel adapter", tier:"beginner"}
+    ],
+    enclosure: [
+        {id:"pelican_1450", name:"Pelican 1450 Case", price:45, power:0, specs:"IP67, 286x172x153mm, customizable", tier:"beginner"},
+        {id:"3d_printed", name:"3D Printed Case (PLA/PETG)", price:5, power:0, specs:"Custom design, 3D print, lightweight", tier:"intermediate"},
+        {id:"apache_3800", name:"Apache 3800 (Harbor Freight)", price:25, power:0, specs:"IP67, budget Pelican alternative", tier:"beginner"},
+        {id:"rackmount", name:"Rackmount Enclosure", price:60, power:0, specs:"19\" rack, server-style", tier:"advanced"},
+        {id:"aluminum_extrusion", name:"Aluminum Extrusion Frame", price:40, power:0, specs:"2020/3030 aluminum, modular, industrial", tier:"intermediate"}
+    ],
+    cooling: [
+        {id:"heatsink_passive", name:"Passive Heatsink (Aluminum)", price:10, power:0, specs:"Aluminum, passive, silent", tier:"beginner"},
+        {id:"fan_30mm", name:"30mm Active Fan", price:5, power:1, specs:"30mm, 5V, active cooling", tier:"beginner"},
+        {id:"heatsink_copper", name:"Copper Heatsink (401 W/mK)", price:20, power:0, specs:"Copper, 401 W/mK, passive", tier:"intermediate"},
+        {id:"peltier_active", name:"Peltier Active Cooler", price:35, power:10, specs:"TEC module, active, very cold", tier:"advanced"},
+        {id:"fan_50mm", name:"50mm PWM Fan", price:12, power:2, specs:"50mm, PWM, adjustable speed", tier:"intermediate"}
+    ],
+    connectivity: [
+        {id:"wifi6_usb", name:"WiFi 6 USB Adapter", price:25, power:2, specs:"AX1800, USB 3.0, monitor mode", tier:"intermediate"},
+        {id:"awus036ach", name:"AWUS036ACH WiFi Adapter", price:35, power:5, specs:"Dual-band, monitor mode, high gain", tier:"advanced"},
+        {id:"lora_sx1262", name:"LoRa SX1262 Module", price:15, power:0.5, specs:"868/915MHz, long range, mesh", tier:"intermediate"},
+        {id:"ethernet_usb", name:"Gigabit Ethernet USB Adapter", price:15, power:1, specs:"USB 3.0, GigE, reliable", tier:"beginner"},
+        {id:"lte_modem", name:"4G LTE Modem (Quectel)", price:40, power:3, specs:"Cat 4 LTE, SIM slot, global bands", tier:"advanced"},
+        {id:"bt5_usb", name:"Bluetooth 5.0 USB Dongle", price:10, power:0.5, specs:"BLE 5.0, long range", tier:"beginner"}
+    ],
+    storage: [
+        {id:"nvme_256", name:"NVMe SSD 256GB", price:25, power:3, specs:"PCIe Gen 3, 256GB, fast boot", tier:"intermediate"},
+        {id:"nvme_1tb", name:"NVMe SSD 1TB", price:60, power:3, specs:"PCIe Gen 3, 1TB, high capacity", tier:"advanced"},
+        {id:"sd_128", name:"MicroSD 128GB A2", price:15, power:0.5, specs:"A2, V30, 128GB, reliable", tier:"beginner"},
+        {id:"emmc_64", name:"eMMC Module 64GB", price:20, power:1, specs:"64GB, faster than SD", tier:"intermediate"}
+    ]
+};
+
+const CAREER_TEMPLATES = {
+    coding: {name:"Coding / Software Development", desc:"Programming, IDE, terminal, git, Docker", sbc:"Pi 5 8GB", display:"10.1\" IPS 1920x1200", budget:"$400-$800", tier:"intermediate", color:"#00f0ff"},
+    gaming: {name:"Gaming / Retro Gaming", desc:"Retro emulation and indie games", sbc:"Pi 5 8GB", display:"7\" IPS 1024x600", budget:"$200-$500", tier:"beginner", color:"#FF6B6B"},
+    ai_ml: {name:"AI / Machine Learning", desc:"Local AI inference, edge ML, vision", sbc:"Pi 5 8GB + Coral", display:"10.1\" IPS", budget:"$500-$1500", tier:"advanced", color:"#FFD700"},
+    security: {name:"Security / Pentesting", desc:"Pen testing, WiFi audit, forensics", sbc:"Pi 5 8GB", display:"7\" IPS touch", budget:"$400-$1000", tier:"advanced", color:"#FF4444"},
+    writer: {name:"Writing / WriterDeck", desc:"Distraction-free writing", sbc:"Pi Zero 2W", display:"7.9\" E-Ink", budget:"$150-$400", tier:"beginner", color:"#90EE90"},
+    field_research: {name:"Field Research", desc:"Rugged field data collection", sbc:"Pi 5 4GB", display:"7\" IPS sunlight-readable", budget:"$300-$600", tier:"intermediate", color:"#FFA500"},
+    robotics: {name:"Robotics", desc:"ROS2, servo control, navigation", sbc:"Pi 5 8GB", display:"7\" IPS touch", budget:"$500-$1200", tier:"advanced", color:"#DDA0DD"},
+    media: {name:"Media Production", desc:"Video editing, streaming, capture", sbc:"Pi 5 8GB", display:"10.1\" IPS 4K", budget:"$500-$1000", tier:"advanced", color:"#FF69B4"},
+    ham_radio: {name:"Ham Radio", desc:"SDR, HF/VHF/UHF, digital modes", sbc:"Pi 5 4GB", display:"7\" IPS", budget:"$300-$700", tier:"intermediate", color:"#00FF00"},
+    home_auto: {name:"Home Automation", desc:"HA, Z-Wave, Zigbee, MQTT", sbc:"Pi 5 4GB", display:"7\" IPS touch", budget:"$200-$500", tier:"beginner", color:"#87CEEB"},
+    portable_hacking: {name:"Portable Hacking", desc:"Compact pentesting on the go", sbc:"Pi Zero 2W", display:"5\" IPS", budget:"$100-$300", tier:"beginner", color:"#FF6347"}
+};
+
+const STYLE_PRESETS = {
+    futuristic: {name:"Futuristic", color:"#00f0ff", accent:"#0a0a2e"},
+    retro: {name:"Retro", color:"#FFD700", accent:"#2a1a00"},
+    industrial: {name:"Industrial", color:"#888", accent:"#1a1a1a"},
+    minimal: {name:"Minimal", color:"#fff", accent:"#222"},
+    steampunk: {name:"Steampunk", color:"#B87333", accent:"#1a0f00"},
+    cyberpunk: {name:"Cyberpunk", color:"#FF00FF", accent:"#0a000a"},
+    nautical: {name:"Nautical", color:"#008080", accent:"#001a1a"},
+    solarpunk: {name:"Solarpunk", color:"#228B22", accent:"#0a1a0a"},
+    cassette: {name:"Cassette-Futurism", color:"#FF0000", accent:"#111"},
+    fallout: {name:"Fallout", color:"#808000", accent:"#1a1a00"},
+    brutalist: {name:"Brutalist", color:"#666", accent:"#0a0a0a"}
+};
+
+let selectedComponents = [];
+let currentStyle = 'futuristic';
+
+function showTab(name) {
+    document.querySelectorAll('.main > div').forEach(d => d.classList.add('hidden'));
+    document.getElementById('tab-' + name).classList.remove('hidden');
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+function filterComponents(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('.component-card').forEach(c => {
+        const text = c.textContent.toLowerCase();
+        c.style.display = text.includes(q) ? 'block' : 'none';
+    });
+}
+
+function selectComponent(id, name, price, power, type) {
+    const existing = selectedComponents.findIndex(c => c.id === id);
+    if (existing >= 0) {
+        selectedComponents.splice(existing, 1);
+    } else {
+        selectedComponents.push({id, name, price, power, type});
+    }
+    updateUI();
+}
+
+function updateUI() {
+    const list = document.getElementById('selected-list');
+    if (selectedComponents.length === 0) {
+        list.innerHTML = '<p style="color:#666">No components selected</p>';
+    } else {
+        list.innerHTML = selectedComponents.map(c =>
+            '<div class="component-card selected" onclick="selectComponent(\'' + c.id + '\',\'' + c.name + '\',' + c.price + ',' + c.power + ',\'' + c.type + '\')">' +
+            '<h3>' + c.name + '</h3><p class="price">$' + c.price + '</p></div>'
+        ).join('');
+    }
+    const total = selectedComponents.reduce((s, c) => s + c.price, 0);
+    const power = selectedComponents.reduce((s, c) => s + (c.power || 0), 0);
+    const types = new Set(selectedComponents.map(c => c.type));
+    const compat = types.size === selectedComponents.length ? '100%' : Math.round((types.size / Math.max(selectedComponents.length, 1)) * 100) + '%';
+    const tier = total < 200 ? 'Beginner' : total < 600 ? 'Intermediate' : total < 1200 ? 'Advanced' : 'Expert';
+    document.getElementById('total-price').textContent = '$' + total;
+    document.getElementById('total-power').textContent = power + 'W';
+    document.getElementById('compat-score').textContent = compat;
+    document.getElementById('build-tier').textContent = tier;
+}
+
+function init() {
+    const grid = document.getElementById('component-grid');
+    Object.entries(COMPONENTS).forEach(([cat, items]) => {
+        grid.innerHTML += '<h3 class="category-header">' + cat.toUpperCase() + '</h3>';
+        items.forEach(item => {
+            grid.innerHTML += '<div class="component-card" onclick="selectComponent(\'' + item.id + '\',\'' + item.name + '\',' + item.price + ',' + item.power + ',\'' + cat + '\')">' +
+                '<h3>' + item.name + '</h3><p class="price">$' + item.price + '</p>' +
+                '<p class="specs">' + item.specs + '</p>' +
+                '<span class="tier-badge tier-' + item.tier + '">' + item.tier + '</span></div>';
+        });
+    });
+
+    const allComps = document.getElementById('all-components');
+    Object.entries(COMPONENTS).forEach(([cat, items]) => {
+        allComps.innerHTML += '<h3 class="category-header">' + cat.toUpperCase() + '</h3>';
+        items.forEach(item => {
+            allComps.innerHTML += '<div class="component-card" onclick="selectComponent(\'' + item.id + '\',\'' + item.name + '\',' + item.price + ',' + item.power + ',\'' + cat + '\')">' +
+                '<h3>' + item.name + '</h3><p class="price">$' + item.price + '</p>' +
+                '<p class="specs">' + item.specs + '</p>' +
+                '<span class="tier-badge tier-' + item.tier + '">' + item.tier + '</span></div>';
+        });
+    });
+
+    const templates = document.getElementById('template-grid');
+    Object.entries(CAREER_TEMPLATES).forEach(([k, v]) => {
+        templates.innerHTML += '<div class="component-card" onclick="applyTemplate(\'' + k + '\')" style="border-left: 3px solid ' + v.color + '">' +
+            '<h3>' + v.name + '</h3><p>' + v.desc + '</p>' +
+            '<p class="price">' + v.budget + '</p>' +
+            '<p class="specs">SBC: ' + v.sbc + ' | Display: ' + v.display + '</p>' +
+            '<span class="tier-badge tier-' + v.tier + '">' + v.tier + '</span></div>';
+    });
+
+    const picker = document.getElementById('color-picker');
+    Object.entries(STYLE_PRESETS).forEach(([k, v]) => {
+        picker.innerHTML += '<div class="color-swatch" style="background:' + v.color + '" title="' + v.name + '" onclick="setStyle(\'' + k + '\')"></div>';
+    });
+
+    const cables = document.getElementById('cable-info');
+    const cableRoutes = [
+        {from:"SBC", to:"Display", cable:"HDMI/DSI ribbon", length:"15cm", gauge:"—", notes:"Route through hinge if folding"},
+        {from:"SBC", to:"Keyboard", cable:"USB-C/BT", length:"30cm", gauge:"—", notes:"USB-C preferred for reliability"},
+        {from:"SBC", to:"Battery", cable:"USB-C PD / direct wire", length:"20cm", gauge:"18AWG", notes:"Use PD for automatic negotiation"},
+        {from:"Battery", to:"Peripherals", cable:"5V rail", length:"15-25cm", gauge:"22AWG", notes:"Split power distribution"},
+        {from:"SBC", to:"NVMe", cable:"PCIe ribbon", length:"0mm (direct)", gauge:"—", notes:"Direct M.2 mount"},
+        {from:"SBC", to:"WiFi Adapter", cable:"USB 3.0", length:"10cm", gauge:"—", notes:"Route antenna outside enclosure"},
+        {from:"SBC", to:"Cooling Fan", cable:"5V PWM", length:"10cm", gauge:"26AWG", notes:"Connect to 5V GPIO pin"},
+        {from:"Solar Panel", to:"Charger", cable:"USB-C/screw terminal", length:"100cm", gauge:"18AWG", notes:"Use weatherproof connectors"}
+    ];
+    cableRoutes.forEach(r => {
+        cables.innerHTML += '<div class="cable-route"><h4>' + r.from + ' → ' + r.to + '</h4>' +
+            '<div class="detail">Cable: ' + r.cable + ' | Length: ' + r.length + ' | Gauge: ' + r.gauge + '</div>' +
+            '<div class="detail">Tip: ' + r.notes + '</div></div>';
+    });
+
+    const tutorial = document.getElementById('tutorial-content');
+    const steps = [
+        {title:"Step 1: Gather Components", desc:"Collect all components from the BOM. Verify each part matches specifications.", tools:"Phillips screwdriver, anti-static wrist strap", risk:"ESD damage — always ground yourself"},
+        {title:"Step 2: Flash OS", desc:"Flash Raspberry Pi OS / Kali / Ubuntu to NVMe or MicroSD using Raspberry Pi Imager.", tools:"SD card reader, Raspberry Pi Imager", risk:"None — can always reflash"},
+        {title:"Step 3: Test SBC", desc:"Boot SBC with display and keyboard. Verify all ports work. Update firmware.", tools:"HDMI cable, USB keyboard", risk:"None"},
+        {title:"Step 4: Mount SBC", desc:"Install M2.5 standoffs. Mount SBC with screws. Connect display ribbon.", tools:"Phillips screwdriver, M2.5 screws, standoffs", risk:"Over-tightening screws"},
+        {title:"Step 5: Install Cooling", desc:"Apply thermal paste. Mount heatsink/fan. Connect to 5V/GND GPIO pins.", tools:"Thermal paste, screwdriver", risk:"Thermal paste on components"},
+        {title:"Step 6: Wire Power", desc:"Connect battery/BMS to SBC via USB-C PD or direct wiring. Test voltage.", tools:"Multimeter, wire strippers, soldering iron", risk:"Short circuit — double-check polarity"},
+        {title:"Step 7: Mount Display", desc:"Secure display to lid/panel with screws or adhesive. Route ribbon cable.", tools:"Screwdriver, adhesive tape", risk:"Cracking display panel"},
+        {title:"Step 8: Install Keyboard", desc:"Mount keyboard to bottom panel. Route USB cable or pair Bluetooth.", tools:"Screwdriver, adhesive pads", risk:"None"},
+        {title:"Step 9: Route Cables", desc:"Follow cable routing plan. Use zip ties, heat shrink, cable channels.", tools:"Zip ties, heat gun, flush cutters", risk:"Pinched cables — leave slack at joints"},
+        {title:"Step 10: Final Assembly", desc:"Close enclosure. Secure all screws. Run full system test.", tools:"Screwdriver set", risk:"Check for rattling loose parts"},
+        {title:"Step 11: Software Setup", desc:"Install required software, configure networking, set up automation.", tools:"Terminal access", risk:"None — backup SD/NVMe image first"},
+        {title:"Step 12: Field Test", desc:"Take your cyberdeck outside. Test battery life, connectivity, ergonomics.", tools:"None", risk:"Weather exposure — use IP-rated case"}
+    ];
+    steps.forEach(s => {
+        tutorial.innerHTML += '<div class="tutorial-step"><h4>' + s.title + '</h4><p>' + s.desc + '</p>' +
+            '<div class="tools">Tools: ' + s.tools + '</div><div class="risk">⚠ ' + s.risk + '</div></div>';
+    });
+
+    const buildsList = document.getElementById('builds-list');
+    const sampleBuilds = [
+        {name:"Pi 5 Coding Deck", cat:"Coding", sbc:"Pi 5 8GB", display:"10.1\" IPS", budget:"$400-600", tier:"Intermediate"},
+        {name:"Kali Pentesting Deck", cat:"Security", sbc:"Pi 5 8GB", display:"7\" IPS Touch", budget:"$500-800", tier:"Advanced"},
+        {name:"E-Ink WriterDeck", cat:"Writer", sbc:"Pi Zero 2W", display:"7.9\" E-Ink", budget:"$150-300", tier:"Beginner"},
+        {name:"Retro Gaming Deck", cat:"Gaming", sbc:"Pi 5 8GB", display:"7\" IPS", budget:"$250-400", tier:"Beginner"},
+        {name:"AI Inference Deck", cat:"AI/ML", sbc:"Pi 5 8GB + Coral", display:"10.1\" IPS", budget:"$600-1000", tier:"Advanced"},
+        {name:"Field Research Station", cat:"Field", sbc:"Pi 5 4GB", display:"7\" Sunlight-readable", budget:"$350-550", tier:"Intermediate"},
+        {name:"ROS2 Robot Controller", cat:"Robotics", sbc:"Pi 5 8GB", display:"7\" IPS Touch", budget:"$600-1000", tier:"Advanced"},
+        {name:"Ham Radio SDR Deck", cat:"Ham Radio", sbc:"Pi 5 4GB", display:"7\" IPS", budget:"$350-600", tier:"Intermediate"},
+        {name:"Home Automation Hub", cat:"Home Auto", sbc:"Pi 5 4GB", display:"7\" IPS Touch", budget:"$250-450", tier:"Beginner"},
+        {name:"Compact Hacking Kit", cat:"Portable", sbc:"Pi Zero 2W", display:"5\" IPS", budget:"$150-280", tier:"Beginner"},
+        {name:"ESC.VTOR ROV Ops", cat:"Marine", sbc:"Pi 5", display:"Dual screens", budget:"$300-500", tier:"Advanced"},
+        {name:"DataDex Offline Comms", cat:"Mesh", sbc:"Pi + LoRa", display:"7\" IPS", budget:"$100-200", tier:"Intermediate"},
+        {name:"Neon City Mix", cat:"Aesthetic", sbc:"Pi 5", display:"7\" IPS + RGB", budget:"$150-300", tier:"Intermediate"},
+        {name:"Skeletal Cyberdeck", cat:"Minimal", sbc:"Pi Zero", display:"OLED", budget:"$30-60", tier:"Beginner"},
+        {name:"MediaSlab", cat:"Media", sbc:"Pi 5", display:"10\" IPS", budget:"$200-400", tier:"Intermediate"}
+    ];
+    buildsList.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">';
+    sampleBuilds.forEach(b => {
+        const tierClass = 'tier-' + b.tier.toLowerCase();
+        buildsList.innerHTML += '<div class="build-item"><h4>' + b.name + '</h4>' +
+            '<div class="meta">' + b.cat + ' | ' + b.sbc + ' | ' + b.display + '</div>' +
+            '<div class="meta">' + b.budget + ' | <span class="tier-badge ' + tierClass + '">' + b.tier + '</span></div></div>';
+    });
+    buildsList.innerHTML += '</div><p style="color:#666;margin-top:15px">Full database: 3,700+ builds in CYBERDECK_BUILD_LIST.md</p>';
+}
+
+function applyTemplate(name) {
+    const t = CAREER_TEMPLATES[name];
+    if (t) {
+        alert('Template: ' + t.name + '\nSBC: ' + t.sbc + '\nDisplay: ' + t.display + '\nBudget: ' + t.budget);
+    }
+}
+
+function setStyle(name) {
+    currentStyle = name;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    if (event && event.target) event.target.classList.add('selected');
+}
+
+function downloadSTL() {
+    alert('STL generation: Use OpenSCAD to render the .scad file from the build pack.\n\nGenerate with: /cyberdeck 3d <description> [color] [style]');
+}
+
+function resetView() {
+    selectedComponents = [];
+    updateUI();
+    alert('Build reset. All components cleared.');
+}
+
+init();
+</script>
+</body>
+</html>
