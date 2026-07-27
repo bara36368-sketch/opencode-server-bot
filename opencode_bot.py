@@ -2791,9 +2791,11 @@ async def auto_version_checker():
             if cur_git and cur_git != last_git and current_ver == last_ver:
                 log(f"Auto-check: git commit changed {last_git} -> {cur_git}")
                 changes = get_git_log(last_git, cur_git)
-                new_ver = auto_bump_version()
+                new_ver, new_changes = auto_bump_version()
                 if changes:
                     set_changelog(new_ver, changes)
+                else:
+                    changes = new_changes
                 log(f"Auto-check: version bumped {last_ver} -> {new_ver}")
                 state["last_version"] = new_ver
                 state["last_git_commit"] = cur_git
@@ -2823,10 +2825,12 @@ async def run_startup_check():
         if cur_git and cur_git != old_git and ver == old_ver:
             log(f"startup: git commit changed {old_git} -> {cur_git}")
             changes = get_git_log(old_git, cur_git)
-            new_ver = auto_bump_version()
+            new_ver, new_changes = auto_bump_version()
             BOT_VERSION = new_ver
             if changes:
                 set_changelog(new_ver, changes)
+            else:
+                changes = new_changes
             log(f"startup: auto-bumped {old_ver} -> {new_ver}")
             state["last_version"] = new_ver
             state["last_git_commit"] = cur_git

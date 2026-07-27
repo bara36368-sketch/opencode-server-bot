@@ -1,11 +1,7 @@
 {
-  "last_version": "3.7.136",
-  "last_announced_version": "3.7.136",
-  "last_git_commit": "98550ab",
-  "notified_chats": {
-    "3.7.136": [
-      "8585609360"
-    ]
-  },
+  "last_version": "",
+  "last_announced_version": "",
+  "last_git_commit": "",
+  "notified_chats": {},
   "announced_experimental": []
 }
