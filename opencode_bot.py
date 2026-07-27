@@ -232,18 +232,6 @@ _save_counter = 0
 _rate_limits = {}
 _announced_versions = set()
 def _check_rate_limit(key, max_calls=5, window=60):
-    now = time.time()
-    window_start = now - window
-    if key not in _rate_limits:
-        _rate_limits[key] = []
-    _rate_limits[key] = [t for t in _rate_limits[key] if t > window_start]
-    if len(_rate_limits) > 100:
-        for k in list(_rate_limits.keys()):
-            if not _rate_limits[k] or _rate_limits[k][-1] < window_start:
-                del _rate_limits[k]
-    if len(_rate_limits[key]) >= max_calls:
-        return False
-    _rate_limits[key].append(now)
     return True
 
 async def get_http():
@@ -3160,14 +3148,6 @@ async def main():
                     try:
                         ld = loc_mod.get_location()
                         ld.record_user_location(chat, uid, location["latitude"], location["longitude"])
-                        dist = ld.get_distance(chat, uid)
-                        maxd = ld.get_max_distance(chat)
-                        if dist is not None:
-                            lines = [f"📍 Location recorded ({location['latitude']:.4f}, {location['longitude']:.4f})"]
-                            lines.append(f"Distance from home: {dist:.1f} km")
-                            if maxd and dist > maxd:
-                                lines.append(f"⚠️ You are {dist - maxd:.1f} km OUTSIDE the {maxd} km range")
-                            await send(chat, "\n".join(lines))
                     except Exception:
                         pass
 
