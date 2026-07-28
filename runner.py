@@ -384,6 +384,29 @@ first = True
 restart_times = []
 bot_env = load_dotenv()
 
+def kill_all():
+    global procs
+    for name, p in list(procs.items()):
+        try: p.terminate()
+        except: pass
+    time.sleep(1)
+    for name, p in list(procs.items()):
+        try: p.kill()
+        except: pass
+    procs.clear()
+    time.sleep(1)
+
+def kill_one(name):
+    if name in procs:
+        try: procs[name].terminate()
+        except: pass
+        time.sleep(1)
+        try: procs[name].kill()
+        except: pass
+        try: procs[name].wait(timeout=3)
+        except: pass
+        procs.pop(name, None)
+
 while True:
     for name, cmd in PROCESSES.items():
         if name not in procs or procs[name].poll() is not None:
@@ -411,22 +434,17 @@ while True:
     else:
         time.sleep(CHECK_INTERVAL // 2 if not health_check() else CHECK_INTERVAL)
 
-    changed = False
     current = file_hashes()
-    for f, h in current.items():
-        if last_hashes.get(f) != h:
-            log(f"changed: {os.path.basename(f)}", "watch")
-            changed = True
+    changed_files = [f for f, h in current.items() if last_hashes.get(f) != h]
+    for f in changed_files:
+        log(f"changed: {os.path.basename(f)}", "watch")
     last_hashes = current
 
-    if git_update():
-        changed = True
+    git_changed = git_update()
 
-    if not health_check() and "web" in procs and procs["web"].poll() is not None:
-        log(f"web not responding, marking for restart", "health")
-        changed = True
+    web_dead = "web" in procs and procs["web"].poll() is not None and not health_check()
 
-    if changed:
+    if git_changed:
         now = time.time()
         restart_times = [t for t in restart_times if now - t < RESTART_WINDOW]
         if len(restart_times) >= MAX_RESTARTS:
@@ -434,15 +452,19 @@ while True:
             time.sleep(60)
             restart_times.clear()
         restart_times.append(now)
-        log(f"update found, restarting all processes...", "proc")
-        proc_list = list(procs.values())
-        for p in proc_list:
-            try: p.terminate()
-            except: pass
-        time.sleep(1)
-        for p in proc_list:
-            try: p.kill()
-            except: pass
-        procs.clear()
-        time.sleep(1)
+        log(f"git update, restarting all processes...", "proc")
+        kill_all()
         last_hashes = file_hashes()
+    elif changed_files:
+        code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
+        cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
+        if code_changed:
+            log(f"code changed, restarting bot+web...", "proc")
+            kill_one("bot")
+            kill_one("web")
+        if cyberdeck_changed:
+            log(f"cyberdeck changed, restarting cyberdeck...", "proc")
+            kill_one("cyberdeck")
+    elif web_dead:
+        log(f"web not responding, restarting web only...", "health")
+        kill_one("web")
