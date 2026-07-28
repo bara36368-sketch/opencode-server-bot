@@ -2045,6 +2045,26 @@ active_provider = "groq"
 active_team = None
 active_arch = "single"
 active_mode = "chat"
+active_topic = "v1"  # v1=general AI, v2=cyberdeck
+
+CYBERDECK_KEYWORDS = [
+    "cyberdeck", "sbc", "raspberry pi", "orange pi", "radxa", "jetson", "lattepanda",
+    "enclosure", "pelican", "display", "oled", "eink", "e-ink", "keyboard", "mechanical",
+    "battery", "ups", "18650", "lipo", "solar", "antenna", "lora", "sdr", "hackrf",
+    "rtl-sdr", "gps", "nfc", "fingerprint", "imu", "sensor", "pcb", "soldering",
+    "wiring", "gpio", "i2c", "spi", "uart", "hdmi", "dsi", "csi", "nvme", "emmc",
+    "3d print", "petg", "pla", "abs", "enclosure design", "bom", "build list",
+    "component", "raspberry", "pi 5", "pi 4", "pi zero", "cm4", "cm5", "compute module",
+    "ham radio", "amateur radio", "radio", "transceiver", "frequency", "mhz", "ghz",
+    "forensics", "dfir", "volatile", "disk image", "malware", "incident",
+    "test equipment", "oscilloscope", "multimeter", "logic analyzer", "spectrum",
+    "thermal", "heatsink", "cooling", "fan", "heat pipe",
+    "nato rail", "picatinny", "kevlar", "carbon fiber", "bamboo", "wood veneer",
+    "cyberdeck builder", "build deck", "deck build", "portable computer",
+    "field computer", "tactical", "rugged", "waterproof case",
+    "milk-v", "hackberry", "zhihe", "bananapi", "banana pi", "odroid", "khadas",
+    "waveshare", "pimoroni", "clockworkpi", "uconsole",
+]
 admins = {OWNER_ID}
 if os.path.exists(ADMINS_FILE):
     try:
@@ -2862,7 +2882,7 @@ async def run_startup_check():
             pass
 
 async def main():
-    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update, processed
+    global active_agent, active_provider, active_mode, active_arch, active_team, effort, thinking_mode, bf, last_update, processed, active_topic
     last_update = 0
     use_webhook = os.environ.get("WEBHOOK_MODE", "").lower() in ("1", "true", "yes")
     webhook_queue = None
@@ -3189,6 +3209,13 @@ async def main():
                 is_admin = uid in admins
                 is_mod = uid in mods
 
+                if not cmd.startswith("/") and active_topic == "v1":
+                    text_lower = text.lower()
+                    if any(kw in text_lower for kw in CYBERDECK_KEYWORDS):
+                        active_topic = "v2"
+                        log(f"Auto-switched to v2 (cyberdeck) for user {uid}")
+                        await send(chat, "Detected cyberdeck topic. Switched to v2 (Cyberdeck Builder). Use /v1 to switch back.")
+
                 if cmd == "/start":
                     active_agent = "orchestrator"
                     active_provider = "groq"
@@ -3284,8 +3311,45 @@ async def main():
                         ]
                     await send(chat, "\n".join(lines))
 
+                elif cmd in ("/v1", "/v2"):
+                    old_topic = active_topic
+                    active_topic = cmd[1:]
+                    topic_names = {"v1": "General AI (opencode-bot)", "v2": "Cyberdeck Builder (cyberdeck-bot)"}
+                    if active_topic == "v2":
+                        lines = [
+                            f"Switched to {topic_names[active_topic]}",
+                            "",
+                            "Cyberdeck mode active. I'll help with:",
+                            "  - Component selection (SBCs, displays, keyboards, power)",
+                            "  - Build planning and BOM generation",
+                            "  - Enclosure design and 3D printing",
+                            "  - Wiring, soldering, and assembly",
+                            "  - Compatibility checking",
+                            "  - Troubleshooting and upgrades",
+                            "",
+                            "Commands: /build, /bom, /compat, /ideas, /search,",
+                            "  /tutorial, /upgrade, /flaws, /pack, /career, /dashboard,",
+                            "  /specs, /cb, /peripherals, /antenna, /battery,",
+                            "  /forensics, /testeq, /hamradio, /palette, /material, /thermal",
+                            "",
+                            "Switch back: /v1",
+                        ]
+                    else:
+                        lines = [
+                            f"Switched to {topic_names[active_topic]}",
+                            "",
+                            "General AI mode. All commands available.",
+                            "Switch to cyberdeck mode: /v2",
+                        ]
+                    await send(chat, "\n".join(lines))
+
                 elif cmd == "/help":
                     categories = [
+                        ("TOPIC SWITCHER", [
+                            "/v1 — General AI mode (opencode-bot)",
+                            "/v2 — Cyberdeck Builder mode (cyberdeck-bot)",
+                            "Auto-detect: cyberdeck keywords auto-switch to v2",
+                        ]),
                         ("CHAT", [
                             "/start — Reset session",
                             "/agent <name> — Switch agent",

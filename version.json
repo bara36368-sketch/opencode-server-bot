@@ -1,6 +1,6 @@
 {
-  "version": "3.7.141",
-  "updated": "2026-07-27",
+  "version": "3.7.142",
+  "updated": "2026-07-28",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -360,6 +360,15 @@
       "SBC_DATABASE -- 5 high-quality SBCs with full specs",
       "WIRE_DATABASE -- 15 wire/connector types with gauge, current, flexibility, prices",
       "New /cyberdeck career and /cyberdeck dashboard commands added"
+    ],
+    "3.7.142": [
+      "v1/v2 Topic Switcher -- /v1 (General AI) and /v2 (Cyberdeck Builder) commands",
+      "Auto-detection: cyberdeck keywords auto-switch to v2 mode",
+      "6 new SBCs added -- Milk-V Jupiter2, Radxa A7A, HackberryPi CM5, Zhihe A210, Orange Pi 5 Ultra, Orange Pi RV2",
+      "8 new materials added -- PETG, Carbon Fiber Polycarbonate, Live Edge Wood, NATO Rail, Kevlar Wrap, Bamboo Plywood, TPU Flexible Print",
+      "3 new enclosures added -- Pelican 1300, Pelican 1060 Micro, Pelican R40 Soft Case",
+      "cyberdeck_bot.py: /v1 command to switch back to general AI mode",
+      "opencode_bot.py: /v1 and /v2 commands with topic switching UI"
     ]
   }
 }

@@ -306,6 +306,7 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /status — Bot status
 /provider — Switch AI provider
 /providers — List providers
+/v1 — Switch to General AI mode (opencode-bot)
 
 <b>v5.2 Experimental:</b>
 /cb — Interactive custom build (mix-and-match)
@@ -342,6 +343,9 @@ Uptime: {time.strftime('%H:%M:%S')}""")
             marker = " << active" if name == ACTIVE_PROVIDER else ""
             lines.append(f"  <b>{name}</b>{marker}: {p['model']}")
         await send(chat, "<b>Providers:</b>\n" + "\n".join(lines))
+
+    elif cmd == "/v1":
+        await send(chat, "Switched to General AI mode (opencode-bot).\n\nAll general AI commands available.\nSwitch back: /v2")
 
     elif cmd == "/categories":
         cats = ["coding", "writerdeck", "security", "gaming", "research", "ai",
