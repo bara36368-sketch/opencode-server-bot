@@ -135,31 +135,31 @@ def file_hashes():
 
 def git_update():
     try:
-        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode != 0:
             log(f"not a git repo: {r.stderr.strip()}", "git")
             return False
         old_head = r.stdout.strip()
         log("trying git pull...", "git")
-        r = subprocess.run(["git", "pull", "--ff-only"], cwd=DIR, capture_output=True, text=True, timeout=60, encoding="utf-8")
+        r = subprocess.run(["git", "pull", "--ff-only", "--depth=1"], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
         if r.returncode == 0 and "Already up to date" not in r.stdout:
-            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
             new_head = r2.stdout.strip()
             log(f"pull success ({new_head})", "git")
             return True
         log("pull: no updates or failed, trying fetch+reset...", "git")
-        subprocess.run(["git", "stash", "--include-untracked"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
+        subprocess.run(["git", "stash", "--include-untracked"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        r = subprocess.run(["git", "fetch", "--depth=1", "origin"], cwd=DIR, capture_output=True, text=True, timeout=20, encoding="utf-8")
         if r.returncode != 0:
             log(f"fetch failed: {r.stderr.strip()}", "git")
             return False
-        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode != 0:
             default_branch = "origin/master"
         else:
             ref = r.stdout.strip()
             default_branch = ref.replace("refs/remotes/", "")
-        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
         new_commits = [l for l in r.stdout.strip().split("\n") if l.strip()]
         if not new_commits:
             return False
@@ -167,8 +167,8 @@ def git_update():
         for c in new_commits:
             log(f"  {c}", "git")
         log("resetting...", "git")
-        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
         new_head = r2.stdout.strip()
         if new_head == old_head[:len(new_head)]:
             return False
@@ -373,7 +373,7 @@ PROCESSES = {
     "web": ["python", "web_gateway.py"],
     "cyberdeck": ["python", "cyberdeck_bot.py"],
 }
-CHECK_INTERVAL = 30
+CHECK_INTERVAL = 15
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
 MAX_RESTARTS = 5
 RESTART_WINDOW = 300
@@ -439,7 +439,7 @@ while True:
         for p in proc_list:
             try: p.terminate()
             except: pass
-        time.sleep(2)
+        time.sleep(1)
         for p in proc_list:
             try: p.kill()
             except: pass
