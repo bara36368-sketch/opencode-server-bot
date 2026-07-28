@@ -8712,8 +8712,17 @@ async def main():
                             except:
                                 pass
                             log(f"Calling {active_provider} for: {text[:50]}")
-                            reply = await smart_call(sessions[uid][-20:], active_provider)
-                            log(f"Reply: {reply[:80]}...")
+                            try:
+                                reply = await asyncio.wait_for(smart_call(sessions[uid][-20:], active_provider), timeout=60)
+                            except asyncio.TimeoutError:
+                                reply = f"All providers timed out. Try /repo to switch provider."
+                                log(f"smart_call timed out for {active_provider}")
+                            except Exception as _e:
+                                reply = f"Provider error: {_e}"
+                                log(f"smart_call exception: {_e}")
+                            if not reply:
+                                reply = "Empty response from provider. Try /repo to switch."
+                            log(f"Reply: {str(reply)[:80]}...")
                             sessions[uid].append({"role": "assistant", "content": reply})
                             try:
                                 await bf.append_to_memory_log(uid, "assistant", reply[:2000])
