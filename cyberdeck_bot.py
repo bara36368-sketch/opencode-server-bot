@@ -142,9 +142,26 @@ def load_cyberdeck():
             "PackGenerator": ca.PackGenerator,
             "BuildGenerator": ca.BuildGenerator,
         }
+        # v5.0 classes
+        for cname in ["PeripheralRecommendationEngine", "AntennaCalculator", "BatterySizingCalculator",
+                       "ForensicsModule", "TestEquipmentModule", "HamRadioModule"]:
+            if hasattr(ca, cname):
+                cd_classes[cname] = getattr(ca, cname)
+        # v5.2 classes
         if hasattr(ca, 'CustomBuildEngine'):
             cd_classes["CustomBuildEngine"] = ca.CustomBuildEngine
-        log(f"Loaded {len(cd_classes)} cyberdeck classes", "init")
+        # v5.0 databases
+        for db_name in ["COLOR_PALETTE_DATABASE", "ANTENNA_GUIDE", "AESTHETIC_MATERIAL_DATABASE",
+                         "THERMAL_INTERFACE_DATABASE", "ENVIRONMENTAL_SENSOR_DATABASE",
+                         "CAMERA_MODULE_DATABASE", "SDR_DATABASE", "LORA_MESH_DATABASE",
+                         "NFC_RFID_DATABASE", "FINGERPRINT_DATABASE", "HAPTIC_FEEDBACK_DATABASE",
+                         "IMU_DATABASE"]:
+            if hasattr(ca, db_name):
+                cd_classes[db_name] = getattr(ca, db_name)
+        # Dashboard (v6.0 interactive HTML)
+        if hasattr(ca, 'InteractiveDashboard'):
+            cd_classes["InteractiveDashboard"] = ca.InteractiveDashboard
+        log(f"Loaded {len(cd_classes)} cyberdeck classes (v5.0+v5.2+v6.0)", "init")
         return True
     except Exception as e:
         log(f"Failed to load cyberdeck_agent: {e}", "init")
@@ -265,7 +282,7 @@ async def handle_command(chat, uid, text, msg):
 
 Dedicated cyberdeck builder with v6.0 AI engine.
 
-<b>Commands:</b>
+<b>v6.0 Commands:</b>
 /cyberdeck &lt;request&gt; — Build a cyberdeck from description
 /build &lt;category&gt; [tier] — Auto-build for category
 /bom &lt;request&gt; — Bill of materials
@@ -288,7 +305,21 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /list — List all components
 /status — Bot status
 /provider — Switch AI provider
-/providers — List providers""")
+/providers — List providers
+
+<b>v5.2 Experimental:</b>
+/cb — Interactive custom build (mix-and-match)
+
+<b>v5.0 Experimental:</b>
+/peripherals &lt;category&gt; — Recommend peripherals
+/antenna &lt;freq_mhz&gt; — Antenna calculator
+/battery &lt;cells&gt; [watts] — Battery sizing
+/forensics — Digital forensics tools
+/testeq — Test equipment catalog
+/hamradio — Ham radio bands &amp; modes
+/palette — Color palettes
+/material — Aesthetic materials
+/thermal — Thermal interface materials""")
 
     elif cmd == "/status":
         n_comp = len(cd_classes.get("ComponentDatabase", {}).get_all_sbcs()) if "ComponentDatabase" in cd_classes else 0
@@ -398,6 +429,36 @@ Total: {len(sbcs)+len(displays)+len(kbs)+len(power)+len(cool)}""")
 
     elif cmd == "/specs":
         await handle_specs(chat, uid, args)
+
+    elif cmd == "/cb":
+        await handle_custom_build(chat, uid, args)
+
+    elif cmd == "/peripherals":
+        await handle_peripherals(chat, uid, args)
+
+    elif cmd == "/antenna":
+        await handle_antenna(chat, uid, args)
+
+    elif cmd == "/battery":
+        await handle_battery(chat, uid, args)
+
+    elif cmd == "/forensics":
+        await handle_forensics(chat, uid, args)
+
+    elif cmd == "/testeq":
+        await handle_testeq(chat, uid, args)
+
+    elif cmd == "/hamradio":
+        await handle_hamradio(chat, uid, args)
+
+    elif cmd == "/palette":
+        await handle_palette(chat, uid, args)
+
+    elif cmd == "/material":
+        await handle_material(chat, uid, args)
+
+    elif cmd == "/thermal":
+        await handle_thermal(chat, uid, args)
 
     elif cmd == "/help":
         await handle_command(chat, uid, "/start", msg)
@@ -685,11 +746,21 @@ async def handle_career(chat, uid, args):
         await send(chat, f"Career error: {e}")
 
 async def handle_dashboard(chat, uid, args):
-    if not args:
-        await send(chat, "Usage: /dashboard &lt;build description&gt;\nGenerates an interactive HTML dashboard.")
-        return
     await typing(chat)
     try:
+        if "InteractiveDashboard" in cd_classes and args:
+            dash = cd_classes["InteractiveDashboard"]
+            build = {"name": args, "components": {}, "description": args}
+            output_file = os.path.join(DIR, f"cyberdeck_dashboard_{uid}.html")
+            result = dash.generate_dashboard([build], output_file)
+            if os.path.exists(output_file):
+                size = os.path.getsize(output_file)
+                await send(chat, f"<b>Dashboard generated!</b>\nFile: <code>{os.path.basename(output_file)}</code>\nSize: {size} bytes\n\nOpen in browser to view the interactive dashboard with 3D preview, component picker, and cable guide.")
+                return
+        # Fallback: AI-generated
+        if not args:
+            await send(chat, "Usage: /dashboard &lt;build description&gt;\nGenerates an interactive HTML dashboard.")
+            return
         _sessions.setdefault(str(uid), [])
         _sessions[str(uid)].append({"role": "system", "content": CYBERDECK_SYSTEM + "\nGenerate HTML dashboards with interactive components."})
         _sessions[str(uid)].append({"role": "user", "content": f"Generate a complete interactive HTML dashboard for this cyberdeck build: {args}. Include: 3D preview, component table with prices, BOM total, assembly progress tracker, cable diagram, and customization options. Use inline CSS, make it responsive and dark-themed."})
@@ -724,6 +795,328 @@ async def handle_specs(chat, uid, args):
         await send(chat, f"Component '{args}' not found in database.\nUse /list to see available components.")
     except Exception as e:
         await send(chat, f"Specs error: {e}")
+
+# ============================================================
+# v5.2 — Custom Builder
+# ============================================================
+async def handle_custom_build(chat, uid, args):
+    await typing(chat)
+    try:
+        if "CustomBuildEngine" in cd_classes:
+            engine = cd_classes["CustomBuildEngine"]
+            if args.startswith("list "):
+                cat = args.split(maxsplit=1)[1]
+                options = engine.get_category_options(cat)
+                if options:
+                    lines = [f"<b>{cat.upper()} options:</b>\n"]
+                    for o in options[:15]:
+                        lines.append(f"• <b>{o['name']}</b> (${o['price']})\n  Specs: {o.get('key_specs', 'N/A')}")
+                    await send(chat, "\n".join(lines))
+                else:
+                    await send(chat, f"No options for '{cat}'. Categories: {', '.join(engine.CATEGORIES.keys())}")
+                return
+            if args.startswith("select "):
+                parts = args.split(maxsplit=2)
+                if len(parts) >= 3:
+                    result = engine.select_component(uid, parts[1], parts[2])
+                    if "error" in result:
+                        await send(chat, f"Error: {result['error']}")
+                    else:
+                        lines = [f"<b>Selected: {parts[1]} → {parts[2]}</b>"]
+                        if result.get("compatibility"):
+                            for c in result["compatibility"]:
+                                icon = "✅" if c.get("ok") else "⚠️"
+                                lines.append(f"{icon} {c.get('check', '')}: {c.get('note', '')}")
+                        price = result.get("price", "?")
+                        lines.append(f"\nPrice: ${price}")
+                        await send(chat, "\n".join(lines))
+                    return
+            # Default: show categories
+            cats = engine.CATEGORIES
+            lines = ["<b>Custom Build — Pick Components</b>\n"]
+            for cid, cat in cats.items():
+                icon = cat.get("icon", "")
+                req = " (required)" if cat.get("required") else ""
+                lines.append(f"{icon} <b>{cid}</b>{req}: {cat['desc']}")
+            lines.append("\nUsage:")
+            lines.append("  /cb list &lt;category&gt; — see options")
+            lines.append("  /cb select &lt;category&gt; &lt;id&gt; — pick component")
+            await send(chat, "\n".join(lines))
+        else:
+            await send(chat, "CustomBuildEngine not loaded")
+    except Exception as e:
+        await send(chat, f"Custom build error: {e}")
+
+# ============================================================
+# v5.0 — Peripheral Recommendation
+# ============================================================
+async def handle_peripherals(chat, uid, args):
+    await typing(chat)
+    try:
+        if "PeripheralRecommendationEngine" in cd_classes:
+            engine = cd_classes["PeripheralRecommendationEngine"]
+            if args:
+                recs = engine.recommend_for_category(args.lower())
+                if recs:
+                    lines = [f"<b>Peripherals for {args}:</b>\n"]
+                    for db_name, items in recs.items():
+                        if db_name.startswith("_"):
+                            continue
+                        lines.append(f"<b>{db_name}:</b>")
+                        for item in items[:3]:
+                            lines.append(f"  • {item.get('name', item.get('id', '?'))} — ${item.get('price', '?')}")
+                    if "_total_estimated_cost" in recs:
+                        lines.append(f"\n<b>Total est:</b> ${recs['_total_estimated_cost']}")
+                        lines.append(f"<b>Budget left:</b> ${recs['_budget_remaining']}")
+                    await send(chat, "\n".join(lines))
+                else:
+                    await send(chat, f"No peripherals found for '{args}'")
+            else:
+                cats = list(cd_classes.get("ComponentDatabase", {}).get_all_sbcs().keys())[:5] if "ComponentDatabase" in cd_classes else []
+                await send(chat, "Usage: /peripherals &lt;category&gt;\nExample: /peripherals security\n\nCategories: security, coding, gaming, research, ai, survival, media, drone")
+        else:
+            await send(chat, "PeripheralRecommendationEngine not loaded")
+    except Exception as e:
+        await send(chat, f"Peripherals error: {e}")
+
+# ============================================================
+# v5.0 — Antenna Calculator
+# ============================================================
+async def handle_antenna(chat, uid, args):
+    await typing(chat)
+    try:
+        if "AntennaCalculator" in cd_classes:
+            calc = cd_classes["AntennaCalculator"]
+            if args:
+                try:
+                    freq = float(args.replace("mhz", "").replace("MHz", "").strip())
+                    wavelength = calc.calculate_wavelength(freq)
+                    quarter = calc.quarter_wave(freq)
+                    connector = calc.recommend_connector(freq)
+                    lines = [
+                        f"<b>Antenna Calculator — {freq} MHz</b>\n",
+                        f"Wavelength: {wavelength:.1f} cm",
+                        f"Quarter-wave: {quarter:.1f} cm",
+                        f"Recommended connector: {connector}",
+                    ]
+                    # Cable losses
+                    for cable in ["RG58", "LMR200", "LMR400"]:
+                        loss = calc.cable_loss_db(cable, freq, 1.0)
+                        lines.append(f"{cable} loss (1m): {loss} dB")
+                    await send(chat, "\n".join(lines))
+                except ValueError:
+                    await send(chat, "Usage: /antenna &lt;freq_mhz&gt;\nExample: /antenna 433\nExample: /antenna 915")
+            else:
+                await send(chat, "Usage: /antenna &lt;freq_mhz&gt;\nCommon: 433 (LoRa), 868 (EU LoRa), 915 (US LoRa), 2400 (WiFi)")
+        else:
+            await send(chat, "AntennaCalculator not loaded")
+    except Exception as e:
+        await send(chat, f"Antenna error: {e}")
+
+# ============================================================
+# v5.0 — Battery Sizing
+# ============================================================
+async def handle_battery(chat, uid, args):
+    await typing(chat)
+    try:
+        if "BatterySizingCalculator" in cd_classes:
+            calc = cd_classes["BatterySizingCalculator"]
+            parts = args.split()
+            if parts:
+                try:
+                    cells = int(parts[0])
+                    watts = float(parts[1]) if len(parts) > 1 else 10.0
+                    cap = calc.calculate_18650_capacity(cells)
+                    rec = calc.recommend_capacity(watts, 4.0, cells)
+                    lines = [
+                        f"<b>Battery Sizing — {cells}x 18650</b>\n",
+                        f"Total: {cap['total_wh']} Wh",
+                        f"Runtime @5W: {cap['runtime_hours_5w']}h",
+                        f"Runtime @10W: {cap['runtime_hours_10w']}h",
+                        f"Runtime @15W: {cap['runtime_hours_15w']}h",
+                        f"Weight: {cap['weight_grams']}g",
+                        f"\nFor {watts}W draw (4h):",
+                        f"  Needed: {rec['needed_wh']} Wh",
+                        f"  Cells needed: {rec['cells_recommended']}",
+                        f"  Sufficient: {'Yes' if rec['sufficient'] else 'No — need more cells'}",
+                    ]
+                    await send(chat, "\n".join(lines))
+                except ValueError:
+                    await send(chat, "Usage: /battery &lt;cells&gt; [watts]\nExample: /battery 6 10")
+            else:
+                await send(chat, "Usage: /battery &lt;cells&gt; [watts]\nExample: /battery 6 (default 10W)\nExample: /battery 4 5")
+        else:
+            await send(chat, "BatterySizingCalculator not loaded")
+    except Exception as e:
+        await send(chat, f"Battery error: {e}")
+
+# ============================================================
+# v5.0 — Forensics Module
+# ============================================================
+async def handle_forensics(chat, uid, args):
+    await typing(chat)
+    try:
+        if "ForensicsModule" in cd_classes:
+            mod = cd_classes["ForensicsModule"]
+            if args:
+                proc = mod.get_procedure(args.lower())
+                if "error" in proc:
+                    await send(chat, f"Unknown procedure. Available: {', '.join(mod.list_procedures())}")
+                else:
+                    lines = [
+                        f"<b>{proc['name']}</b>\n",
+                        f"<b>Tool:</b> <code>{proc.get('tool', 'N/A')}</code>",
+                    ]
+                    if proc.get("dc3dd"):
+                        lines.append(f"<b>dc3dd:</b> <code>{proc['dc3dd']}</code>")
+                    lines.append(f"<b>Notes:</b> {proc.get('notes', 'N/A')}")
+                    await send(chat, "\n".join(lines))
+            else:
+                procs = mod.list_procedures()
+                await send(chat, f"<b>Digital Forensics Tools:</b>\n\n" + "\n".join(f"  /forensics {p}" for p in procs))
+        else:
+            await send(chat, "ForensicsModule not loaded")
+    except Exception as e:
+        await send(chat, f"Forensics error: {e}")
+
+# ============================================================
+# v5.0 — Test Equipment
+# ============================================================
+async def handle_testeq(chat, uid, args):
+    await typing(chat)
+    try:
+        if "TestEquipmentModule" in cd_classes:
+            mod = cd_classes["TestEquipmentModule"]
+            if args:
+                eq = mod.get_equipment(args.lower())
+                if "error" in eq:
+                    await send(chat, f"Unknown. Available: {', '.join(mod.list_equipment())}")
+                else:
+                    lines = [f"<b>{eq['name']}</b>\nType: {eq.get('type', '?')}\nPrice: ${eq.get('price', '?')}"]
+                    for k, v in eq.items():
+                        if k not in ("name", "type", "price"):
+                            lines.append(f"{k}: {v}")
+                    await send(chat, "\n".join(lines))
+            else:
+                items = mod.list_equipment()
+                lines = ["<b>Portable Test Equipment:</b>\n"]
+                for name in items:
+                    eq = mod.get_equipment(name)
+                    lines.append(f"  /testeq {name} — {eq.get('name', name)} (${eq.get('price', '?')})")
+                await send(chat, "\n".join(lines))
+        else:
+            await send(chat, "TestEquipmentModule not loaded")
+    except Exception as e:
+        await send(chat, f"Test equipment error: {e}")
+
+# ============================================================
+# v5.0 — Ham Radio
+# ============================================================
+async def handle_hamradio(chat, uid, args):
+    await typing(chat)
+    try:
+        if "HamRadioModule" in cd_classes:
+            mod = cd_classes["HamRadioModule"]
+            if args:
+                band = mod.BANDS.get(args.lower())
+                if not band:
+                    await send(chat, f"Unknown band. Available: {', '.join(mod.BANDS.keys())}")
+                else:
+                    lines = [
+                        f"<b>Ham Radio Band: {args}</b>\n",
+                        f"Frequency: {band['freq_mhz']} MHz",
+                        f"Mode: {band['mode']}",
+                        f"Wavelength: {band['wavelength']}",
+                    ]
+                    if "AntennaCalculator" in cd_classes:
+                        calc = cd_classes["AntennaCalculator"]
+                        quarter = calc.quarter_wave(band["freq_mhz"])
+                        lines.append(f"Quarter-wave antenna: {quarter:.1f} cm")
+                    await send(chat, "\n".join(lines))
+            else:
+                bands = mod.BANDS
+                lines = ["<b>Ham Radio Bands:</b>\n"]
+                for name, band in bands.items():
+                    lines.append(f"  /hamradio {name} — {band['freq_mhz']} MHz ({band['mode']})")
+                await send(chat, "\n".join(lines))
+        else:
+            await send(chat, "HamRadioModule not loaded")
+    except Exception as e:
+        await send(chat, f"Ham radio error: {e}")
+
+# ============================================================
+# v5.0 — Color Palettes
+# ============================================================
+async def handle_palette(chat, uid, args):
+    await typing(chat)
+    try:
+        if "COLOR_PALETTE_DATABASE" in cd_classes:
+            db = cd_classes["COLOR_PALETTE_DATABASE"]
+            if args and args in db:
+                p = db[args]
+                lines = [f"<b>Palette: {p.get('name', args)}</b>\n"]
+                colors = p.get("colors", [])
+                for c in colors:
+                    if isinstance(c, dict):
+                        lines.append(f"  {c.get('name', '')}: {c.get('hex', '')}")
+                    else:
+                        lines.append(f"  {c}")
+                if p.get("description"):
+                    lines.append(f"\n{p['description']}")
+                await send(chat, "\n".join(lines))
+            else:
+                names = list(db.keys())
+                await send(chat, "<b>Color Palettes:</b>\n" + "\n".join(f"  /palette {n}" for n in names))
+        else:
+            await send(chat, "Color palette database not loaded")
+    except Exception as e:
+        await send(chat, f"Palette error: {e}")
+
+# ============================================================
+# v5.0 — Aesthetic Materials
+# ============================================================
+async def handle_material(chat, uid, args):
+    await typing(chat)
+    try:
+        if "AESTHETIC_MATERIAL_DATABASE" in cd_classes:
+            db = cd_classes["AESTHETIC_MATERIAL_DATABASE"]
+            if args and args in db:
+                m = db[args]
+                lines = [f"<b>Material: {m.get('name', args)}</b>\n"]
+                for k, v in m.items():
+                    if k != "name":
+                        lines.append(f"{k}: {v}")
+                await send(chat, "\n".join(lines))
+            else:
+                names = list(db.keys())
+                await send(chat, "<b>Aesthetic Materials:</b>\n" + "\n".join(f"  /material {n}" for n in names))
+        else:
+            await send(chat, "Aesthetic material database not loaded")
+    except Exception as e:
+        await send(chat, f"Material error: {e}")
+
+# ============================================================
+# v5.0 — Thermal Interface
+# ============================================================
+async def handle_thermal(chat, uid, args):
+    await typing(chat)
+    try:
+        if "THERMAL_INTERFACE_DATABASE" in cd_classes:
+            db = cd_classes["THERMAL_INTERFACE_DATABASE"]
+            if args and args in db:
+                t = db[args]
+                lines = [f"<b>Thermal: {t.get('name', args)}</b>\n"]
+                for k, v in t.items():
+                    if k != "name":
+                        lines.append(f"{k}: {v}")
+                await send(chat, "\n".join(lines))
+            else:
+                names = list(db.keys())
+                await send(chat, "<b>Thermal Interface Materials:</b>\n" + "\n".join(f"  /thermal {n}" for n in names))
+        else:
+            await send(chat, "Thermal interface database not loaded")
+    except Exception as e:
+        await send(chat, f"Thermal error: {e}")
 
 # ============================================================
 # Main Loop
