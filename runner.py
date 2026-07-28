@@ -140,6 +140,14 @@ def git_update():
             log(f"not a git repo: {r.stderr.strip()}", "git")
             return False
         old_head = r.stdout.strip()
+        log("trying git pull...", "git")
+        r = subprocess.run(["git", "pull", "--ff-only"], cwd=DIR, capture_output=True, text=True, timeout=60, encoding="utf-8")
+        if r.returncode == 0 and "Already up to date" not in r.stdout:
+            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
+            new_head = r2.stdout.strip()
+            log(f"pull success ({new_head})", "git")
+            return True
+        log("pull: no updates or failed, trying fetch+reset...", "git")
         subprocess.run(["git", "stash", "--include-untracked"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
         r = subprocess.run(["git", "fetch", "--all"], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
         if r.returncode != 0:
@@ -158,7 +166,7 @@ def git_update():
         log("update detected", "git")
         for c in new_commits:
             log(f"  {c}", "git")
-        log("pulling...", "git")
+        log("resetting...", "git")
         r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
         r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
         new_head = r2.stdout.strip()
