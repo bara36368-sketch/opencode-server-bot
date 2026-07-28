@@ -2774,35 +2774,26 @@ def set_changelog(ver, changes):
 
 async def auto_version_checker():
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(300)
         try:
             current = load_version()
             current_ver = current.get("version", "unknown")
             state = load_version_state()
-            last_ver = state.get("last_version", "")
             announced_ver = state.get("last_announced_version", "")
-            last_git = state.get("last_git_commit", "")
+            last_ver = state.get("last_version", "")
             cur_git = get_git_commit()
-            if cur_git and cur_git != last_git and current_ver == last_ver:
-                log(f"Auto-check: git commit changed {last_git} -> {cur_git}")
-                changes = get_git_log(last_git, cur_git)
-                new_ver, new_changes = auto_bump_version()
-                if changes:
-                    set_changelog(new_ver, changes)
-                else:
-                    changes = new_changes
-                log(f"Auto-check: version bumped {last_ver} -> {new_ver}")
-                state["last_version"] = new_ver
-                state["last_git_commit"] = cur_git
-                save_version_state(state)
-                await announce_update(last_ver, new_ver, changes, state)
-                save_version_state(state)
-            elif current_ver != "unknown" and current_ver != announced_ver:
+            if current_ver != "unknown" and current_ver != announced_ver and current_ver != last_ver:
                 changes = current.get("whats_new", {}).get(current_ver, [])
-                log(f"Auto-check: version changed {announced_ver or 'initial'} -> {current_ver}")
+                log(f"Auto-check: new version detected {announced_ver or 'initial'} -> {current_ver}")
+                state["last_version"] = current_ver
                 state["last_git_commit"] = cur_git
                 save_version_state(state)
                 await announce_update(announced_ver or "initial", current_ver, changes, state)
+                save_version_state(state)
+            elif current_ver != last_ver:
+                state["last_version"] = current_ver
+                state["last_announced_version"] = current_ver
+                state["last_git_commit"] = cur_git
                 save_version_state(state)
         except Exception as e:
             log(f"Auto version check error: {e}")
@@ -2817,22 +2808,7 @@ async def run_startup_check():
         old_ver = state.get("last_version", "")
         old_git = state.get("last_git_commit", "")
         cur_git = get_git_commit()
-        if cur_git and cur_git != old_git and ver == old_ver:
-            log(f"startup: git commit changed {old_git} -> {cur_git}")
-            changes = get_git_log(old_git, cur_git)
-            new_ver, new_changes = auto_bump_version()
-            BOT_VERSION = new_ver
-            if changes:
-                set_changelog(new_ver, changes)
-            else:
-                changes = new_changes
-            log(f"startup: auto-bumped {old_ver} -> {new_ver}")
-            state["last_version"] = new_ver
-            state["last_git_commit"] = cur_git
-            save_version_state(state)
-            await announce_update(old_ver, new_ver, changes, state)
-            save_version_state(state)
-        elif old_ver and old_ver != ver:
+        if old_ver and old_ver != ver:
             changes = version_info.get("whats_new", {}).get(ver, [])
             log(f"startup: version changed {old_ver} -> {ver}")
             state["last_git_commit"] = cur_git
