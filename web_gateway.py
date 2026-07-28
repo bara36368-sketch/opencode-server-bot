@@ -680,14 +680,14 @@ def _load_providers():
     PROVIDERS.setdefault("g4f", {"url": "g4f", "model": "auto", "key": "skip-auth"})
     PROVIDERS.setdefault("hy3", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3", "key": _resolve_key("hy3", "not configured")})
     PROVIDERS.setdefault("hy3-preview", {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "tencent/hy3-preview", "key": _resolve_key("hy3-preview", "not configured")})
-    PROVIDERS.setdefault("freetokenfaucet", {"url": "https://freetokenfaucet.com/v1/chat/completions", "model": "gpt-4o-mini", "key": "tf_ae094ac3d7fd4a73b8d1f40bf5f2d5f4"})
+    PROVIDERS.setdefault("freetokenfaucet", {"url": "https://freetokenfaucet.com/v1/chat/completions", "model": "deepseek-v4-flash", "key": _resolve_key("freetokenfaucet", "not configured")})
     PROVIDERS.setdefault("agnes", {"url": "https://apihub.agnes-ai.com/v1/chat/completions", "model": "agnes-2.0-flash", "key": _resolve_key("agnes", "set-via-env-var")})
     PROVIDERS.setdefault("cloudflare", {"url": "set-via-env-var", "model": "@cf/meta/llama-4-scout-17b-16e-instruct", "key": _resolve_key("cloudflare", "set-via-env-var")})
     PROVIDERS.setdefault("huggingface", {"url": "https://router.huggingface.co/v1/chat/completions", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": _resolve_key("huggingface", "set-via-env-var")})
     PROVIDERS.setdefault("nvidia-glm5", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "zhipuai/glm-5.2", "key": _resolve_key("nvidia-glm5", "set-via-env-var")})
     PROVIDERS.setdefault("nvidia-deepseek-v4", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "deepseek/deepseek-v4-pro", "key": _resolve_key("nvidia-deepseek-v4", "set-via-env-var")})
     PROVIDERS.setdefault("nvidia-qwen35", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "qwen/qwen3.5-397b-a3b", "key": _resolve_key("nvidia-qwen35", "set-via-env-var")})
-    PROVIDERS.setdefault("nvidia-kimi-k26", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "moonshotai/kimi-k2.6", "key": _resolve_key("nvidia-kimi-k26", "set-via-env-var")})
+    PROVIDERS.setdefault("nvidia-kimi-k26", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "moonshotai/kimi-k2.5", "key": _resolve_key("nvidia-kimi-k26", "set-via-env-var")})
     PROVIDERS.setdefault("nvidia-nemotron", {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "nvidia/nemotron-3-ultra-550b", "key": _resolve_key("nvidia-nemotron", "set-via-env-var")})
     if "omniroute" in PROVIDERS:
         if os.environ.get("OMNIROUTE_URL"):
