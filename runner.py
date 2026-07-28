@@ -371,6 +371,7 @@ def monitor_process(name, proc):
 PROCESSES = {
     "bot": ["python", "opencode_bot.py"],
     "web": ["python", "web_gateway.py"],
+    "cyberdeck": ["python", "cyberdeck_bot.py"],
 }
 CHECK_INTERVAL = 30
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
