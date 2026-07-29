@@ -1178,18 +1178,52 @@ async def main():
                 if uid == 0 or chat == 0:
                     continue
 
+                photo = msg.get("photo")
+                voice = msg.get("voice")
+                document = msg.get("document")
+                location = msg.get("location")
+
+                if photo:
+                    caption = msg.get("caption", "describe this cyberdeck")
+                    text = f"/cyberdeck analyze this image: {caption}"
+                    await typing(chat)
+                    await handle_command(chat, uid, text, msg)
+                    continue
+
+                if voice:
+                    await send(chat, "Voice support not available in cyberdeck bot. Use /v1 for voice.")
+                    continue
+
+                if document:
+                    fname = document.get("file_name", "document")
+                    await send(chat, f"Document '{fname}' received. Cyberdeck bot doesn't process files. Use /v1 for document analysis.")
+                    continue
+
+                if location:
+                    lat = location.get("latitude", 0)
+                    lon = location.get("longitude", 0)
+                    text = f"/cyberdeck suggest builds for this location: {lat}, {lon}"
+                    await typing(chat)
+                    await handle_command(chat, uid, text, msg)
+                    continue
+
                 if text.startswith("/"):
                     await typing(chat)
                     await handle_command(chat, uid, text, msg)
-                elif str(chat) not in _sessions:
+                    continue
+
+                if not text.strip():
+                    continue
+
+                if str(chat) not in _sessions:
                     _sessions[str(chat)] = []
                     _sessions[str(chat)].append({"role": "system", "content": CYBERDECK_SYSTEM})
 
-                    _sessions[str(chat)].append({"role": "user", "content": text})
-                    await typing(chat)
-                    reply = await call_ai(_sessions[str(chat)[-10:]])
-                    _sessions[str(chat)].append({"role": "assistant", "content": reply})
-                    await send(chat, reply)
+                _sessions[str(chat)].append({"role": "user", "content": text})
+                await typing(chat)
+                reply = await call_ai(_sessions[str(chat)][-10:])
+                _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                await send(chat, reply)
 
             if not updates:
                 await asyncio.sleep(1)
