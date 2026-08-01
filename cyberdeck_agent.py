@@ -1682,26 +1682,116 @@ class ComponentDatabase:
     def get_all_os():
         return OS_DATABASE
 
+    _SPEC_FIELDS = ("cpu", "ram", "gpu", "storage", "connectivity", "gpio", "video_output",
+                    "power_draw", "form_factor", "interface", "resolution", "display_type",
+                    "isa", "size", "capacity", "soc", "wifi", "ble", "ethernet", "usb",
+                    "display", "camera", "pcie", "power", "tier")
+    _CATEGORY_ALIASES = {"screen": "display", "kbd": "keyboard", "case": "enclosure",
+                         "battery": "power", "fan": "cooling", "cable": "wire",
+                         "wifi": "connectivity", "ssd": "storage", "sd": "storage"}
+
     @staticmethod
-    def search(query):
-        results = []
+    def search(query, budget=None, category=None, sort="relevance", limit=10):
+        """Search all component databases. Scores keyword hits across name, specs,
+        use-cases and category. Supports budget/category filters and price sort.
+        Enriches matches with the cheapest vendor + URL from PRICE_SOURCE_DATABASE."""
         ql = query.lower()
+        tokens = [t for t in ql.split() if t]
         all_dbs = [("SBC", SBC_DATABASE), ("Display", DISPLAY_DATABASE),
                    ("Keyboard", KEYBOARD_DATABASE), ("Power", POWER_DATABASE),
                    ("Enclosure", ENCLOSURE_DATABASE), ("Cooling", COOLING_DATABASE),
                    ("PCB", PCB_DATABASE), ("Wire", WIRE_DATABASE),
                    ("Connectivity", CONNECTIVITY_DATABASE), ("Storage", STORAGE_DATABASE),
-                   ("Sensor", ENVIRONMENTAL_SENSOR_DATABASE), ("Camera", CAMERA_MODULE_DATABASE),
-                   ("SDR", SDR_DATABASE), ("LoRa", LORA_MESH_DATABASE),
-                   ("NFC", NFC_RFID_DATABASE), ("Fingerprint", FINGERPRINT_DATABASE),
-                   ("Haptic", HAPTIC_FEEDBACK_DATABASE), ("IMU", IMU_DATABASE),
-                   ("uConsole Expansion", UCONSOLE_EXPANSION_DATABASE)]
+                   ("OS", OS_DATABASE), ("Sensor", ENVIRONMENTAL_SENSOR_DATABASE),
+                   ("Camera", CAMERA_MODULE_DATABASE), ("SDR", SDR_DATABASE),
+                   ("LoRa", LORA_MESH_DATABASE), ("NFC", NFC_RFID_DATABASE),
+                   ("Fingerprint", FINGERPRINT_DATABASE), ("Haptic", HAPTIC_FEEDBACK_DATABASE),
+                   ("IMU", IMU_DATABASE), ("uConsole Expansion", UCONSOLE_EXPANSION_DATABASE)]
+        cat = category.strip().lower() if category else None
+        results = []
         for db_name, db in all_dbs:
+            if cat:
+                want = ComponentDatabase._CATEGORY_ALIASES.get(cat, cat)
+                if want not in db_name.lower():
+                    continue
             for item_id, item in db.items():
-                name = item.get("name", "").lower()
-                if any(kw in name or kw in ql for kw in ql.split()):
-                    results.append({"type": db_name, "id": item_id, **item})
-        return results
+                if not isinstance(item, dict):
+                    continue
+                nl = str(item.get("name", "")).lower()
+                score = 0
+                for t in tokens:
+                    if t in nl:
+                        score += 4
+                    best_for = item.get("best_for", [])
+                    if isinstance(best_for, list) and any(t in str(b).lower() for b in best_for):
+                        score += 3
+                    if t in db_name.lower():
+                        score += 2
+                    if any(t in str(item.get(f, "")).lower() for f in ComponentDatabase._SPEC_FIELDS):
+                        score += 2
+                    if isinstance(item.get("pros"), list) and any(t in str(p).lower() for p in item["pros"]):
+                        score += 1
+                if tokens and score <= 0:
+                    continue
+                price = None
+                raw_price = item.get("price")
+                if not isinstance(raw_price, (int, float, str)):
+                    raw_price = item.get("price_range")
+                if isinstance(raw_price, (int, float)):
+                    price = float(raw_price)
+                elif isinstance(raw_price, str):
+                    nums = re.findall(r"\d+(?:\.\d+)?", raw_price)
+                    if nums:
+                        price = float(nums[0])
+                vendor_price = None
+                vendor_name = vendor_url = None
+                for pk, pv in PRICE_SOURCE_DATABASE.items():
+                    if pk.lower() in nl or nl in pk.lower():
+                        cheapest = min(pv, key=lambda s: s.get("price", 0) + s.get("shipping", 0))
+                        vendor_price = cheapest["price"] + cheapest.get("shipping", 0)
+                        vendor_name = cheapest["vendor"]
+                        vendor_url = cheapest.get("url")
+                        break
+                eff = None
+                if price is not None or vendor_price is not None:
+                    eff = min(x for x in (price, vendor_price) if x is not None)
+                if budget is not None and eff is not None and eff > budget:
+                    continue
+                results.append({"type": db_name, "id": item_id, "name": item.get("name", "?"),
+                                "price": price, "spec_line": ComponentDatabase._spec_line(item, db_name),
+                                "score": score, "vendor": vendor_name, "vendor_price": vendor_price,
+                                "vendor_url": vendor_url, "effective_price": eff})
+        if sort == "price":
+            results.sort(key=lambda r: (r["effective_price"] is None, r["effective_price"] or float("inf")))
+        else:
+            results.sort(key=lambda r: (-r["score"],
+                                        r["effective_price"] if r["effective_price"] is not None else float("inf")))
+        return results[:limit]
+
+    @staticmethod
+    def _spec_line(item, db_name):
+        prefs = {"SBC": ("ram", "cpu"), "Display": ("size", "resolution", "interface"),
+                 "Keyboard": ("layout", "switch", "size"), "Power": ("capacity", "voltage"),
+                 "Storage": ("capacity", "interface"), "Camera": ("resolution", "interface"),
+                 "Sensor": ("measure", "interface"), "Connectivity": ("standard", "interface")}
+        for field in prefs.get(db_name, ("size", "resolution", "interface", "connectivity", "ram", "cpu")):
+            v = item.get(field)
+            if v and str(v).strip() and str(v) not in ("N/A", "None", "Depends on carrier"):
+                return str(v)
+        return ""
+
+    @staticmethod
+    def price_lookup(name):
+        """Cheapest vendor + URL for a part, by fuzzy name match."""
+        nl = name.lower()
+        best = None
+        for pk, pv in PRICE_SOURCE_DATABASE.items():
+            if nl in pk.lower() or pk.lower() in nl:
+                for s in pv:
+                    total = s["price"] + s.get("shipping", 0)
+                    if best is None or total < best["price"]:
+                        best = {"vendor": s["vendor"], "price": total, "url": s.get("url")}
+        return best
 
     @staticmethod
     def get_stats():
@@ -2485,6 +2575,43 @@ class IdeaGenerator:
     def _parse_cost(cost_str):
         nums = re.findall(r'\d+', cost_str.replace(",", ""))
         return int(nums[-1]) if nums else 500
+
+    @staticmethod
+    def search(query, budget=None, skill=None, limit=5):
+        """Free-text search over BASE_IDEAS (title/description/category/material),
+        with optional budget ($) and skill (beginner..expert) filters. Pure local,
+        offline-safe; relevance = title/category hits count 3x, body/material 1x."""
+        terms = [t for t in re.findall(r"[a-z0-9]+", (query or "").lower()) if t]
+        if not terms:
+            return IdeaGenerator.generate(category=None, budget=budget,
+                                          skill=skill)[:limit]
+        skill_order = {"beginner": 0, "intermediate": 1, "advanced": 2, "expert": 3}
+        max_level = skill_order.get(skill, 2) if skill else None
+        scored = []
+        for idea in IdeaGenerator.BASE_IDEAS:
+            if budget is not None and IdeaGenerator._parse_cost(
+                    idea.get("estimated_cost", "$500")) > budget * 1.2:
+                continue
+            if max_level is not None and skill_order.get(
+                    idea.get("difficulty", ""), 0) > max_level:
+                continue
+            title = (idea.get("title", "") or "").lower()
+            desc = (idea.get("description", "") or "").lower()
+            cat = (idea.get("category", "") or "").lower()
+            mat = (idea.get("material", "") or "").lower()
+            score = 0
+            for t in terms:
+                if t in title or t in cat:
+                    score += 3
+                elif t in desc:
+                    score += 1
+                elif t in mat:
+                    score += 1
+            if score > 0:
+                scored.append((score, idea))
+        scored.sort(key=lambda x: (-x[0], IdeaGenerator._parse_cost(
+            x[1].get("estimated_cost", "$500"))))
+        return [idea for _, idea in scored[:limit]]
 
     @staticmethod
     def generate_from_trends(learner, category=None):

@@ -388,7 +388,7 @@ async def _shard_and_switch(chat, model):
     except Exception as e:
         await send(chat, f"Shard error for <b>{model['id']}</b>: {e}")
 
-async def call_ai(messages, provider_name=None):
+async def call_ai(messages, provider_name=None, local_fallback=False):
     pname = provider_name or _get_provider_for()
     p = PROVIDERS.get(pname)
     if not p:
@@ -412,7 +412,7 @@ async def call_ai(messages, provider_name=None):
                 if candidates:
                     return candidates[0].get("content", {}).get("parts", [{}])[0].get("text", str(data))
                 return str(data)[:2000]
-            return f"Gemini error: {r.status_code}"
+            return await _maybe_local(messages, pname, f"Gemini error: {r.status_code}", local_fallback)
         else:
             headers = {"Content-Type": "application/json", "Authorization": f"Bearer {p['key']}"}
             body = {"model": p["model"], "messages": messages, "max_tokens": 4096}
@@ -422,9 +422,179 @@ async def call_ai(messages, provider_name=None):
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 if content:
                     return content
-            return f"{pname} error: {r.status_code} - {r.text[:300]}"
+            return await _maybe_local(messages, pname,
+                                      f"{pname} error: {r.status_code} - {r.text[:300]}",
+                                      local_fallback)
     except Exception as e:
-        return f"AI call failed: {e}"
+        return await _maybe_local(messages, pname, f"AI call failed: {e}", local_fallback)
+
+# ============================================================
+# Local androidllm serving — hybrid router, airgap, idle wake
+# ============================================================
+_offline_mode = False
+
+_MATH_PAT = re.compile(
+    r"(?:\d\s*[\+\-*/×÷]\s*\d)"
+    r"|(?:what\s+is\s+\d)"
+    r"|\b(?:calculate|compute|solve|arithmetic|square\s*root|"
+    r"percentage|convert|conversion|terjemahkan|terjemah)\b",
+    re.IGNORECASE,
+)
+_TRANSLATE_PAT = re.compile(
+    r"^\s*(?:translate|terjemahkan|terjemah)\b"
+    r"|\b(?:translate|terjemahkan|terjemah)\b(?=.*\b(?:to|into|ke|dalam)\b)",
+    re.IGNORECASE,
+)
+
+
+def _offline_file():
+    return os.path.join(androidllm_models.androidllm_dir(), "offline.json")
+
+
+def _load_offline_mode():
+    global _offline_mode
+    try:
+        with open(_offline_file(), encoding="utf-8") as f:
+            _offline_mode = bool(json.load(f).get("offline"))
+    except Exception:
+        _offline_mode = False
+
+
+def _save_offline_mode():
+    try:
+        os.makedirs(os.path.dirname(_offline_file()), exist_ok=True)
+        with open(_offline_file(), "w", encoding="utf-8") as f:
+            json.dump({"offline": bool(_offline_mode)}, f)
+    except Exception:
+        pass
+
+
+def _androidllm_base():
+    p = PROVIDERS.get("androidllm", {})
+    url = p.get("url", "http://127.0.0.1:8080/v1/chat/completions")
+    if url.endswith("/chat/completions"):
+        return url[: -len("/chat/completions")]
+    return url.rstrip("/")
+
+
+def _local_available():
+    """True where androidllm is actually installed + has a model on this host."""
+    try:
+        if os.path.exists(androidllm_models.state_path()):
+            return True
+        return any(androidllm_models.is_sharded(m["id"])
+                   for m in androidllm_models.RECOMMENDED)
+    except Exception:
+        return False
+
+
+def _nudge_restart():
+    """Bump the state file mtime so runner.py restarts androidllm-serve now."""
+    try:
+        p = androidllm_models.state_path()
+        if os.path.exists(p):
+            os.utime(p)
+    except Exception:
+        pass
+
+
+async def _androidllm_health():
+    try:
+        c = await get_http()
+        r = await c.get(_androidllm_base() + "/health", timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+async def _ensure_androidllm_up(max_wait=25):
+    """Poll serve health; if down, nudge runner to restart (idle wake) and wait."""
+    if await _androidllm_health():
+        return True
+    _nudge_restart()
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        await asyncio.sleep(2)
+        if await _androidllm_health():
+            return True
+    return False
+
+
+async def _local_try(messages, tag=True, max_wait=25):
+    """Ask the local androidllm model. Returns (reply, ok); tags $0.00 cost."""
+    up = await _ensure_androidllm_up(max_wait)
+    if not up:
+        return ("Local model offline (androidllm-serve not reachable). "
+                "Try /status or /model.", False)
+    reply = await call_ai(_rag_augment(messages), provider_name="androidllm")
+    if _is_ai_error(reply, "androidllm"):
+        return reply, False
+    if tag:
+        reply = reply + "\n\n<i>$0.00 served locally by androidllm</i>"
+    return reply, True
+
+
+async def _maybe_local(messages, pname, err, local_fallback):
+    """Cloud-failure failover: fall back to the local model once."""
+    if not local_fallback or pname == "androidllm":
+        return err
+    if "androidllm" not in PROVIDERS or not _local_available():
+        return err
+    reply, ok = await _local_try(messages, max_wait=12)
+    if ok:
+        log(f"local failover for {pname}", "provider")
+    return reply if ok else err
+
+
+def _route_local(text):
+    """Heuristic: math/unit-conversion/translation -> local model (free, private)."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _TRANSLATE_PAT.search(t):
+        return True
+    if _MATH_PAT.search(t):
+        return True
+    return False
+
+
+# -- offline RAG v1: keyword-matched local knowledge injected into local calls
+_rag_kb = []
+
+
+def _load_rag_kb():
+    global _rag_kb
+    try:
+        with open(os.path.join(DIR, "androidllm_rag.json"), encoding="utf-8") as f:
+            _rag_kb = json.load(f)
+        log(f"RAG KB loaded: {len(_rag_kb)} entries", "init")
+    except Exception:
+        _rag_kb = []
+        log("RAG KB missing, offline augmentation disabled", "init")
+
+
+def _rag_snippets(text, limit=2):
+    t = (text or "").lower()
+    hits = []
+    for entry in _rag_kb:
+        if any(k in t for k in entry.get("keywords", [])):
+            hits.append(entry["text"])
+            if len(hits) >= limit:
+                break
+    return hits
+
+
+def _rag_augment(messages):
+    """Prepend matching KB snippets as a system note (RAG v1, local calls only)."""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            snips = _rag_snippets(m.get("content", ""))
+            if snips:
+                block = ("Local knowledge notes (use when relevant):\n"
+                         + "\n---\n".join(snips))
+                return [{"role": "system", "content": block}] + list(messages)
+            break
+    return messages
 
 # ============================================================
 # Unified Coding AI — one brain routed across EVERY provider
@@ -458,6 +628,8 @@ _CODER_PRIORITY = [
 ]
 
 def _coding_chain():
+    if _offline_mode:
+        return [p for p in ("androidllm",) if p in PROVIDERS]
     env_chain = os.environ.get("CODER_CHAIN", "").strip()
     if env_chain:
         return [p.strip() for p in env_chain.split(",") if p.strip() in PROVIDERS]
@@ -506,6 +678,8 @@ async def handle_code(chat, task):
     if not pname:
         return await send(chat, reply)
     tag = f"\n\n<i>⚡ {pname}</i>"
+    if pname == "androidllm":
+        tag += " <i>$0.00 served locally</i>"
     tried = [p for p, s in used if s != "ok"]
     if tried:
         tag += f" <i>(fallback: {', '.join(tried)})</i>"
@@ -709,7 +883,8 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /tutorial &lt;request&gt; — Step-by-step assembly guide
 /upgrade &lt;build&gt; — Suggest upgrades
 /ideas [category] — Build ideas
-/search &lt;query&gt; — Search components
+/ideasearch &lt;keywords&gt; [budget $X] [skill level] — Search the idea database locally
+/search &lt;query&gt; [budget $X] [category] [sort price] — Search components with filters
 /3d &lt;desc&gt; [style] — Generate 3D model (OpenSCAD)
 /pcb &lt;desc&gt; — PCB design
 /cables &lt;build&gt; — Cable routing plan
@@ -728,6 +903,7 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /provider test &lt;name&gt; — Ping a provider
 /providers — List providers
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
+/offline on|off — Airgap mode: all AI runs on the local androidllm model ($0.00, no internet)
 /brain — Switch AI brain (obsidian memory brain, writer, coder...)
 /brains — List brains
 /coder on|off — Unified coding AI mode (all providers, auto-fallback)
@@ -786,6 +962,8 @@ Dedicated cyberdeck builder with v6.0 AI engine.
         bname = _user_brain.get(str(uid), "default")
         await send(chat, f"""<b>CyberdeckBot {BOT_VERSION}</b>
 Provider: {_get_provider_for(uid)}
+Airgap: {"ON (local only)" if _offline_mode else "OFF"}
+Local model: {androidllm_models.active_model() or "none"}
 Brain: {bname}{"  (coding mode ON)" if _coder_mode.get(str(uid)) else ""}
 Providers: {len(PROVIDERS)}
 Components loaded: {n_comp}
@@ -860,6 +1038,25 @@ Uptime: {time.strftime('%H:%M:%S')}""")
         else:
             await send(chat, f"Unknown model: <b>{a}</b>. "
                              f"Available: {', '.join(androidllm_models.recommended_ids())}")
+
+    elif cmd == "/offline":
+        a = args.strip().lower()
+        if a in ("on", "1", "yes", "true"):
+            _offline_mode = True
+            _save_offline_mode()
+            await send(chat, "<b>Airgap mode ON.</b> All AI replies now route through the "
+                             "local androidllm model on this phone ($0.00). Cloud providers blocked.")
+        elif a in ("off", "0", "no", "false"):
+            _offline_mode = False
+            _save_offline_mode()
+            await send(chat, "Airgap mode OFF. Normal routing restored (cloud allowed).")
+        else:
+            st = "ON (all AI is local)" if _offline_mode else "OFF (cloud allowed)"
+            local = androidllm_models.active_model() or "none"
+            await send(chat, f"<b>Airgap mode: {st}</b>\nLocal model: {local}\n\n"
+                             f"Usage: /offline on | /offline off\n\n"
+                             f"When ON, every message and /code request runs on the local "
+                             f"androidllm model — $0.00, works with no internet.")
 
     elif cmd in ("/brain", "/brains"):
         bname = args.strip().lower()
@@ -969,6 +1166,9 @@ Total: {len(sbcs)+len(displays)+len(kbs)+len(power)+len(cool)}""")
 
     elif cmd == "/ideas":
         await handle_ideas(chat, uid, args)
+
+    elif cmd in ("/ideasearch", "/isearch"):
+        await handle_ideasearch(chat, uid, args)
 
     elif cmd == "/search":
         await handle_search(chat, uid, args)
@@ -1341,24 +1541,135 @@ async def handle_ideas(chat, uid, args):
     except Exception as e:
         await send(chat, f"Ideas error: {e}")
 
+async def handle_ideasearch(chat, uid, args):
+    """Free-text idea search over IdeaGenerator.BASE_IDEAS — local, instant,
+    offline-safe. Supports 'budget $X' and 'skill <level>' filters."""
+    await typing(chat)
+    try:
+        if "IdeaGenerator" not in cd_classes:
+            await send(chat, "IdeaGenerator not loaded")
+            return
+        parts = args.strip().split()
+        if not parts:
+            await send(chat, "Usage: /ideasearch &lt;keywords&gt; [budget $X] [skill level]\n"
+                             "Example: /ideasearch e-ink writer under $400\n"
+                             "Example: /ideasearch lora mesh skill advanced")
+            return
+        budget = None
+        skill = None
+        query = []
+        i = 0
+        while i < len(parts):
+            p = parts[i].lower()
+            if p in ("budget", "under", "max") and i + 1 < len(parts):
+                b = re.sub(r"[^\d.]", "", parts[i + 1])
+                if b:
+                    budget = float(b)
+                i += 2
+                continue
+            if p in ("skill", "level", "difficulty") and i + 1 < len(parts):
+                s = parts[i + 1].lower()
+                if s in ("beginner", "intermediate", "advanced", "expert"):
+                    skill = s
+                i += 2
+                continue
+            query.append(parts[i])
+            i += 1
+        q = " ".join(query).strip()
+        if not q:
+            await send(chat, "Usage: /ideasearch &lt;keywords&gt; [budget $X] [skill level]")
+            return
+        ideas = cd_classes["IdeaGenerator"].search(q, budget=budget, skill=skill)
+        if not ideas:
+            await send(chat, f"No ideas match <b>{q}</b>"
+                             f"{' under $%.0f' % budget if budget else ''}"
+                             f"{' (skill %s)' % skill if skill else ''}. "
+                             f"Try broader keywords.")
+            return
+        head = f"<b>Idea search: {q}</b>"
+        if budget:
+            head += f" <i>(max $%.0f)</i>" % budget
+        if skill:
+            head += f" <i>({skill})</i>"
+        lines = [head, ""]
+        for i, idea in enumerate(ideas, 1):
+            t = idea.get("title", "Idea")
+            d = idea.get("description", "")
+            c = idea.get("estimated_cost", "?")
+            cat = idea.get("category", "?")
+            diff = idea.get("difficulty", "?")
+            lines.append(f"<b>{i}. {t}</b>")
+            lines.append(f"  {d}")
+            lines.append(f"  {c} | {cat} | {diff}\n")
+        lines.append("<i>Filters: budget $X | skill beginner|intermediate|advanced|expert</i>")
+        await send(chat, "\n".join(lines))
+    except Exception as e:
+        await send(chat, f"Idea search error: {e}")
+
 async def handle_search(chat, uid, args):
     if not args:
-        await send(chat, "Usage: /search &lt;query&gt;\nExample: /search raspberry pi 5")
+        await send(chat, "Usage: /search &lt;query&gt; [budget $X] [category &lt;type&gt;] [sort price]\nCategories: sbc, display, keyboard, power, enclosure, cooling, pcb, wire, connectivity, storage, sensor, camera, sdr, lora, nfc, fingerprint, haptic, imu\nExample: /search pi 5 budget $100 sort price")
         return
     await typing(chat)
     try:
         if "ComponentDatabase" in cd_classes:
             from cyberdeck_agent import ComponentDatabase
-            results = ComponentDatabase.search(args)
-            if results:
-                lines = [f"<b>Search: {args}</b>\n"]
-                for r in results[:10]:
-                    if isinstance(r, dict):
-                        lines.append(f"• <b>{r.get('name', '?')}</b> — ${r.get('price', '?')}")
+            budget = None
+            category = None
+            sort = "relevance"
+            keywords = []
+            pending = None
+            for a in args.split():
+                if pending:
+                    if pending == "budget":
+                        m = re.match(r"^\$?(\d+)$", a)
+                        if m:
+                            budget = int(m.group(1))
+                    elif pending == "sort":
+                        if a.lower() in ("relevance", "price"):
+                            sort = a.lower()
                     else:
-                        lines.append(f"• {r}")
+                        category = a
+                    pending = None
+                    continue
+                if a.lower() in ("budget", "under", "max"):
+                    pending = "budget"
+                    continue
+                if a.lower() == "sort":
+                    pending = "sort"
+                    continue
+                if a.lower() == "category":
+                    pending = "category"
+                    continue
+                m = re.match(r"^\$?(\d+)$", a)
+                if m and budget is None:
+                    budget = int(m.group(1))
+                    continue
+                keywords.append(a)
+            q = " ".join(keywords) or args
+            results = ComponentDatabase.search(q, budget=budget, category=category, sort=sort, limit=10)
+            if results:
+                head = f"<b>Search: {q}</b>"
+                if budget:
+                    head += f" <i>(max ${budget})</i>"
+                if category:
+                    head += f" <i>({category})</i>"
+                if sort == "price":
+                    head += " <i>(cheapest first)</i>"
+                head += f" — {len(results)} results"
+                lines = [head, ""]
+                for i, r in enumerate(results, 1):
+                    p = f"${r.get('price')}" if r.get("price") is not None else "price ?"
+                    lines.append(f"<b>{i}. {r.get('name', '?')}</b> [{r.get('type', '?')}] {p}")
+                    if r.get("spec_line"):
+                        lines.append(f"   {r['spec_line']}")
+                    if r.get("vendor"):
+                        lines.append(f"   Buy: <i>{r['vendor']}</i> ${r['vendor_price']} → {r['vendor_url']}")
+                    lines.append("")
+                lines.append("<i>Filters: budget $X | category &lt;type&gt; | sort price</i>")
                 await send(chat, "\n".join(lines))
                 return
+            await send(chat, f"No local matches for '<b>{q}</b>'. Try fewer keywords or drop the budget/category filter — falling back to AI...")
         _sessions.setdefault(str(uid), [])
         _sessions[str(uid)].append({"role": "system", "content": CYBERDECK_SYSTEM})
         _sessions[str(uid)].append({"role": "user", "content": f"Search for cyberdeck components: {args}. List matching components with prices and where to buy."})
@@ -3869,6 +4180,8 @@ async def main():
     global _current_uid
     log(f"Starting {BOT_NAME} v{BOT_VERSION}...")
     _load_offset()
+    _load_offline_mode()
+    _load_rag_kb()
     load_providers()
     load_cyberdeck()
     log(f"Ready. Providers: {len(PROVIDERS)}")
@@ -3932,10 +4245,29 @@ async def main():
                 _current_uid = uid
                 _sessions[str(chat)].append({"role": "user", "content": text})
                 await typing(chat)
-                if _coder_mode.get(str(uid)):
+
+                coder = _coder_mode.get(str(uid))
+                want_local = _offline_mode or (
+                    not coder and "androidllm" in PROVIDERS
+                    and _local_available() and _route_local(text))
+                if want_local:
+                    reply, ok = await _local_try(_sessions[str(chat)][-10:])
+                    if ok:
+                        _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                        bname = _user_brain.get(str(uid), "default")
+                        if BRAINS.get(bname, {}).get("learn"):
+                            _obsidian_learn(text, reply)
+                        await send(chat, reply)
+                        continue
+                    if _offline_mode:
+                        _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                        await send(chat, reply)
+                        continue
+
+                if coder:
                     reply, _cp, _cu = await call_coding(_sessions[str(chat)][-10:])
                 else:
-                    reply = await call_ai(_sessions[str(chat)][-10:])
+                    reply = await call_ai(_sessions[str(chat)][-10:], local_fallback=True)
                 _sessions[str(chat)].append({"role": "assistant", "content": reply})
                 bname = _user_brain.get(str(uid), "default")
                 if BRAINS.get(bname, {}).get("learn"):

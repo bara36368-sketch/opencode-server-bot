@@ -412,6 +412,16 @@ def _androidllm_cmd():
     model_path = st.get("path") or _androidllm_model
     return [_androidllm_bin, "--model", model_path, "--port", _androidllm_port]
 
+def _androidllm_env():
+    """Per-model ANDROIDLLM_* defaults (threads, keep layers, prefix KV...)
+    merged over the base env; explicit env vars win."""
+    env = dict(bot_env)
+    st = androidllm_models.read_state(bot_env)
+    model_id = st.get("id") or ""
+    for k, v in androidllm_models.model_defaults(model_id).items():
+        env.setdefault(k, v)
+    return env
+
 def kill_all():
     global procs
     for name, p in list(procs.items()):
@@ -457,7 +467,8 @@ while True:
             log(f"starting {name}...", "proc")
             stderr_file = os.path.join(DIR, f"{name}.stderr")
             stderr_fh = open(stderr_file, "w", encoding="utf-8")
-            proc = subprocess.Popen(cmd, cwd=DIR, env=bot_env, stderr=stderr_fh)
+            proc_env = _androidllm_env() if name == "androidllm" else bot_env
+            proc = subprocess.Popen(cmd, cwd=DIR, env=proc_env, stderr=stderr_fh)
             procs[name] = proc
             threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
             if name == "web":
