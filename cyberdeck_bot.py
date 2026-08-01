@@ -362,8 +362,9 @@ def _switch_local_model(model_id):
     return True
 
 
-async def _shard_and_switch(chat, model):
-    """Download + shard a recommended model in the background, then switch to it."""
+async def _shard_and_switch(chat, model, switch=True):
+    """Download + shard a recommended model in the background, then switch to it.
+    With switch=False the model is only sharded (used for draft models)."""
     adir = androidllm_models.androidllm_dir()
     script = os.path.join(adir, "scripts", "shard_model.sh")
     if not os.path.exists(script):
@@ -381,9 +382,12 @@ async def _shard_and_switch(chat, model):
             stderr=asyncio.subprocess.STDOUT)
         out, _ = await proc.communicate()
         if proc.returncode == 0:
-            _switch_local_model(model["id"])
-            await send(chat, f"<b>{model['id']}</b> sharded and switched. "
-                             f"androidllm-serve is restarting on the new model...")
+            if switch:
+                _switch_local_model(model["id"])
+                await send(chat, f"<b>{model['id']}</b> sharded and switched. "
+                                 f"androidllm-serve is restarting on the new model...")
+            else:
+                await send(chat, f"<b>{model['id']}</b> sharded (draft model).")
         else:
             tail = (out or b"").decode("utf-8", "replace")[-800:]
             await send(chat, f"Shard failed for <b>{model['id']}</b> (exit {proc.returncode}).\n"
@@ -429,6 +433,8 @@ def _autopick_candidates(specs=None):
             "disk_gb": m.get("shard_gb", m.get("dl_gb", 1.0)),
             "dl_gb": m.get("dl_gb"),
             "note": m.get("note", ""),
+            "draft": m.get("draft"),
+            "spec_k": m.get("spec_k", 0),
             "score": s,
             "breakdown": b,
         }
@@ -455,7 +461,31 @@ def _autopick_lines(cands, specs_text, title="Autopick"):
     return lines
 
 
+def _draft_model_info(draft_id):
+    """Resolve a draft id to a shardable {id, repo, disk_gb} dict."""
+    try:
+        _, mp = _autopick_modules()
+        for m in mp.CATALOG:
+            if m["id"] == draft_id:
+                return {"id": draft_id, "repo": m["repo"],
+                        "disk_gb": m.get("shard_gb", 0.5)}
+    except Exception:
+        pass
+    dm = next((x for x in androidllm_models.RECOMMENDED if x["id"] == draft_id), None)
+    if dm is not None:
+        return {"id": draft_id, "repo": dm["repo"], "disk_gb": dm["disk_gb"]}
+    return None
+
+
 async def _autopick_install(chat, uid, cand):
+    draft = cand.get("draft")
+    if draft and not androidllm_models.is_sharded(draft):
+        dmodel = _draft_model_info(draft)
+        if dmodel is not None:
+            await send(chat, f"<b>{cand['id']}</b> uses <b>{draft}</b> as its draft "
+                             f"model for speculative decoding — sharding it first "
+                             f"(small, quick).")
+            asyncio.create_task(_shard_and_switch(chat, dmodel, switch=False))
     if androidllm_models.is_sharded(cand["id"]):
         _switch_local_model(cand["id"])
         await send(chat, f"Switched local model to <b>{cand['id']}</b>. "
@@ -5002,6 +5032,15 @@ async def handle_status(chat, uid, args):
     if s.get("paused"):
         lines.append("<i>Serving paused on low battery — requests get 503 until charging.</i>")
     lines.append(f"Think-strip: {'on' if s.get('strip_think') else 'off'}  Pause at: {s.get('pause_pct')}%")
+    sp = s.get("spec")
+    if sp:
+        rate = sp.get("accept_rate", 0)
+        lines.append(f"Spec decode: {sp.get('draft', '?')} draft, k={sp.get('k', 0)}, "
+                     f"accept {rate:.0%}, {sp.get('accepted', 0)}/{sp.get('accepted', 0) + sp.get('bonus', 0)} tok")
+    if s.get("batch"):
+        lines.append(f"Batch: {s['batch'].get('active', 0)} active, "
+                     f"{s['batch'].get('queued', 0)} queued, "
+                     f"max {s['batch'].get('max', 0)} slots")
     await send(chat, "\n".join(lines))
 
 

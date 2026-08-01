@@ -326,6 +326,71 @@ def free_port(port):
         except Exception:
             pass
 
+# -- androidllm OOM downgrade cascade --------------------------------------
+# When androidllm-serve dies from an OOM-class crash (Android lowmemorykiller
+# sends SIGKILL; Python aborts on alloc failure), step down to the next
+# smaller sharded model instead of crash-looping on the same one. The state
+# file write is picked up by the main loop's mtime watcher, which restarts
+# serve on the smaller model. Cooldown + persisted timestamp avoid storms.
+DOWNGRADE_COOLDOWN = 600
+_down_last = {"ts": 0}
+
+
+def _is_oom_crash(exit_code, stderr_text):
+    if exit_code in (137, -9, 134, -6):
+        return True
+    low = (stderr_text or "").lower()
+    return ("memoryerror" in low or "out of memory" in low
+            or "killed" in low)
+
+
+def _downgrade_state():
+    """Last downgrade timestamp from crash_history.json (survives restarts)."""
+    try:
+        if os.path.exists(CRASH_HISTORY):
+            with open(CRASH_HISTORY, encoding="utf-8") as f:
+                return json.load(f).get("downgrade_ts", 0)
+    except Exception:
+        pass
+    return 0
+
+
+def _record_downgrade():
+    try:
+        history = load_crash_history()
+        history["downgrade_ts"] = time.time()
+        save_crash_history(history)
+    except Exception:
+        pass
+
+
+def _maybe_downgrade_androidllm(exit_code, stderr_text):
+    """On OOM crash: switch current_model.json to the next smaller sharded
+    model. Returns (new_model_id | None, message)."""
+    global _androidllm_state_ts
+    if not _is_oom_crash(exit_code, stderr_text):
+        return None, None
+    now = time.time()
+    last = max(_down_last["ts"], _downgrade_state())
+    if now - last < DOWNGRADE_COOLDOWN:
+        return None, f"OOM crash but downgrade on cooldown ({int(now - last)}s ago)"
+    st = androidllm_models.read_state(bot_env)
+    cur = st.get("id")
+    nxt = androidllm_models.next_smaller(cur, bot_env) if cur else None
+    if not cur:
+        return None, "OOM crash but no active model id in state"
+    if not nxt:
+        return None, (f"OOM crash with {cur} but no smaller sharded model "
+                      f"available (ladder bottom or not installed)")
+    androidllm_models.write_state(nxt, androidllm_models.shard_dir(nxt, bot_env))
+    _down_last["ts"] = now
+    _record_downgrade()
+    try:
+        _androidllm_state_ts = os.path.getmtime(_androidllm_state)
+    except OSError:
+        _androidllm_state_ts = None
+    return nxt, f"OOM downgrade {cur} -> {nxt}"
+
 def health_check():
     try:
         req = urllib.request.Request(HEALTH_URL, method="GET")
@@ -351,6 +416,17 @@ def monitor_process(name, proc):
         f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
     analysis = analyze_crash(name, exit_code, stderr_text)
     diagnosis_str = "\n".join(analysis["diagnosis"])
+    downgrade_info = None
+    if name == "androidllm":
+        try:
+            nxt, msg = _maybe_downgrade_androidllm(exit_code, stderr_text)
+            if nxt:
+                downgrade_info = f"Downgraded to <b>{nxt}</b> - restarting on smaller model"
+                log(f"androidllm {msg}", "proc")
+            elif msg:
+                log(f"androidllm {msg}", "proc")
+        except Exception as e:
+            log(f"androidllm downgrade error: {e}", "proc")
     if _can_notify(f"crash_{name}"):
         hostname = socket.gethostname()[:20]
         notify_msg = (
@@ -362,6 +438,8 @@ def monitor_process(name, proc):
             f"<b>Time:</b> {time.strftime('%H:%M:%S')}\n\n"
             f"<b>Diagnosis:</b>\n<pre>{diagnosis_str}</pre>"
         )
+        if downgrade_info:
+            notify_msg += f"\n\n<i>{downgrade_info}</i>"
         if stderr_text:
             tail = stderr_text[-500:].strip()
             if tail:
@@ -445,77 +523,78 @@ def kill_one(name):
         except: pass
         procs.pop(name, None)
 
-while True:
-    if _androidllm_enabled:
-        try:
-            _ts = os.path.getmtime(_androidllm_state)
-        except OSError:
-            _ts = None
-        if _ts != _androidllm_state_ts:
-            _androidllm_state_ts = _ts
-            if "androidllm" in procs:
-                log("androidllm model switch detected, restarting serve...", "proc")
-                kill_one("androidllm")
+if __name__ == "__main__":
+    while True:
+        if _androidllm_enabled:
+            try:
+                _ts = os.path.getmtime(_androidllm_state)
+            except OSError:
+                _ts = None
+            if _ts != _androidllm_state_ts:
+                _androidllm_state_ts = _ts
+                if "androidllm" in procs:
+                    log("androidllm model switch detected, restarting serve...", "proc")
+                    kill_one("androidllm")
 
-    for name, base_cmd in PROCESSES.items():
-        if name not in procs or procs[name].poll() is not None:
-            was_running = name in procs and procs[name].poll() is not None
-            if name == "web":
-                free_port(4357)
-                time.sleep(1)
-            cmd = _androidllm_cmd() if name == "androidllm" else base_cmd
-            log(f"starting {name}...", "proc")
-            stderr_file = os.path.join(DIR, f"{name}.stderr")
-            stderr_fh = open(stderr_file, "w", encoding="utf-8")
-            proc_env = _androidllm_env() if name == "androidllm" else bot_env
-            proc = subprocess.Popen(cmd, cwd=DIR, env=proc_env, stderr=stderr_fh)
-            procs[name] = proc
-            threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
-            if name == "web":
-                for _ in range(6):
-                    time.sleep(5)
-                    if health_check():
-                        log(f"healthy on {HEALTH_URL}", "proc")
-                        break
-                else:
-                    log(f"health check FAILED after start", "proc")
-    if first:
-        time.sleep(CHECK_INTERVAL)
-        first = False
-    else:
-        time.sleep(CHECK_INTERVAL // 2 if not health_check() else CHECK_INTERVAL)
+        for name, base_cmd in PROCESSES.items():
+            if name not in procs or procs[name].poll() is not None:
+                was_running = name in procs and procs[name].poll() is not None
+                if name == "web":
+                    free_port(4357)
+                    time.sleep(1)
+                cmd = _androidllm_cmd() if name == "androidllm" else base_cmd
+                log(f"starting {name}...", "proc")
+                stderr_file = os.path.join(DIR, f"{name}.stderr")
+                stderr_fh = open(stderr_file, "w", encoding="utf-8")
+                proc_env = _androidllm_env() if name == "androidllm" else bot_env
+                proc = subprocess.Popen(cmd, cwd=DIR, env=proc_env, stderr=stderr_fh)
+                procs[name] = proc
+                threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
+                if name == "web":
+                    for _ in range(6):
+                        time.sleep(5)
+                        if health_check():
+                            log(f"healthy on {HEALTH_URL}", "proc")
+                            break
+                    else:
+                        log(f"health check FAILED after start", "proc")
+        if first:
+            time.sleep(CHECK_INTERVAL)
+            first = False
+        else:
+            time.sleep(CHECK_INTERVAL // 2 if not health_check() else CHECK_INTERVAL)
 
-    current = file_hashes()
-    changed_files = [f for f, h in current.items() if last_hashes.get(f) != h]
-    for f in changed_files:
-        log(f"changed: {os.path.basename(f)}", "watch")
-    last_hashes = current
+        current = file_hashes()
+        changed_files = [f for f, h in current.items() if last_hashes.get(f) != h]
+        for f in changed_files:
+            log(f"changed: {os.path.basename(f)}", "watch")
+        last_hashes = current
 
-    git_changed = git_update()
+        git_changed = git_update()
 
-    web_dead = "web" in procs and procs["web"].poll() is not None and not health_check()
+        web_dead = "web" in procs and procs["web"].poll() is not None and not health_check()
 
-    if git_changed:
-        now = time.time()
-        restart_times = [t for t in restart_times if now - t < RESTART_WINDOW]
-        if len(restart_times) >= MAX_RESTARTS:
-            log(f"max restarts ({MAX_RESTARTS}) exceeded in {RESTART_WINDOW}s, sleeping 60s", "proc")
-            time.sleep(60)
-            restart_times.clear()
-        restart_times.append(now)
-        log(f"git update, restarting all processes...", "proc")
-        kill_all()
-        last_hashes = file_hashes()
-    elif changed_files:
-        code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
-        cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
-        if code_changed:
-            log(f"code changed, restarting bot+web...", "proc")
-            kill_one("bot")
+        if git_changed:
+            now = time.time()
+            restart_times = [t for t in restart_times if now - t < RESTART_WINDOW]
+            if len(restart_times) >= MAX_RESTARTS:
+                log(f"max restarts ({MAX_RESTARTS}) exceeded in {RESTART_WINDOW}s, sleeping 60s", "proc")
+                time.sleep(60)
+                restart_times.clear()
+            restart_times.append(now)
+            log(f"git update, restarting all processes...", "proc")
+            kill_all()
+            last_hashes = file_hashes()
+        elif changed_files:
+            code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
+            cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
+            if code_changed:
+                log(f"code changed, restarting bot+web...", "proc")
+                kill_one("bot")
+                kill_one("web")
+            if cyberdeck_changed:
+                log(f"cyberdeck changed, restarting cyberdeck...", "proc")
+                kill_one("cyberdeck")
+        elif web_dead:
+            log(f"web not responding, restarting web only...", "health")
             kill_one("web")
-        if cyberdeck_changed:
-            log(f"cyberdeck changed, restarting cyberdeck...", "proc")
-            kill_one("cyberdeck")
-    elif web_dead:
-        log(f"web not responding, restarting web only...", "health")
-        kill_one("web")
