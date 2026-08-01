@@ -1,41 +1,51 @@
 [
   {
+    "topic": "SBC picks",
     "keywords": ["raspberry pi", "rpi", "pi 5", "pi zero", "sbc", "single board"],
     "text": "SBC picking: Raspberry Pi 5 (8GB) is the strongest all-rounder at ~$80; Pi Zero 2W is a $15 low-power option for e-ink writerdecks; Orange Pi 5 / Radxa Rock 5B give RK3588-class performance for AI work; RISC-V boards (VisionFive 2) are experimental. For a cyberdeck, weight power draw and ecosystem support over raw specs."
   },
   {
+    "topic": "Battery sizing",
     "keywords": ["battery", "18650", "power bank", "power system", "ups", "mah"],
     "text": "Battery sizing: a 7-inch screen + SBC draws ~6-10W; an 8x 18650 pack (roughly 10Ah at 3.7V nominal, ~30-37Wh usable) runs a deck for 3-5 hours. Use a proper UPS HAT or USB-C PD with a battery bank; never feed lithium cells into a 5V rail without a charge/boost controller. Keep a low-voltage cutoff to protect cells."
   },
   {
+    "topic": "Display picks",
     "keywords": ["display", "screen", "7 inch", "hdmi", "e-ink", "eink", "monitor"],
     "text": "Display picks: 7-inch 1024x600 HDMI IPS panels are the cyberdeck default (~$30-45, 5V 0.5A); e-ink (7.5-inch 800x480) is best for writing decks and sunlight readability but slow for video; a 10-inch 1280x800 panel is better for research stations. Touch adds ~$10-15 and needs a compatible driver."
   },
   {
+    "topic": "Keyboards",
     "keywords": ["keyboard", "mechanical", "planck", "corne", "ortho", "keeb", "keycaps"],
     "text": "Keyboards: the Planck (ortholinear 40%) is the classic writerdeck board; Corne is a split option for ergonomics. Pick hot-swap sockets and MX switches (tactile browns for typing). For very small builds, a 60% with USB-C is the practical sweet spot over full-size."
   },
   {
+    "topic": "Enclosures",
     "keywords": ["enclosure", "case", "pelican", "3d print", "3d printing", "filament"],
     "text": "Enclosures: a Pelican-style hard case gives weatherproofing and shoulder-strap mounting; 3D-printed shells are cheap but need PETG or ABS (PLA softens in a hot car). Design for airflow: leave vents over the SBC and screen driver board. Print-in-place hinges and heat-set inserts make assembly clean."
   },
   {
+    "topic": "WriterDeck formula",
     "keywords": ["writerdeck", "writing", "distraction free", "e-ink deck", "focuswriter"],
     "text": "WriterDeck formula: e-ink or low-power LCD + ortholinear keyboard + minimal OS (FocusWriter, WordGrinder, or a Raspberry Pi Zero 2W running Alpine). Skip WiFi and browsers entirely for a distraction-free machine; SD card or cloud sync over the network when you return."
   },
   {
+    "topic": "Off-grid comms",
     "keywords": ["lora", "meshtastic", "mesh", "radio", "ham", "sdr"],
     "text": "Off-grid comms: Meshtastic LoRa nodes on 915MHz give free text mesh out to ~1-5km urban, 10km+ line of sight; RTL-SDR receives aviation, weather satellite and ham bands for ~$30. For licensed voice, a handheld HT (Baofeng UV-5R class) is the budget entry. Mesh nodes pair well with solar and a 18650 pack."
   },
   {
+    "topic": "androidllm usage",
     "keywords": ["androidllm", "local model", "offline", "airgap", "serve", "qwen", "smollm"],
     "text": "androidllm usage: /model switches the serving local model (qwen15 recommended); /offline on forces every reply through the on-phone model ($0.00, no internet). The serve process auto-pauses after idle and wakes on the next request; first reply after idle takes a few seconds while it reloads. Tune speed with ANDROIDLLM_THREADS / ANDROIDLLM_KEEP_LAYERS in setenv.sh."
   },
   {
+    "topic": "Build wiring",
     "keywords": ["soldering", "wiring", "pcb", "hot swap", "cable", "harness"],
     "text": "Build wiring: use JST-XH or DuPont connectors instead of bare solder joints wherever a wire may need replacing; keep 5V runs short or use thicker gauge for displays pulling >0.5A; add a fuse or polyfuse on the main power rail; label every connector with the pinout. A modular backplane (e.g. the Li'l PCB style) beats a rats nest."
   },
   {
+    "topic": "USB-C PD",
     "keywords": ["usb c", "pd", "charger", "power delivery", "5v"],
     "text": "USB-C PD: a 20W-30W PD charger or power bank runs most single-board cyberdecks; 12V boards (RK3588 class) need 12V PD negotiation or a buck-boost. Verify the board supports PD before relying on it - some only accept 5V and will brown out under load. Always test peak draw with both USB and screen connected."
   }

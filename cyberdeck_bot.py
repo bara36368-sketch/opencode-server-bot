@@ -596,6 +596,86 @@ def _rag_augment(messages):
             break
     return messages
 
+
+# ============================================================
+# Offline Q&A mode — every chat message answered from the local
+# knowledge base (RAG + component DB) with cited sources
+# ============================================================
+_qa_users = {}
+
+
+def _qa_file():
+    return os.path.join(DIR, "qa_mode.json")
+
+
+def _load_qa_mode():
+    global _qa_users
+    try:
+        with open(_qa_file(), encoding="utf-8") as f:
+            _qa_users = {str(k): bool(v) for k, v in json.load(f).items()}
+    except Exception:
+        _qa_users = {}
+
+
+def _save_qa_mode():
+    try:
+        with open(_qa_file(), "w", encoding="utf-8") as f:
+            json.dump(_qa_users, f)
+    except Exception:
+        pass
+
+
+def _rag_hits(text, limit=2):
+    """Return matching KB entries as [{'topic','text'}], best matches first."""
+    t = (text or "").lower()
+    hits = []
+    for entry in _rag_kb:
+        if any(k in t for k in entry.get("keywords", [])):
+            hits.append({"topic": entry.get("topic", entry.get("keywords", ["kb"])[0]),
+                         "text": entry["text"]})
+            if len(hits) >= limit:
+                break
+    return hits
+
+
+async def _qa_answer(chat, uid, text):
+    """Offline Q&A: local model + KB/component sources, cited. Cloud only if local down."""
+    sources = _rag_hits(text, limit=2)
+    comps = []
+    if not sources and "ComponentDatabase" in cd_classes:
+        try:
+            from cyberdeck_agent import ComponentDatabase
+            comps = ComponentDatabase.search(text, limit=2)
+        except Exception:
+            comps = []
+    qa_sys = (CYBERDECK_SYSTEM + "\nQ&A mode: answer concisely from the attached knowledge. "
+              "If the knowledge is insufficient, say what is missing and never invent specs.")
+    messages = [{"role": "system", "content": qa_sys}]
+    if sources:
+        block = "\n---\n".join(f"[{s['topic']}] {s['text']}" for s in sources)
+        messages.append({"role": "system", "content": "Knowledge base:\n" + block})
+    elif comps:
+        cl = "\n".join(f"- {r['name']} [{r['type']}] ${r.get('price')}" for r in comps)
+        messages.append({"role": "system", "content": "Matching local parts:\n" + cl})
+    messages.append({"role": "user", "content": text})
+    reply, ok = await _local_try(messages, tag=False)
+    if not ok:
+        if _is_ai_error(reply, "androidllm"):
+            fallback = await call_ai(messages, local_fallback=True)
+            if not _is_ai_error(fallback, "androidllm"):
+                reply = fallback
+                ok = True
+        if not ok:
+            return reply
+    cite = ""
+    if sources:
+        cite = "\n\n<b>Sources:</b>\n" + "\n".join(f"• {s['topic']} (local KB)" for s in sources)
+    elif comps:
+        cite = "\n\n<b>Sources:</b>\n" + "\n".join(
+            f"• {r['name']} [{r['type']}]" for r in comps)
+    tag = "\n\n<i>$0.00 served locally by androidllm</i>"
+    return reply + cite + tag
+
 # ============================================================
 # Unified Coding AI — one brain routed across EVERY provider
 # (your paid keys + free tiers), smartest-first with auto-fallback
@@ -904,6 +984,7 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /providers — List providers
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
 /offline on|off — Airgap mode: all AI runs on the local androidllm model ($0.00, no internet)
+/qa on|off — Offline Q&A mode: answers from local KB + parts DB with cited sources
 /brain — Switch AI brain (obsidian memory brain, writer, coder...)
 /brains — List brains
 /coder on|off — Unified coding AI mode (all providers, auto-fallback)
@@ -1057,6 +1138,27 @@ Uptime: {time.strftime('%H:%M:%S')}""")
                              f"Usage: /offline on | /offline off\n\n"
                              f"When ON, every message and /code request runs on the local "
                              f"androidllm model — $0.00, works with no internet.")
+
+    elif cmd == "/qa":
+        a = args.strip().lower()
+        if a in ("on", "1", "yes", "true"):
+            _qa_users[str(uid)] = True
+            _save_qa_mode()
+            await send(chat, "<b>Q&A mode ON.</b> Every message is answered from the local "
+                             "knowledge base (SBC, battery, display, keyboard, LoRa, wiring...) "
+                             "with cited sources — $0.00 via androidllm. /qa off to exit.")
+        elif a in ("off", "0", "no", "false"):
+            _qa_users[str(uid)] = False
+            _save_qa_mode()
+            await send(chat, "Q&A mode OFF. Normal chat restored.")
+        else:
+            st = "ON" if _qa_users.get(str(uid)) else "OFF"
+            kb_n = len(_rag_kb)
+            await send(chat, f"<b>Q&A mode: {st}</b> (KB: {kb_n} topics)\n\n"
+                             f"Usage: /qa on | /qa off\n\n"
+                             f"When ON, questions are answered from the local knowledge base "
+                             f"with sources cited, served by the on-phone androidllm model "
+                             f"($0.00). No knowledge match → answers from local parts database.")
 
     elif cmd in ("/brain", "/brains"):
         bname = args.strip().lower()
@@ -4181,6 +4283,7 @@ async def main():
     log(f"Starting {BOT_NAME} v{BOT_VERSION}...")
     _load_offset()
     _load_offline_mode()
+    _load_qa_mode()
     _load_rag_kb()
     load_providers()
     load_cyberdeck()
@@ -4236,6 +4339,15 @@ async def main():
                     continue
 
                 if not text.strip():
+                    continue
+
+                if _qa_users.get(str(uid)):
+                    await typing(chat)
+                    reply = await _qa_answer(chat, uid, text)
+                    _sessions.setdefault(str(chat), [])
+                    _sessions[str(chat)].append({"role": "user", "content": text})
+                    _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                    await send(chat, reply)
                     continue
 
                 if str(chat) not in _sessions:
