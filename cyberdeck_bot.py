@@ -535,6 +535,82 @@ async def _local_try(messages, tag=True, max_wait=25):
     return reply, True
 
 
+async def edit_msg(chat, mid, text):
+    """Edit a previously-sent message; retries plain text if HTML fails
+    (streamed partial HTML is often unbalanced)."""
+    if mid is None:
+        return
+    try:
+        await tg("editMessageText", {"chat_id": chat, "message_id": mid,
+                                     "text": text[:4000], "parse_mode": "HTML"})
+    except Exception:
+        try:
+            await tg("editMessageText", {"chat_id": chat, "message_id": mid,
+                                         "text": text[:4000]})
+        except Exception:
+            pass
+
+
+async def _local_stream(messages, chat, max_wait=60):
+    """Streaming local reply: SSE from androidllm, progressively edits one
+    Telegram message. Returns (final_text, ok). Cancel-safe for /stop."""
+    up = await _ensure_androidllm_up(max_wait)
+    if not up:
+        return ("Local model offline (androidllm-serve not reachable). "
+                "Try /status or /model.", False)
+    p = PROVIDERS.get("androidllm")
+    if not p:
+        return "androidllm provider not configured.", False
+    c = await get_http()
+    headers = {"Content-Type": "application/json",
+               "Authorization": f"Bearer {p.get('key', 'skip-auth')}"}
+    body = {"model": p.get("model", "auto"), "messages": messages,
+            "max_tokens": 4096, "stream": True}
+    mid = None
+    text = ""
+    last_edit = 0.0
+    try:
+        async with c.stream("POST", p["url"], json=body, headers=headers,
+                            timeout=120) as r:
+            if r.status_code != 200:
+                err = (await r.aread()).decode("utf-8", "replace")[:200]
+                return f"Local stream error: {r.status_code} {err}", False
+            async for line in r.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                payload = line[6:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                except Exception:
+                    continue
+                choices = chunk.get("choices") or []
+                if not choices:
+                    continue
+                piece = (choices[0].get("delta") or {}).get("content") or ""
+                if not piece:
+                    continue
+                text += piece
+                now = time.time()
+                if mid is None or now - last_edit >= 0.8:
+                    if mid is None:
+                        res = await send(chat, text)
+                        mid = (res or {}).get("result", {}).get("message_id")
+                    else:
+                        await edit_msg(chat, mid, text)
+                    last_edit = now
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        return f"Local stream error: {e}", False
+    if not text:
+        return "Empty local reply.", False
+    if mid is not None:
+        await edit_msg(chat, mid, text)
+    return text, True
+
+
 async def _maybe_local(messages, pname, err, local_fallback):
     """Cloud-failure failover: fall back to the local model once."""
     if not local_fallback or pname == "androidllm":
@@ -984,6 +1060,9 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /provider test &lt;name&gt; — Ping a provider
 /providers — List providers
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
+/status — Local model stats: context bar, battery, speed, prefix reuse
+/export [name] — Save chat session to offline JSON
+/import &lt;name&gt; — Restore an exported session (/import lists files)
 /offline on|off — Airgap mode: all AI runs on the local androidllm model ($0.00, no internet)
 /qa on|off — Offline Q&A mode: answers from local KB + parts DB with cited sources
 /sysinfo — Deck system info (CPU, RAM, temp, disk, battery)
@@ -1168,6 +1247,12 @@ Uptime: {time.strftime('%H:%M:%S')}""")
                              f"When ON, questions are answered from the local knowledge base "
                              f"with sources cited, served by the on-phone androidllm model "
                              f"($0.00). No knowledge match → answers from local parts database.")
+
+    elif cmd == "/status":
+        await handle_status(chat, uid, args)
+
+    elif cmd in ("/export", "/import"):
+        await handle_session_archive(chat, uid, cmd, args)
 
     elif cmd in ("/brain", "/brains"):
         bname = args.strip().lower()
@@ -4681,13 +4766,13 @@ async def _handle_chat(chat, uid, text, msg):
             not coder and "androidllm" in PROVIDERS
             and _local_available() and _route_local(text))
         if want_local:
-            reply, ok = await _local_try(_sessions[str(chat)][-10:])
+            reply, ok = await _local_stream(_rag_augment(_sessions[str(chat)][-10:]), chat)
             if ok:
+                reply = reply + "\n\n<i>$0.00 served locally by androidllm</i>"
                 _sessions[str(chat)].append({"role": "assistant", "content": reply})
                 bname = _user_brain.get(str(uid), "default")
                 if BRAINS.get(bname, {}).get("learn"):
                     _obsidian_learn(text, reply)
-                await send(chat, reply)
                 return
             if _offline_mode:
                 _sessions[str(chat)].append({"role": "assistant", "content": reply})
@@ -4714,6 +4799,102 @@ async def _handle_chat(chat, uid, text, msg):
             await send(chat, f"Error: {e}")
         except Exception:
             pass
+
+
+async def handle_status(chat, uid, args):
+    """Local model status: context bar, battery, speed, prefix reuse."""
+    try:
+        c = await get_http()
+        r = await c.get(_androidllm_base() + "/stats", timeout=5)
+        if r.status_code != 200:
+            await send(chat, "androidllm serve not reachable (cold start?). Try again in a few seconds.")
+            return
+        s = r.json()
+    except Exception as e:
+        await send(chat, f"Status error: {e}")
+        return
+    lines = [f"<b>{s.get('model', 'androidllm')}</b> — airgap {'ON' if _offline_mode else 'OFF'}"]
+    ctx = s.get("context_used", 0)
+    ctx_len = s.get("ctx_len", 0)
+    pct = s.get("context_pct", 0)
+    bar = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
+    lines.append(f"Context: {ctx}/{ctx_len} tok  {bar} {pct}%")
+    up = s.get("uptime_s", 0)
+    lines.append(f"Uptime: {up // 60}m  Tokens served: {s.get('tokens_served', 0)}")
+    mspt = s.get("compute_ms_per_token", 0)
+    if mspt:
+        lines.append(f"Speed: ~{1000 / mspt:.1f} tok/s (compute {mspt:.0f} ms/tok)")
+    if s.get("load_ms_avg"):
+        lines.append(f"Layer load: {s['load_ms_avg']:.0f} ms avg")
+    lines.append(f"Prefix reuse: {s.get('prefix_calls', 0)} calls / {s.get('prefix_tokens', 0)} tokens saved")
+    lines.append(f"Layer cache: {s.get('cache_hits', 0)} hits / {s.get('cache_misses', 0)} misses ({s.get('cache_size', 0)} resident)")
+    lines.append(f"RSS: {s.get('rss_mb', 0)} MB  Throttle: {s.get('throttle_ms', 0)} ms/tok")
+    bat = s.get("battery") or {}
+    cap = bat.get("capacity")
+    if cap is not None:
+        state = "charging" if bat.get("charging") else ("paused" if s.get("paused") else "discharging")
+        lines.append(f"Battery: {cap}% ({state})"
+                     + (f", {bat['temp_c']}C" if bat.get("temp_c") is not None else ""))
+    if s.get("paused"):
+        lines.append("<i>Serving paused on low battery — requests get 503 until charging.</i>")
+    lines.append(f"Think-strip: {'on' if s.get('strip_think') else 'off'}  Pause at: {s.get('pause_pct')}%")
+    await send(chat, "\n".join(lines))
+
+
+SESSION_ARCHIVE_DIR = os.path.join(DIR, "sessions_export")
+
+
+async def handle_session_archive(chat, uid, cmd, args):
+    """/export — save the current chat session to local JSON.
+    /import &lt;name&gt; — restore a session by filename (offline, no cloud)."""
+    if cmd == "/export":
+        sess = _sessions.get(str(chat))
+        if not sess:
+            await send(chat, "No active session for this chat to export.")
+            return
+        try:
+            os.makedirs(SESSION_ARCHIVE_DIR, exist_ok=True)
+            name = (args.strip() or "chat").replace("/", "_").replace("\\", "_")
+            path = os.path.join(SESSION_ARCHIVE_DIR,
+                                f"{name}_{int(time.time())}.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"chat": chat, "saved": int(time.time()),
+                           "messages": sess}, f, ensure_ascii=False, indent=1)
+            await send(chat, f"Session exported: <code>{os.path.basename(path)}</code> "
+                             f"({len(sess)} messages, offline file)")
+        except Exception as e:
+            await send(chat, f"Export error: {e}")
+        return
+    name = args.strip()
+    if not name:
+        try:
+            files = sorted(os.listdir(SESSION_ARCHIVE_DIR),
+                           key=lambda f: os.path.getmtime(
+                               os.path.join(SESSION_ARCHIVE_DIR, f)), reverse=True)
+            if not files:
+                await send(chat, "No exported sessions. Usage: /export [name] then /import &lt;name&gt;")
+                return
+            lines = ["<b>Exported sessions:</b>", ""]
+            for f in files[:10]:
+                lines.append("  " + f)
+            lines.append("")
+            lines.append("Usage: /import &lt;filename&gt;")
+            await send(chat, "\n".join(lines))
+        except Exception as e:
+            await send(chat, f"Import list error: {e}")
+        return
+    path = os.path.join(SESSION_ARCHIVE_DIR, os.path.basename(name))
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        msgs = data.get("messages", [])
+        if not msgs:
+            await send(chat, "That export has no messages.")
+            return
+        _sessions[str(chat)] = msgs
+        await send(chat, f"Session restored: {len(msgs)} messages from <code>{os.path.basename(name)}</code>")
+    except Exception as e:
+        await send(chat, f"Import error: {e}")
 
 
 async def main():
@@ -4755,8 +4936,39 @@ async def main():
                     continue
 
                 if voice:
-                    await send(chat, "Voice support not available in cyberdeck bot. Use /v1 for voice.")
-                    continue
+                    fid = voice.get("file_id")
+                    trans = None
+                    if fid:
+                        try:
+                            vc = await get_http()
+                            fg = await tg("getFile", {"file_id": fid})
+                            fp = (fg or {}).get("result", {}).get("file_path")
+                            if fp:
+                                dl = await vc.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{fp}", timeout=30)
+                                ogg = os.path.join(DIR, f".voice_{uid}.ogg")
+                                with open(ogg, "wb") as f:
+                                    f.write(dl.content)
+                                asr = os.path.join(androidllm_models.androidllm_dir(), "scripts", "asr.sh")
+                                if os.path.exists(asr):
+                                    proc = await asyncio.create_subprocess_exec(
+                                        "bash", asr, "transcribe", ogg,
+                                        stdout=asyncio.subprocess.PIPE,
+                                        stderr=asyncio.subprocess.DEVNULL)
+                                    out, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
+                                    trans = out.decode("utf-8", "replace").strip()
+                                try:
+                                    os.remove(ogg)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            trans = None
+                    if trans:
+                        text = trans
+                    else:
+                        await send(chat, "Voice note received — offline ASR unavailable.\n"
+                                         "Run <code>bash ~/androidllm/scripts/asr.sh setup</code> "
+                                         "in Termux to enable whisper.cpp voice.")
+                        continue
 
                 if document:
                     fname = document.get("file_name", "document")
