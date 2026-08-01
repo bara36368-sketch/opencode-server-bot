@@ -23,3 +23,9 @@ setenv.sh
 providers.json
 whatsapp/
 keys_backup.json
+*.log
+target/
+zig/.zig-cache/
+zig/cyberdeck_zig.dll
+zig/cyberdeck_zig.lib
+zig/cyberdeck_zig.pdb

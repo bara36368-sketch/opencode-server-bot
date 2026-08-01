@@ -291,6 +291,8 @@ DEFAULT_RATE_LIMITS = {
     "deepseek": (30, 10000),
     "mistral": (30, 10000),
     "vansrouter": (9999, 999999),
+    "blackbox": (30, 60000),
+    "openclaw": (9999, 999999),
     "github": (30, 15000),
     "together": (30, 10000),
     "fireworks": (30, 10000),
@@ -1894,6 +1896,21 @@ PROVIDERS = {
         "model": os.environ.get("OMNIROUTE_MODEL", "auto"),
         "key": os.environ.get("OMNIROUTE_KEY", "skip-auth")
     },
+    "vansrouter": {
+        "url": os.environ.get("VANSROUTER_URL", "http://localhost:3003/api/v1/chat/completions"),
+        "model": os.environ.get("VANSROUTER_MODEL", "auto"),
+        "key": os.environ.get("VANSROUTER_KEY", "skip-auth")
+    },
+    "blackbox": {
+        "url": "https://api.blackbox.ai/v1/chat/completions",
+        "model": "deepseek-v4-flash",
+        "key": os.environ.get("BLACKBOX_KEY", "set-via-env-var")
+    },
+    "openclaw": {
+        "url": "http://localhost:20128/v1/chat/completions",
+        "model": "auto",
+        "key": "skip-auth"
+    },
     "zenmux": {
         "url": "https://zenmux.ai/api/v1/chat/completions",
         "model": "x-ai/grok-4.5-free",
@@ -3290,6 +3307,16 @@ async def main():
                         "  /dailydigest — Daily summary",
                         "  /experimental — Experimental features",
                         "  /miniapp — Telegram Mini App dashboard",
+                        "",
+                        "Reverse-Engineered Tools:",
+                        "  /9router — Universal AI Gateway (upstream)",
+                        "  /vansrouter — Local 9Router fork",
+                        "  /omniroute — Fork of 9Router (290+ providers)",
+                        "  /openclaw — AI multi-tool orchestration CLI",
+                        "  /blackbox — Multi-model AI provider",
+                        "  /odysseus — Self-hosted AI workspace",
+                        "  /hermes — Hermes Agent (Nous Research self-improving AI)",
+                        "  /obsidian — Obsidian AI CLI + MCP integration",
                     ]
                     if is_owner or is_admin or is_mod:
                         lines += [
@@ -3436,6 +3463,14 @@ async def main():
                             "/stack — 2026 AI Infrastructure Reference (10 layers)",
                             "/stackstatus — Live status of all 10 AI stack layers",
                             "/webgateway — Web gateway status + admin dashboard",
+                            "/9router — Universal AI Gateway (upstream)",
+                            "/vansrouter — Local 9Router fork (port 3003)",
+                            "/omniroute — Fork of 9Router (290+ providers)",
+                            "/openclaw — AI multi-tool orchestration CLI",
+                            "/blackbox — Multi-model AI provider",
+                            "/odysseus — Self-hosted AI workspace",
+                            "/hermes — Hermes Agent (Nous Research self-improving AI)",
+                            "/obsidian — Obsidian AI CLI + MCP integration",
                             "/toolfk — 200+ free utilities",
                             "/synoxcloud — 434 tools + 52 AI models",
                             "/stats — Your usage stats",
@@ -4889,7 +4924,135 @@ async def main():
                     except Exception as e:
                         await send(chat, f"PyRIT error: {e}")
 
+                elif cmd == "/9router":
+                    lines = ["<b>9Router</b> — Universal AI Gateway (upstream of VansRouter)",
+                             "GitHub: https://github.com/decolua/9router",
+                             "Install: npm install -g 9router",
+                             "Endpoint: http://localhost:20128/v1",
+                             "",
+                             "Smart 3-tier fallback: subscription → cheap API → free tiers",
+                             "RTK+Caveman token compression (20-65% savings)",
+                             "60+ AI providers, 10+ CLI tools supported",
+                             "",
+                             "Use <b>/omniroute</b> to configure the OmniRoute provider",
+                             "Use <b>/vansrouter</b> to configure the local VansRouter fork"]
+                    await send(chat, "\n".join(lines))
 
+                elif cmd == "/vansrouter":
+                    vp = PROVIDERS.get("vansrouter", {})
+                    status = "configured" if vp.get("key") != "set-via-env-var" else "not configured"
+                    lines = ["<b>VansRouter</b> — Local 9Router fork (port 3003)",
+                             f"Provider status: {status}",
+                             f"URL: {vp.get('url', 'N/A')}",
+                             "Dashboard: http://localhost:3003",
+                             "Dev endpoint: http://localhost:20127/v1",
+                             "Prod endpoint: http://localhost:3003/api/v1",
+                             "",
+                             "CLI: node vansrouter/cli/cli.js",
+                             "Custom server with IP spoofing protection (x-9r-real-ip)"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/omniroute":
+                    op = PROVIDERS.get("omniroute", {})
+                    lines = ["<b>OmniRoute</b> — Fork of 9Router with 290+ providers",
+                             "GitHub: https://github.com/diegosouzapw/OmniRoute",
+                             f"Provider: {op.get('url', 'http://localhost:20128/v1/chat/completions')}",
+                             f"Model: {op.get('model', 'auto')}",
+                             "",
+                             "17 routing strategies, RTK+Caveman compression (15-95%)",
+                             "Built-in MCP server (95+ tools), A2A agent protocol",
+                             "Desktop (Electron), PWA, Termux support",
+                             "Set OMNIROUTE_URL/OMNIROUTE_MODEL/OMNIROUTE_KEY in setenv.sh"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/openclaw":
+                    lines = ["<b>OpenClaw</b> — AI Multi-Tool Orchestration CLI",
+                             "Docs: https://docs.openclaw.ai",
+                             "Install: npm install -g clawhub",
+                             "Config: ~/.openclaw/openclaw.json",
+                             "",
+                             "Multi-tool AI orchestration with MCP support",
+                             "Skills ecosystem: clawhub install <skill>",
+                             "Works with: x64dbg, Ghidra, dnSpy, radare2, Frida",
+                             "Supports reverse engineering, coding, forensics workflows",
+                             "",
+                             "To route through VansRouter/OmniRoute:",
+                             "  Set baseUrl to http://localhost:20128/v1",
+                             "  Model: 9router/<provider>/<model>"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/blackbox":
+                    bp = PROVIDERS.get("blackbox", {})
+                    models_list = [
+                        "claude-fable-5, claude-opus-4.8, claude-sonnet-4.6",
+                        "gpt-5.5, gpt-5.4-pro, gpt-5.4, gpt-5.3-codex, gpt-5.4-nano",
+                        "deepseek-v4-flash, grok-4.3"
+                    ]
+                    lines = ["<b>Blackbox AI</b> — Multi-model provider gateway",
+                             f"Provider: {'configured' if bp.get('key') != 'set-via-env-var' else 'NOT configured'}",
+                             "URL: https://api.blackbox.ai/v1/chat/completions",
+                             "API keys: https://www.blackbox.ai/api-management",
+                             "",
+                             "Models:"]
+                    for m in models_list:
+                        lines.append(f"  • {m}")
+                    lines.append("")
+                    lines.append("Set BLACKBOX_KEY in setenv.sh to activate")
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/odysseus":
+                    lines = ["<b>Odysseus</b> — Self-Hosted AI Workspace",
+                             "Run and serve local LLMs + autonomous agents",
+                             "GitHub: https://github.com/pewdiepie-archdaemon/odysseus",
+                             "",
+                             "Local-first, privacy-first architecture",
+                             "270+ model catalog with hardware-aware recommendations",
+                             "Built-in tools: bash, files, web, memory",
+                             "MCP-compatible multi-machine model serving",
+                             "Persistent memory, skill authoring, IMAP/SMTP",
+                             "Email assistant, document editor, research workflows",
+                             "",
+                              "Integrates with VansRouter/OmniRoute as backend"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/hermes":
+                    lines = ["<b>Hermes Agent</b> — Self-Improving AI Agent by Nous Research",
+                             "GitHub: https://github.com/NousResearch/hermes-agent (200K+ stars)",
+                             "Docs: https://hermes-agent.nousresearch.com/docs",
+                             "Install: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash",
+                             "Config: ~/.hermes/.env",
+                             "",
+                             "Self-improving learning loop — creates skills from experience every 15 tool calls",
+                             "Persistent cross-session memory (SQLite + FTS5 full-text search)",
+                             "Multi-platform: Telegram, Discord, Slack, WhatsApp, Signal, CLI",
+                             "40+ built-in tools, scheduled cron automations",
+                             "Subagent delegation for parallel workstreams",
+                             "Runs on $5 VPS, Docker, serverless, Termux",
+                             "200+ models via OpenRouter, or any OpenAI-compatible endpoint",
+                             "",
+                             "Routes through VansRouter/OmniRoute: set OPENAI_BASE_URL=http://localhost:20128/v1"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/obsidian":
+                    lines = ["<b>Obsidian AI</b> — Knowledge Base + AI Agent Integration",
+                             "Official CLI (v1.12+): obsidian search/daily/open/vault/note",
+                             "CLI docs: https://obsidian.md/cli",
+                             "Install: upgrade to Obsidian 1.12+, enable CLI in Settings > General",
+                             "",
+                             "MCP Integration:",
+                             "  • obsidian-mcp-server — file-based STDIO MCP server",
+                             "  • mcp-obsidian — Local REST API plugin (search_by_tag, get_frontmatter)",
+                             "  • Agent Client — ACP protocol plugin for Claude Code/Codex",
+                             "",
+                             "AI Plugin Ecosystem:",
+                             "  • Obsidian AI CLI — sidebar panels for Claude Code, Gemini, Codex, Qwen",
+                             "  • Agentic Copilot — connects Obsidian to CLI agents (auto-detect)",
+                             "  • Smart Connections v4 — local embeddings, semantic search, offline",
+                             "  • Claudian — Claude Code embedded in Obsidian",
+                             "",
+                             "CLI commands: search, daily, note, template, tag, vault, graph, plugin",
+                             "100+ commands for vault automation, scripting, cron"]
+                    await send(chat, "\n".join(lines))
 
                 elif cmd == "/toolfk":
                     key_status = f"TOOLFK_TOKEN={'set' if TOOLFK_TOKEN else 'NOT SET'}"

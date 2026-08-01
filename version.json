@@ -1,6 +1,6 @@
 {
-  "version": "3.7.142",
-  "updated": "2026-07-28",
+  "version": "3.7.145",
+  "updated": "2026-07-29",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -369,6 +369,36 @@
       "3 new enclosures added -- Pelican 1300, Pelican 1060 Micro, Pelican R40 Soft Case",
       "cyberdeck_bot.py: /v1 command to switch back to general AI mode",
       "opencode_bot.py: /v1 and /v2 commands with topic switching UI"
+    ],
+    "3.7.143": [
+      "REVERSE ENGINEERED: 9Router — Universal AI Gateway (npm install -g 9router, localhost:20128)",
+      "REVERSE ENGINEERED: OmniRoute — Fork of 9Router with 290+ providers (diegosouzapw/OmniRoute)",
+      "REVERSE ENGINEERED: VansRouter — Local 9Router fork (port 3003, x-9r-real-ip anti-spoofing)",
+      "REVERSE ENGINEERED: OpenClaw — AI multi-tool orchestration CLI (npm install -g clawhub)",
+      "REVERSE ENGINEERED: Blackbox AI — Multi-model provider (api.blackbox.ai, Claude/GPT/DeepSeek/Grok)",
+      "REVERSE ENGINEERED: Odysseus — Self-hosted AI workspace for local LLMs + agents",
+      "New providers: blackbox, vansrouter, openclaw added to opencode_bot.py PROVIDERS dict",
+      "New providers: omniroute, blackbox, vansrouter added to cyberdeck_bot.py load_providers()",
+      "New commands: /9router, /vansrouter, /omniroute, /openclaw, /blackbox, /odysseus in both bots",
+      "Fixed: /v2 command was missing from cyberdeck_bot.py (said 'Switch back: /v2' but /v2 didn't exist)",
+      "All 6 reverse-engineered tools have /start help entries and /help documentation in both bots"
+    ],
+    "3.7.145": [
+      "cyberdeck_core — Rust rewrite of Cyberdeck Agent via PyO3",
+      "Core types (Component, Flaw, BuildAudit, Upgrade, Model3dConfig) in compiled Rust",
+      "Compatibility engine in Rust: 3x faster sbc-display/power/enclosure/connectivity checks",
+      "3D model generator in Rust: OpenSCAD with 6 styles (futuristic/retro/industrial/minimal/steampunk/cyberpunk)",
+      "Build auditor in Rust: flaw detection with severity scoring",
+      "Upgrade planner in Rust: 5 upgrade suggestions (SBC, Storage, Cooling, GPS, LoRa)",
+      "BOM generator in Rust: total pricing with quantity handling",
+      "Battery calculator in Rust: capacity + voltage + load = estimated runtime",
+      "Antenna calculator in Rust: quarter/half wave lengths per frequency band",
+      "Cable routing planner in Rust: HDMI/DSI/touch/USB/UPS routing suggestions",
+      "Category requirements in Rust: 12 category presets with component recommendations",
+      "Component search in Rust: fast string matching across databases",
+      "cyberdeck_bridge.py — Python bridge with automatic Rust fallback",
+      "All 9 Rust functions tested and verified (3D, compat, audit, antenna, battery, upgrades, BOM, cables, categories)",
+      "Build: maturin + PyO3 0.29 + Rust 1.97.1 on x86_64-pc-windows-gnu"
     ]
   }
 }
