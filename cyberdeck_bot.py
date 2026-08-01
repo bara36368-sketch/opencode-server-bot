@@ -426,6 +426,113 @@ async def call_ai(messages, provider_name=None):
     except Exception as e:
         return f"AI call failed: {e}"
 
+# ============================================================
+# Unified Coding AI — one brain routed across EVERY provider
+# (your paid keys + free tiers), smartest-first with auto-fallback
+# ============================================================
+CODER_SYSTEM = """You are an elite software engineering AI. You write clean, correct,
+production-ready code. Rules:
+- Solve the exact problem asked; if ambiguous, state your assumption in one line.
+- Output complete, runnable code with all imports and function signatures.
+- Use modern, idiomatic patterns; explain briefly only when it helps.
+- Include a short usage example and note any dependencies.
+- For bugs, give root cause first, then the fix.
+- No fluff, no fake APIs, no hallucinated library names."""
+
+# Ranked smartest-first across all providers in the bot. Local androidllm is
+# always last (offline/private fallback). Override with CODER_CHAIN env var.
+_CODER_PRIORITY = [
+    "nvidia",      # moonshotai/kimi-k2.5 — very strong coder
+    "blackbox",    # deepseek-v4-flash — strong + free
+    "deepseek",    # deepseek-chat — strong
+    "cerebras",    # fast Llama/Qwen
+    "openrouter",  # free llama/qwen/deepseek variants
+    "mistral",     # codestral-flash if configured
+    "gemini",      # gemini-2.0-flash free tier
+    "groq",        # llama-3.3-70b, qwen-2.5-32b (fast, free)
+    "omniroute",   # 290+ providers
+    "9router",     # universal gateway
+    "vansrouter",  # local 9Router fork
+    "bitrouter",   # local router
+    "androidllm",  # local model on the phone (last resort, offline/private)
+]
+
+def _coding_chain():
+    env_chain = os.environ.get("CODER_CHAIN", "").strip()
+    if env_chain:
+        return [p.strip() for p in env_chain.split(",") if p.strip() in PROVIDERS]
+    return [p for p in _CODER_PRIORITY if p in PROVIDERS]
+
+def _is_ai_error(reply, pname):
+    """call_ai returns content on success, or a short error string on failure."""
+    if not isinstance(reply, str):
+        return True
+    if reply.startswith(f"{pname} error:"):
+        return True
+    if reply.startswith("Gemini error:"):
+        return True
+    if reply.startswith("AI call failed") or reply.startswith("No AI provider configured"):
+        return True
+    return False
+
+async def call_coding(messages, chain=None):
+    """Route a coding prompt across the chain; auto-fall back on failure."""
+    chain = chain if chain is not None else _coding_chain()
+    if not chain:
+        return "No coding providers available.", None, []
+    used = []
+    for pname in chain:
+        try:
+            reply = await call_ai(messages, provider_name=pname)
+        except Exception as e:
+            used.append((pname, f"failed: {e}"))
+            continue
+        if _is_ai_error(reply, pname):
+            used.append((pname, reply))
+            continue
+        used.append((pname, "ok"))
+        return reply, pname, used
+    return "All coding providers failed.", None, used
+
+async def handle_code(chat, task):
+    if not task:
+        return await send(chat, "Usage: /code &lt;your coding task&gt;")
+    await send(chat, "Coding brain: querying best available model...")
+    msgs = [
+        {"role": "system", "content": CODER_SYSTEM},
+        {"role": "user", "content": task},
+    ]
+    reply, pname, used = await call_coding(msgs)
+    if not pname:
+        return await send(chat, reply)
+    tag = f"\n\n<i>⚡ {pname}</i>"
+    tried = [p for p, s in used if s != "ok"]
+    if tried:
+        tag += f" <i>(fallback: {', '.join(tried)})</i>"
+    await send(chat, reply + tag)
+
+async def handle_codeall(chat, task):
+    if not task:
+        return await send(chat, "Usage: /codeall &lt;task&gt; — asks the top coding models in parallel")
+    chain = _coding_chain()[:3]
+    if not chain:
+        return await send(chat, "No coding providers available.")
+    await send(chat, f"Ask-all: querying <b>{len(chain)}</b> models in parallel ({', '.join(chain)})...")
+    msgs = [
+        {"role": "system", "content": CODER_SYSTEM},
+        {"role": "user", "content": task},
+    ]
+    results = await asyncio.gather(*[call_ai(msgs, provider_name=p) for p in chain], return_exceptions=True)
+    blocks = []
+    for p, r in zip(chain, results):
+        if isinstance(r, BaseException) or _is_ai_error(r, p):
+            blocks.append(f"<b>{p}</b>: ❌ {str(r)[:200]}")
+        else:
+            blocks.append(f"<b>{p}</b>:\n{r}")
+    await send(chat, "\n\n".join(blocks))
+
+_coder_mode = {}
+
 def _brain_system(uid=None):
     """System prompt for the user's active brain (default or Obsidian memory brain)."""
     if uid is None:
@@ -524,6 +631,10 @@ BRAINS = {
             "terminal UIs (tmux, vim), OS configs for programming, hotkey layout, and "
             "keyboard-centric workflows."),
     },
+    "coding": {
+        "desc": "Unified coding AI — routed across every provider (paid + free), auto-fallback",
+        "system": CODER_SYSTEM,
+    },
     "hacker": {
         "desc": "Security / pentest brain",
         "system": CYBERDECK_SYSTEM + ("\n\nFocus on security and pentest builds: Kali/Parrot, "
@@ -619,6 +730,9 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
 /brain — Switch AI brain (obsidian memory brain, writer, coder...)
 /brains — List brains
+/coder on|off — Unified coding AI mode (all providers, auto-fallback)
+/code &lt;task&gt; — One-shot coding with smartest model + fallback
+/codeall &lt;task&gt; — Compare top 3 coding models in parallel
 /v1 — Switch to General AI mode (opencode-bot)
 /v2 — Switch to Cyberdeck mode
 
@@ -672,7 +786,7 @@ Dedicated cyberdeck builder with v6.0 AI engine.
         bname = _user_brain.get(str(uid), "default")
         await send(chat, f"""<b>CyberdeckBot {BOT_VERSION}</b>
 Provider: {_get_provider_for(uid)}
-Brain: {bname}
+Brain: {bname}{"  (coding mode ON)" if _coder_mode.get(str(uid)) else ""}
 Providers: {len(PROVIDERS)}
 Components loaded: {n_comp}
 Uptime: {time.strftime('%H:%M:%S')}""")
@@ -767,6 +881,34 @@ Uptime: {time.strftime('%H:%M:%S')}""")
             await send(chat, f"Brain switched to <b>{bname}</b>: {BRAINS[bname]['desc']}")
         else:
             await send(chat, f"Unknown brain: <b>{bname}</b>\nAvailable: {', '.join(BRAINS.keys())}")
+
+    elif cmd == "/coder":
+        mode = args.strip().lower()
+        if mode in ("on", "1", "yes", "true"):
+            _coder_mode[str(uid)] = True
+            _user_brain[str(uid)] = "coding"
+            if str(chat) in _sessions and _sessions[str(chat)]:
+                _sessions[str(chat)][0] = {"role": "system", "content": CODER_SYSTEM}
+            await send(chat, "🧠 <b>Coding mode ON.</b> All messages route through the unified coding brain — "
+                             "smartest free/paid model first, auto-fallback down the chain. /coder off to exit.")
+        elif mode in ("off", "0", "no", "false"):
+            _coder_mode[str(uid)] = False
+            _user_brain[str(uid)] = "default"
+            if str(chat) in _sessions and _sessions[str(chat)]:
+                _sessions[str(chat)][0] = {"role": "system", "content": _brain_system(uid)}
+            await send(chat, "Coding mode OFF. Back to the cyberdeck brain.")
+        else:
+            state = "ON" if _coder_mode.get(str(uid)) else "OFF"
+            chain = ", ".join(_coding_chain()) or "none"
+            await send(chat, f"🧠 <b>Coding mode: {state}</b>\n\nChain: {chain}\n\n"
+                             f"Commands:\n/coder on|off — toggle\n/code &lt;task&gt; — one-shot (auto-fallback)\n"
+                             f"/codeall &lt;task&gt; — compare top 3 models in parallel")
+
+    elif cmd == "/code":
+        await handle_code(chat, args)
+
+    elif cmd == "/codeall":
+        await handle_codeall(chat, args)
 
     elif cmd == "/v1":
         await send(chat, "Switched to General AI mode (opencode-bot).\n\nAll general AI commands available.\nSwitch back: /v2")
@@ -3790,7 +3932,10 @@ async def main():
                 _current_uid = uid
                 _sessions[str(chat)].append({"role": "user", "content": text})
                 await typing(chat)
-                reply = await call_ai(_sessions[str(chat)][-10:])
+                if _coder_mode.get(str(uid)):
+                    reply, _cp, _cu = await call_coding(_sessions[str(chat)][-10:])
+                else:
+                    reply = await call_ai(_sessions[str(chat)][-10:])
                 _sessions[str(chat)].append({"role": "assistant", "content": reply})
                 bname = _user_brain.get(str(uid), "default")
                 if BRAINS.get(bname, {}).get("learn"):
