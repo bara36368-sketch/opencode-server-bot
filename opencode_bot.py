@@ -1987,27 +1987,27 @@ PROVIDERS = {
 
     "nvidia-glm5": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
-        "model": "zhipuai/glm-5.2",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
     "nvidia-deepseek-v4": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
     "nvidia-qwen35": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
-        "model": "qwen/qwen3.5-397b-a3b",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
     "nvidia-kimi-k26": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
-        "model": "moonshotai/kimi-k2.5",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
     "nvidia-nemotron": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
-        "model": "nvidia/nemotron-3-ultra-550b",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "key": os.environ.get("NVIDIA_KEY", "set-via-env-var"),
     },
 }

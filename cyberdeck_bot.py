@@ -279,7 +279,7 @@ def load_providers():
         PROVIDERS["cerebras"] = {"url": "https://api.cerebras.ai/v1/chat/completions", "model": "llama-3.3-70b", "key": cerebras_key}
     nvidia_key = env.get("NVIDIA_KEY", "")
     if nvidia_key and nvidia_key != "set-via-env-var":
-        PROVIDERS["nvidia"] = {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "moonshotai/kimi-k2.5", "key": nvidia_key}
+        PROVIDERS["nvidia"] = {"url": "https://integrate.api.nvidia.com/v1/chat/completions", "model": "nvidia/llama-3.3-nemotron-super-49b-v1", "key": nvidia_key}
     mistral_key = env.get("MISTRAL_KEY", "")
     if mistral_key and mistral_key != "set-via-env-var":
         PROVIDERS["mistral"] = {"url": "https://api.mistral.ai/v1/chat/completions", "model": "mistral-small-latest", "key": mistral_key}
@@ -442,7 +442,7 @@ production-ready code. Rules:
 # Ranked smartest-first across all providers in the bot. Local androidllm is
 # always last (offline/private fallback). Override with CODER_CHAIN env var.
 _CODER_PRIORITY = [
-    "nvidia",      # moonshotai/kimi-k2.5 — very strong coder
+    "nvidia",      # llama-3.3-nemotron-super-49b — strong free coder
     "blackbox",    # deepseek-v4-flash — strong + free
     "deepseek",    # deepseek-chat — strong
     "cerebras",    # fast Llama/Qwen
