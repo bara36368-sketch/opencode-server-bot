@@ -1818,6 +1818,11 @@ PROVIDERS = {
         "model": "gryphe/mythomax-l2-13b",
         "key": os.environ.get("OPENROUTER_KEY", "set-via-env-var"),
     },
+    "kimi": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "moonshotai/kimi-k3",
+        "key": os.environ.get("OPENROUTER_KEY", "set-via-env-var"),
+    },
     "deepseek": {
         "url": "https://api.deepseek.com/v1/chat/completions",
         "model": "deepseek-chat",

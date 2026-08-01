@@ -275,6 +275,8 @@ def load_providers():
     openrouter_key = env.get("OPENROUTER_KEY", "")
     if openrouter_key and openrouter_key != "set-via-env-var":
         PROVIDERS["openrouter"] = {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "meta-llama/llama-3.3-70b-instruct:free", "key": openrouter_key}
+    if openrouter_key and openrouter_key != "set-via-env-var":
+        PROVIDERS["kimi"] = {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "moonshotai/kimi-k3", "key": openrouter_key}
     cerebras_key = env.get("CEREBRAS_KEY", "")
     if cerebras_key and cerebras_key != "set-via-env-var":
         PROVIDERS["cerebras"] = {"url": "https://api.cerebras.ai/v1/chat/completions", "model": "llama-3.3-70b", "key": cerebras_key}
@@ -769,6 +771,7 @@ production-ready code. Rules:
 # Ranked smartest-first across all providers in the bot. Local androidllm is
 # always last (offline/private fallback). Override with CODER_CHAIN env var.
 _CODER_PRIORITY = [
+    "kimi",        # moonshotai/kimi-k3 via OpenRouter — FREE, top coder
     "nvidia",      # llama-3.3-nemotron-super-49b — strong free coder
     "blackbox",    # deepseek-v4-flash — strong + free
     "deepseek",    # deepseek-chat — strong
