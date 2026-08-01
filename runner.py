@@ -1,4 +1,6 @@
-import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, threading, re as _re, traceback, socket
+import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, threading, re as _re, traceback, socket, shutil
+
+import androidllm_models
 
 for _lib in ["httpx", "httpcore", "urllib3", "chardet"]:
     logging.getLogger(_lib).setLevel(logging.WARNING)
@@ -384,6 +386,32 @@ first = True
 restart_times = []
 bot_env = load_dotenv()
 
+# androidllm local model server (Termux/phone). Only supervised where the
+# androidllm-serve binary exists AND a model is available (default shard dir
+# or a current_model.json state from a previous switch); auto-disabled
+# on machines where androidllm isn't installed.
+_androidllm_dir = bot_env.get("ANDROIDLLM_DIR", os.path.expanduser("~/androidllm"))
+_androidllm_model = bot_env.get("ANDROIDLLM_MODEL", os.path.join(_androidllm_dir, "models", "qwen15"))
+_androidllm_port = bot_env.get("ANDROIDLLM_PORT", "8080")
+_androidllm_bin = shutil.which("androidllm-serve")
+_androidllm_state = androidllm_models.state_path(bot_env)
+_androidllm_state_ts = None
+_androidllm_enabled = bool(_androidllm_bin) and (os.path.isdir(_androidllm_model) or os.path.exists(_androidllm_state))
+if _androidllm_enabled:
+    PROCESSES["androidllm"] = None  # real cmd computed per start via _androidllm_cmd()
+    log(f"androidllm supervision enabled (default {_androidllm_model}, :{_androidllm_port})", "proc")
+    try:
+        _androidllm_state_ts = os.path.getmtime(_androidllm_state)
+    except OSError:
+        _androidllm_state_ts = None
+else:
+    log(f"androidllm supervision disabled (binary={bool(_androidllm_bin)}, model={os.path.isdir(_androidllm_model)})", "proc")
+
+def _androidllm_cmd():
+    st = androidllm_models.read_state(bot_env)
+    model_path = st.get("path") or _androidllm_model
+    return [_androidllm_bin, "--model", model_path, "--port", _androidllm_port]
+
 def kill_all():
     global procs
     for name, p in list(procs.items()):
@@ -408,12 +436,24 @@ def kill_one(name):
         procs.pop(name, None)
 
 while True:
-    for name, cmd in PROCESSES.items():
+    if _androidllm_enabled:
+        try:
+            _ts = os.path.getmtime(_androidllm_state)
+        except OSError:
+            _ts = None
+        if _ts != _androidllm_state_ts:
+            _androidllm_state_ts = _ts
+            if "androidllm" in procs:
+                log("androidllm model switch detected, restarting serve...", "proc")
+                kill_one("androidllm")
+
+    for name, base_cmd in PROCESSES.items():
         if name not in procs or procs[name].poll() is not None:
             was_running = name in procs and procs[name].poll() is not None
             if name == "web":
                 free_port(4357)
                 time.sleep(1)
+            cmd = _androidllm_cmd() if name == "androidllm" else base_cmd
             log(f"starting {name}...", "proc")
             stderr_file = os.path.join(DIR, f"{name}.stderr")
             stderr_fh = open(stderr_file, "w", encoding="utf-8")

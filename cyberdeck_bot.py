@@ -2,8 +2,10 @@
 Cyberdeck Bot — Dedicated Telegram bot for Cyberdeck Agent v7.1
 Token: 8954725646:AAFHDboglEzsIX864QtVlVyp_zYhaUUrK0M
 """
-import os, sys, json, time, asyncio, logging, traceback, hashlib, copy, re, urllib.request, urllib.parse
+import os, sys, json, time, asyncio, logging, traceback, hashlib, copy, re, urllib.request, urllib.parse, subprocess
 from datetime import datetime
+
+import androidllm_models
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(DIR)
@@ -296,6 +298,11 @@ def load_providers():
     vansrouter_key = env.get("VANSROUTER_KEY", "skip-auth")
     PROVIDERS["vansrouter"] = {"url": vansrouter_url, "model": vansrouter_model, "key": vansrouter_key}
 
+    androidllm_url = env.get("ANDROIDLLM_URL", "http://127.0.0.1:8080/v1/chat/completions")
+    androidllm_model = env.get("ANDROIDLLM_MODEL", "auto")
+    androidllm_key = env.get("ANDROIDLLM_KEY", "skip-auth")
+    PROVIDERS["androidllm"] = {"url": androidllm_url, "model": androidllm_model, "key": androidllm_key}
+
     PROVIDERS.setdefault("9router", {"url": "http://localhost:20128/v1/chat/completions", "model": "auto", "key": "skip-auth"})
     PROVIDERS.setdefault("bitrouter", {"url": "http://127.0.0.1:4356/v1/chat/completions", "model": "qwen/qwen3.6-flash", "key": "skip-auth"})
 
@@ -319,7 +326,7 @@ def load_providers():
     log(f"Loaded {len(PROVIDERS)} providers: {', '.join(PROVIDERS.keys())}", "init")
 
 ACTIVE_PROVIDER = "groq"
-ROUTER_CHAIN = ["9router", "vansrouter", "bitrouter", "omniroute"]
+ROUTER_CHAIN = ["9router", "vansrouter", "bitrouter", "omniroute", "androidllm"]
 _user_provider = {}
 _current_uid = None
 
@@ -334,6 +341,52 @@ def _get_provider_for(uid=None):
     if uid is not None and str(uid) in _user_provider and _user_provider[str(uid)] in PROVIDERS:
         return _user_provider[str(uid)]
     return ACTIVE_PROVIDER
+
+
+def _switch_local_model(model_id):
+    """Point androidllm at <model_id> and nudge androidllm-serve to restart.
+    runner.py (which supervises androidllm-serve) sees the new state file and
+    restarts the serve on the new model within a poll cycle."""
+    try:
+        androidllm_models.write_state(model_id, androidllm_models.shard_dir(model_id))
+    except Exception as e:
+        log(f"model state write failed: {e}", "model")
+        return False
+    try:
+        subprocess.run(["pkill", "-f", "androidllm-serve"], capture_output=True, timeout=5)
+    except Exception:
+        pass
+    return True
+
+
+async def _shard_and_switch(chat, model):
+    """Download + shard a recommended model in the background, then switch to it."""
+    adir = androidllm_models.androidllm_dir()
+    script = os.path.join(adir, "scripts", "shard_model.sh")
+    if not os.path.exists(script):
+        await send(chat, f"androidllm not found on this host ({adir}). "
+                         f"Run setup in Termux first:\n<code>bash ~/androidllm/scripts/setup_termux.sh</code>")
+        return
+    try:
+        await send(chat, f"Sharding <b>{model['id']}</b> ({model['repo']})... "
+                         f"~{model['disk_gb']} GB download, this can take a while. "
+                         f"I'll notify you when it's done.")
+        proc = await asyncio.create_subprocess_exec(
+            "bash", script, model["repo"], model["id"],
+            cwd=adir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT)
+        out, _ = await proc.communicate()
+        if proc.returncode == 0:
+            _switch_local_model(model["id"])
+            await send(chat, f"<b>{model['id']}</b> sharded and switched. "
+                             f"androidllm-serve is restarting on the new model...")
+        else:
+            tail = (out or b"").decode("utf-8", "replace")[-800:]
+            await send(chat, f"Shard failed for <b>{model['id']}</b> (exit {proc.returncode}).\n"
+                             f"<pre>{tail}</pre>")
+    except Exception as e:
+        await send(chat, f"Shard error for <b>{model['id']}</b>: {e}")
 
 async def call_ai(messages, provider_name=None):
     pname = provider_name or _get_provider_for()
@@ -559,10 +612,11 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /tiers — List tier system
 /list — List all components
 /status — Bot status
-/provider — Switch AI provider (9router, vansrouter, bitrouter, groq...)
+/provider — Switch AI provider (9router, vansrouter, bitrouter, androidllm, groq...)
 /provider routers — List local router providers
 /provider test &lt;name&gt; — Ping a provider
 /providers — List providers
+/model — Switch local androidllm model (qwen15, smollm2, qwen3)
 /brain — Switch AI brain (obsidian memory brain, writer, coder...)
 /brains — List brains
 /v1 — Switch to General AI mode (opencode-bot)
@@ -642,7 +696,7 @@ Uptime: {time.strftime('%H:%M:%S')}""")
                     marker = " << active" if _get_provider_for(uid) == name else ""
                     lines.append(f"  <b>{name}</b>{marker}: {PROVIDERS[name]['url']}")
             lines.append("")
-            lines.append("Switch: /provider 9router | /provider vansrouter | /provider bitrouter")
+            lines.append("Switch: /provider 9router | /provider vansrouter | /provider bitrouter | /provider androidllm")
             await send(chat, "\n".join(lines))
         elif a.startswith("test "):
             tname = a.split(maxsplit=1)[1]
@@ -666,6 +720,32 @@ Uptime: {time.strftime('%H:%M:%S')}""")
             marker = " << active" if _get_provider_for(uid) == name else ""
             lines.append(f"  <b>{name}</b>{marker}: {p['model']}")
         await send(chat, "<b>Providers:</b>\n" + "\n".join(lines))
+
+    elif cmd == "/model":
+        a = args.strip()
+        if not a:
+            lines = ["<b>Local androidllm models (one at a time):</b>", ""]
+            active = androidllm_models.active_model()
+            for m in androidllm_models.RECOMMENDED:
+                sharded = androidllm_models.is_sharded(m["id"])
+                marker = " << serving" if m["id"] == active else ""
+                st = "sharded" if sharded else "not sharded"
+                lines.append(f"  <b>{m['id']}</b>{marker}: {m['disk_gb']} GB ({st}) — {m['note']}")
+            lines.append("")
+            lines.append("Usage: /model &lt;id&gt;  (un-sharded picks auto-download + shard)")
+            await send(chat, "\n".join(lines))
+        elif a in androidllm_models.recommended_ids():
+            m = next(x for x in androidllm_models.RECOMMENDED if x["id"] == a)
+            if androidllm_models.is_sharded(a):
+                _switch_local_model(a)
+                await send(chat, f"Switched local model to <b>{a}</b>. androidllm-serve restarting...")
+            else:
+                await send(chat, f"<b>{a}</b> is not sharded yet — auto-sharding in the background.\n"
+                                 f"Manual alternative:\n<code>bash ~/androidllm/scripts/setup_termux.sh {m['repo']} {a}</code>")
+                asyncio.create_task(_shard_and_switch(chat, m))
+        else:
+            await send(chat, f"Unknown model: <b>{a}</b>. "
+                             f"Available: {', '.join(androidllm_models.recommended_ids())}")
 
     elif cmd in ("/brain", "/brains"):
         bname = args.strip().lower()
