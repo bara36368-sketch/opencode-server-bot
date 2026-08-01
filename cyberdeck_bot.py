@@ -391,6 +391,163 @@ async def _shard_and_switch(chat, model):
     except Exception as e:
         await send(chat, f"Shard error for <b>{model['id']}</b>: {e}")
 
+
+# -- /autopick -------------------------------------------------------------
+# Device-spec scan (androidllm.devicespec) + model picker (androidllm.modelpicker):
+# ranks the catalog for THIS phone's RAM/storage, then /autopick <n> downloads,
+# shards and switches. Falls back to manual specs: /autopick 8gb ram 32gb storage.
+
+_AUTOPICK_STATE = {}  # uid -> (candidates, specs_text)
+
+
+def _autopick_modules():
+    """Import androidllm.devicespec + modelpicker from ANDROIDLLM_DIR."""
+    adir = androidllm_models.androidllm_dir()
+    if adir and adir not in sys.path:
+        sys.path.insert(0, adir)
+    import androidllm.devicespec as ds
+    import androidllm.modelpicker as mp
+    return ds, mp
+
+
+def _autopick_candidates(specs=None):
+    """Ranked catalog candidates for this device -> (list, specs_text) or (None, err)."""
+    try:
+        ds, mp = _autopick_modules()
+    except Exception as e:
+        return None, f"androidllm not importable ({e}). Installed in Termux? See /model."
+    try:
+        specs = specs if specs is not None else ds.device_specs()
+        ranked = mp.pick(specs)
+    except Exception as e:
+        return None, f"pick failed: {e}"
+    out = []
+    for m, s, b in ranked:
+        cand = {
+            "id": m["id"],
+            "repo": m["repo"],
+            "disk_gb": m.get("shard_gb", m.get("dl_gb", 1.0)),
+            "dl_gb": m.get("dl_gb"),
+            "note": m.get("note", ""),
+            "score": s,
+            "breakdown": b,
+        }
+        rec = next((x for x in androidllm_models.RECOMMENDED if x["id"] == m["id"]), None)
+        if rec is not None:
+            cand = {**cand, "repo": rec["repo"], "disk_gb": rec["disk_gb"],
+                    "note": rec["note"]}
+        out.append(cand)
+    return out, ds.describe(specs)
+
+
+def _autopick_lines(cands, specs_text, title="Autopick"):
+    lines = [f"<b>{title}</b> — device: {specs_text}", "",
+             "Ranked by stability x speed x smarts. Reply:", ""]
+    for i, c in enumerate(cands, 1):
+        b = c.get("breakdown", {})
+        tps = b.get("est_tps", 0) or 0
+        dl = c.get("dl_gb", 0) or c.get("disk_gb", 0) or 0
+        lines.append(f"<b>{i}. {c['id']}</b> — score {c['score']:.2f} · {c['note']}"
+                     f"\n   ~{tps:.1f} tok/s · dl {dl:.1f} GB · "
+                     f"speed {b.get('speed', 0):.2f} smart {b.get('smart', 0):.2f} "
+                     f"stable {b.get('stable', 0):.2f}")
+    lines += ["", "Install: <code>/autopick &lt;n&gt;</code>  (auto download + shard + switch)"]
+    return lines
+
+
+async def _autopick_install(chat, uid, cand):
+    if androidllm_models.is_sharded(cand["id"]):
+        _switch_local_model(cand["id"])
+        await send(chat, f"Switched local model to <b>{cand['id']}</b>. "
+                         f"androidllm-serve restarting...")
+    else:
+        await send(chat, f"<b>{cand['id']}</b> ({cand['repo']}) is not sharded yet — "
+                         f"downloading + sharding in the background "
+                         f"(~{cand['disk_gb']} GB). I'll notify when done.")
+        asyncio.create_task(_shard_and_switch(chat, cand))
+
+
+async def handle_autopick(chat, uid, args):
+    a = args.strip()
+    if not a:
+        cands, info = _autopick_candidates()
+        if cands is None:
+            await send(chat, f"<b>Autopick unavailable:</b> {info}")
+            return
+        if not cands:
+            await send(chat, f"<b>Autopick:</b> {info} — no catalog model fits.\n"
+                             f"Usage: <code>/autopick &lt;specs&gt;</code> e.g. "
+                             f"<code>/autopick 8gb ram 32gb storage</code>")
+            return
+        _AUTOPICK_STATE[str(uid)] = (cands, info)
+        await send(chat, "\n".join(_autopick_lines(cands, info)))
+        return
+
+    if a.isdigit():
+        n = int(a)
+        cands, info = _AUTOPICK_STATE.get(str(uid), (None, None))
+        if not cands:
+            cands, info = _autopick_candidates()
+            _AUTOPICK_STATE[str(uid)] = (cands, info) if cands else (None, None)
+        if not cands:
+            await send(chat, "Run <code>/autopick</code> first to see the ranked list.")
+            return
+        if n < 1 or n > len(cands):
+            await send(chat, f"Pick 1..{len(cands)} from the last ranked list.")
+            return
+        await _autopick_install(chat, uid, cands[n - 1])
+        return
+
+    if a.lower().startswith("search "):
+        q = a.split(maxsplit=1)[1]
+        try:
+            ds, mp = _autopick_modules()
+        except Exception as e:
+            await send(chat, f"<b>Autopick search unavailable:</b> {e}")
+            return
+        await send(chat, f"Searching Hugging Face for <b>{q}</b>...")
+        try:
+            res = mp.search_hf(q, specs=ds.device_specs())
+        except Exception as e:
+            await send(chat, f"Search failed: {e}")
+            return
+        if "error" in res:
+            await send(chat, f"Search failed: {res['error']}")
+            return
+        results = res.get("results", [])
+        if not results:
+            await send(chat, f"No fitting llama-family instruct models found for <b>{q}</b> "
+                             f"on {ds.describe(res.get('specs'))}.")
+            return
+        cands = [{
+            "id": r["id"], "repo": r["repo"],
+            "disk_gb": r.get("shard_gb", 1.0), "dl_gb": r.get("dl_gb"),
+            "note": r["repo"], "score": r.get("score", 0),
+            "breakdown": r.get("breakdown", {}),
+        } for r in results]
+        _AUTOPICK_STATE[str(uid)] = (cands, ds.describe(res.get("specs")))
+        await send(chat, "\n".join(
+            _autopick_lines(cands, ds.describe(res.get("specs")), title="Autopick search")))
+        return
+
+    # anything else: treat as manual device specs
+    try:
+        ds, mp = _autopick_modules()
+        specs = ds.specs_from_text(a)
+        cands, info = _autopick_candidates(specs)
+    except Exception as e:
+        await send(chat, f"<b>Autopick:</b> could not parse '{a}': {e}")
+        return
+    if cands is None:
+        await send(chat, f"<b>Autopick unavailable:</b> {info}")
+        return
+    if not cands:
+        await send(chat, f"<b>Autopick:</b> {info} — no model fits.")
+        return
+    _AUTOPICK_STATE[str(uid)] = (cands, info)
+    await send(chat, "\n".join(_autopick_lines(cands, info)))
+
+
 async def call_ai(messages, provider_name=None, local_fallback=False):
     pname = provider_name or _get_provider_for()
     p = PROVIDERS.get(pname)
@@ -1063,6 +1220,7 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /provider test &lt;name&gt; — Ping a provider
 /providers — List providers
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
+/autopick [n|specs|search &lt;q&gt;] — Auto-pick best model for this device's RAM/storage
 /status — Local model stats: context bar, battery, speed, prefix reuse
 /export [name] — Save chat session to offline JSON
 /import &lt;name&gt; — Restore an exported session (/import lists files)
@@ -1210,6 +1368,9 @@ Uptime: {time.strftime('%H:%M:%S')}""")
         else:
             await send(chat, f"Unknown model: <b>{a}</b>. "
                              f"Available: {', '.join(androidllm_models.recommended_ids())}")
+
+    elif cmd == "/autopick":
+        await handle_autopick(chat, uid, args)
 
     elif cmd == "/offline":
         a = args.strip().lower()
