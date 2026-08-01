@@ -33,6 +33,7 @@ _last_update = 0
 OFFSET_FILE = os.path.join(DIR, ".cyberdeck.offset")
 _sessions = {}
 _processed = set()
+_active_tasks = {}
 
 def log(msg, section="bot"):
     ts = time.strftime("%H:%M:%S")
@@ -985,6 +986,14 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /model — Switch local androidllm model (qwen15, smollm2, qwen3)
 /offline on|off — Airgap mode: all AI runs on the local androidllm model ($0.00, no internet)
 /qa on|off — Offline Q&A mode: answers from local KB + parts DB with cited sources
+/sysinfo — Deck system info (CPU, RAM, temp, disk, battery)
+/top — Top processes by CPU
+/wifi — Current WiFi network info
+/stop — Interrupt the current AI reply
+/survival &lt;topic&gt; — Offline survival guides (water, fire, shelter, first-aid, navigation, signal, weather)
+/morse [decode] &lt;text&gt; — Morse code encode/decode (offline)
+/convert &lt;value&gt; &lt;from&gt; to &lt;to&gt; — Unit converter (length, weight, data, speed, power, energy, temp, time)
+/solarcalc &lt;panelW&gt; [batteryWh] [deckW] [sunH] — Offline solar sizing calculator
 /brain — Switch AI brain (obsidian memory brain, writer, coder...)
 /brains — List brains
 /coder on|off — Unified coding AI mode (all providers, auto-fallback)
@@ -1487,6 +1496,35 @@ Total: {len(sbcs)+len(displays)+len(kbs)+len(power)+len(cool)}""")
     elif cmd == "/newhardware":
         await handle_newhardware(chat, uid, args)
 
+    elif cmd == "/sysinfo":
+        await handle_sysinfo(chat, uid, args)
+
+    elif cmd == "/top":
+        await handle_top(chat, uid, args)
+
+    elif cmd == "/wifi":
+        await handle_wifi(chat, uid, args)
+
+    elif cmd == "/stop":
+        t = _active_tasks.get(str(chat))
+        if t and not t.done():
+            t.cancel()
+            await send(chat, "Stopped.")
+        else:
+            await send(chat, "Nothing running to stop.")
+
+    elif cmd == "/survival":
+        await handle_survival(chat, uid, args)
+
+    elif cmd == "/morse":
+        await handle_morse(chat, uid, args)
+
+    elif cmd == "/convert":
+        await handle_convert(chat, uid, args)
+
+    elif cmd == "/solarcalc":
+        await handle_solarcalc(chat, uid, args)
+
     elif cmd == "/help":
         await handle_command(chat, uid, "/start", msg)
 
@@ -1779,6 +1817,354 @@ async def handle_search(chat, uid, args):
         await send(chat, reply)
     except Exception as e:
         await send(chat, f"Search error: {e}")
+
+# ============================================================
+# Deck system commands — /sysinfo /top /wifi (deck phone)
+# ============================================================
+def _read_proc(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read().strip()
+    except Exception:
+        return None
+
+
+async def handle_sysinfo(chat, uid, args):
+    await typing(chat)
+    try:
+        lines = ["<b>Deck System Info</b>"]
+        try:
+            import platform
+            lines.append(f"Platform: {platform.system()} {platform.release()}")
+            lines.append(f"Machine: {platform.machine()}")
+        except Exception:
+            pass
+        mem = _read_proc("/proc/meminfo") or ""
+        mem_total = mem_avail = 0
+        for ln in mem.splitlines():
+            if ln.startswith("MemTotal:"):
+                mem_total = int(ln.split()[1]) // 1024
+            elif ln.startswith("MemAvailable:"):
+                mem_avail = int(ln.split()[1]) // 1024
+        if mem_total:
+            lines.append(f"RAM: {mem_total - mem_avail}MB / {mem_total}MB used ({mem_avail}MB free)")
+        load = _read_proc("/proc/loadavg")
+        if load:
+            lines.append("Load: " + " ".join(load.split()[:3]))
+        cpu = _read_proc("/proc/cpuinfo") or ""
+        if cpu:
+            cores = cpu.count("processor")
+            model = ""
+            for ln in cpu.splitlines():
+                if ln.startswith(("Hardware", "model name")):
+                    model = ln.split(":", 1)[1].strip()
+                    break
+            lines.append(f"CPU: {cores} core{'' if cores == 1 else 's'} {model}".rstrip())
+        try:
+            import glob
+            temp = None
+            for zone in glob.glob("/sys/class/thermal/thermal_zone*/temp"):
+                t = _read_proc(zone)
+                if t:
+                    temp = int(t) // 1000
+                    break
+            if temp is not None:
+                lines.append(f"Temp: {temp}C")
+        except Exception:
+            pass
+        try:
+            import os
+            v = os.statvfs("/")
+            lines.append(f"Disk: {v.f_bavail * v.f_frsize / 1e9:.1f}GB / {v.f_blocks * v.f_frsize / 1e9:.1f}GB free")
+        except Exception:
+            pass
+        try:
+            out = subprocess.check_output(["termux-battery-status"], timeout=5,
+                                          stderr=subprocess.DEVNULL)
+            bat = json.loads(out.decode())
+            lines.append(f"Battery: {bat.get('percentage')}% ({bat.get('status')}, {bat.get('temperature', 0) / 10}C)")
+        except Exception:
+            pass
+        await send(chat, "\n".join(lines))
+    except Exception as e:
+        await send(chat, f"System info error: {e}")
+
+
+async def handle_top(chat, uid, args):
+    await typing(chat)
+    try:
+        out = subprocess.check_output(
+            ["ps", "-Ao", "pid,comm,%cpu,%mem", "--sort=-%cpu"],
+            timeout=5, stderr=subprocess.DEVNULL).decode(errors="replace")
+        rows = out.strip().splitlines()
+        if not rows:
+            await send(chat, "No process list available on this platform.")
+            return
+        head = rows[:1]
+        body = rows[1:13]
+        await send(chat, f"<b>Top processes ({len(rows) - 1} total)</b>\n"
+                         f"<code>{chr(10).join(head + body)}</code>\n"
+                         f"<i>PID | COMM | CPU% | MEM%</i>")
+    except Exception as e:
+        await send(chat, f"Process list error: {e}")
+
+
+async def handle_wifi(chat, uid, args):
+    await typing(chat)
+    try:
+        try:
+            out = subprocess.check_output(["termux-wifi-connectioninfo"], timeout=5,
+                                          stderr=subprocess.DEVNULL)
+            d = json.loads(out.decode())
+            ssid = d.get("ssid") or "unknown"
+            lines = [f"<b>WiFi: {ssid}</b>"]
+            if d.get("rssi") is not None:
+                lines.append(f"Signal: {d['rssi']} dBm")
+            if d.get("frequency"):
+                lines.append(f"Freq: {d['frequency']} MHz")
+            if d.get("ip"):
+                lines.append(f"IP: {d['ip']}")
+            await send(chat, "\n".join(lines))
+            return
+        except Exception:
+            pass
+        w = _read_proc("/proc/net/wireless")
+        if w and len(w.splitlines()) > 2:
+            await send(chat, "<b>WiFi interfaces</b>\n<code>" + w + "</code>")
+            return
+        await send(chat, "WiFi info unavailable.\nInstall Termux:API:\n<code>pkg install termux-api</code>")
+    except Exception as e:
+        await send(chat, f"WiFi error: {e}")
+
+
+# ============================================================
+# Offline survival, morse, unit conversion, solar sizing
+# ============================================================
+SURVIVAL_GUIDES = {
+    "water": [
+        "Find water: look for vegetation, animal tracks, valleys and drainage lines.",
+        "Purify: boil 1 min (3 min above 2000m), or chemical tabs, or filter (0.2um).",
+        "Collect: solar still, dew traps, tarp rain catch, or wrap a tree branch with cloth overnight.",
+        "NEVER drink seawater, urine, or stagnant water untreated.",
+        "Target: 2-3L per day; ration by activity, not by thirst.",
+    ],
+    "fire": [
+        "Prep three stages: tinder (dry grass, bark shavings), kindling (pencil-thick), fuel (thumb-thick).",
+        "Shelter the fire from wind; build on dry ground or a rock plate.",
+        "Methods: ferro rod (best), bow drill, battery + steel wool, magnifying glass in sun.",
+        "Signal use: add green leaves for white smoke, keep fire 24h if lost.",
+        "Extinguish fully before moving: water + dirt, until ashes are cold.",
+    ],
+    "shelter": [
+        "Priority: protect from wind, rain, and ground cold (insulation under you first).",
+        "Debris hut: ridgepole + A-frame of branches, 30cm of leaf/dry-debris wall.",
+        "Tarp setup: ridgeline between two trees, stake corners, dig a drainage channel.",
+        "In cold: build small shelters — body heat keeps a small space warm.",
+        "Never camp under dead branches, rock faces, or dry river beds (flash floods).",
+    ],
+    "first-aid": [
+        "Bleeding: direct pressure 10 min, then bandage; elevate; no tourniquet unless arterial.",
+        "Burns: cool with running water 10-20 min; cover with clean dry cloth; no ice directly.",
+        "Fracture: splint the joint above and below the break with rigid material + padding.",
+        "Heat stroke: move to shade, remove clothing, cool with wet cloths, hydrate slowly.",
+        "Hypothermia: get dry, add layers, warm core first (chest/neck/groin), warm sweet drinks.",
+        "Deck kit: bandage, gauze, tape, antiseptic, ibuprofen, antihistamine, blister pads, scissors.",
+    ],
+    "navigation": [
+        "Day: shadow-stick method — mark shadow tip, wait 15 min, second mark = east-west line.",
+        "Night: Southern Cross / Big Dipper pointers for direction; moon crescent trick.",
+        "Landmarks: pick 2-3 ahead, walk to them, never dead-reckon in featureless terrain.",
+        "Altimeter apps or GPS only if charged — carry a paper map + compass backup.",
+        "Route planning: follow ridges down, not valleys (easier walking, better views, safer).",
+    ],
+    "signal": [
+        "Whistle: 3 blasts = distress; mirror flashes sweep the horizon; signal fire 3 fires in triangle.",
+        "Ground signals: giant letters with branches/rocks — V = need assistance, X = need medical.",
+        "By radio: repeat your callsign/position on 3-5 min cycles; use emergency bands 121.5/243.0 MHz.",
+        "At night: flashlight SOS (3 short, 3 long, 3 short) or strobe if available.",
+        "Your deck: SDR can find signals; Meshtastic/LoRa nodes can relay a text SOS.",
+    ],
+    "weather": [
+        "Cirrus 'mare's tails' + falling barometer = rain within 24h.",
+        "Red sky at night, sailor's delight; red sky in morning = weather moving in.",
+        "Froze hard in the morning = cold clear day; fog before noon burns off = fine day.",
+        "Cumulonimbus tower = storms; listen for distant thunder and smell for rain.",
+        "In lightning: avoid high ground, trees, and open water; crouch low, feet together.",
+    ],
+}
+
+
+async def handle_survival(chat, uid, args):
+    topic = args.strip().lower()
+    if not topic:
+        await send(chat, "<b>Survival guides (offline)</b>\nTopics: "
+                         + ", ".join(SURVIVAL_GUIDES.keys())
+                         + "\n\nUsage: /survival &lt;topic&gt;")
+        return
+    guide = SURVIVAL_GUIDES.get(topic)
+    if not guide:
+        await send(chat, f"No guide for '{topic}'. Topics: {', '.join(SURVIVAL_GUIDES.keys())}")
+        return
+    lines = [f"<b>Survival: {topic}</b>"]
+    lines += [f"  {i}. {p}" for i, p in enumerate(guide, 1)]
+    await send(chat, "\n".join(lines))
+
+
+MORSE = {
+    "A": ".-", "B": "-...", "C": "-.-.", "D": "-..", "E": ".", "F": "..-.",
+    "G": "--.", "H": "....", "I": "..", "J": ".---", "K": "-.-", "L": ".-..",
+    "M": "--", "N": "-.", "O": "---", "P": ".--.", "Q": "--.-", "R": ".-.",
+    "S": "...", "T": "-", "U": "..-", "V": "...-", "W": ".--", "X": "-..-",
+    "Y": "-.--", "Z": "--..",
+    "0": "-----", "1": ".----", "2": "..---", "3": "...--", "4": "....-",
+    "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.",
+    ".": ".-.-.-", ",": "--..--", "?": "..--..", "'": ".----.", "!": "-.-.--",
+    "/": "-..-.", "(": "-.--.", ")": "-.--.-", "&": ".-...", ":": "---...",
+    ";": "-.-.-.", "=": "-...-", "+": ".-.-.", "-": "-....-", "_": "..--.-",
+    '"': ".-..-.", "$": "...-..-", "@": ".--.-.",
+}
+MORSE_REV = {v: k for k, v in MORSE.items()}
+
+
+async def handle_morse(chat, uid, args):
+    parts = args.strip().split(maxsplit=1)
+    if not parts:
+        await send(chat, "Usage: /morse &lt;text&gt;  |  /morse decode &lt;dashes-dots&gt;")
+        return
+    mode = "encode"
+    payload = args.strip()
+    if parts[0].lower() in ("decode", "d"):
+        mode = "decode"
+        payload = parts[1] if len(parts) > 1 else ""
+    if not payload:
+        await send(chat, "Empty input.")
+        return
+    if mode == "encode":
+        out = []
+        for ch in payload.upper():
+            if ch == " ":
+                out.append("/")
+            elif ch in MORSE:
+                out.append(MORSE[ch])
+            else:
+                out.append("?")
+        await send(chat, "<code>" + " ".join(out)[:3500] + "</code>")
+    else:
+        words = payload.split("/")
+        out = []
+        for w in words:
+            out.append("".join(MORSE_REV.get(t.strip(), "?") for t in w.split()))
+        await send(chat, "<code>" + " ".join(out)[:3500] + "</code>")
+
+
+_UNIT_FACTORS = {
+    "length": {"mm": 0.001, "cm": 0.01, "m": 1.0, "km": 1000.0, "in": 0.0254,
+               "ft": 0.3048, "mi": 1609.344, "inch": 0.0254, "feet": 0.3048},
+    "weight": {"g": 0.001, "kg": 1.0, "lb": 0.453592, "oz": 0.0283495},
+    "data": {"kb": 1e3, "mb": 1e6, "gb": 1e9, "tb": 1e12, "kib": 1024.0, "mib": 1048576.0,
+             "gib": 1073741824.0},
+    "speed": {"kmh": 1.0, "mph": 1.609344, "mps": 3.6, "knot": 1.852, "kn": 1.852},
+    "power": {"w": 1.0, "kw": 1000.0, "hp": 745.7},
+    "energy": {"wh": 1.0, "kwh": 1000.0, "j": 1 / 3600.0, "kj": 1000 / 3600.0},
+    "time": {"sec": 1.0, "secs": 1.0, "s": 1.0, "min": 60.0, "minute": 60.0, "hr": 3600.0,
+             "hour": 3600.0, "day": 86400.0},
+}
+
+
+def _find_unit(u):
+    u = u.lower().strip()
+    for cat, factors in _UNIT_FACTORS.items():
+        if u in factors:
+            return cat, factors[u]
+    return None, None
+
+
+async def handle_convert(chat, uid, args):
+    if not args:
+        await send(chat, ("Usage: /convert &lt;value&gt; &lt;from&gt; to &lt;to&gt;\n"
+                          "Examples:\n"
+                          "  /convert 100 kmh to mph\n"
+                          "  /convert 12 in to cm\n"
+                          "  /convert 98.6 f to c\n"
+                          "  /convert 64 gb to mb\n"
+                          "  /convert 5 kg to lb\n"
+                          "  /convert 2 hr to min\n"
+                          "  /convert 800 mah to ah\n"))
+        return
+    parts = [p for p in re.split(r"\s+", args.strip()) if p]
+    toks = [p for p in parts if p.lower() not in ("to", "in", "into", "->")]
+    if len(toks) < 3:
+        await send(chat, "Format: /convert &lt;value&gt; &lt;from&gt; [to] &lt;to&gt;")
+        return
+    try:
+        value = float(toks[0])
+    except ValueError:
+        await send(chat, f"'{toks[0]}' is not a number.")
+        return
+    frm, to = toks[1].lower(), toks[2].lower()
+    if frm in ("c", "f", "k") and to in ("c", "f", "k"):
+        if frm == "c" and to == "f":
+            await send(chat, f"{value} C = <b>{value * 9 / 5 + 32:.2f} F</b>")
+        elif frm == "c" and to == "k":
+            await send(chat, f"{value} C = <b>{value + 273.15:.2f} K</b>")
+        elif frm == "f" and to == "c":
+            await send(chat, f"{value} F = <b>{(value - 32) * 5 / 9:.2f} C</b>")
+        elif frm == "f" and to == "k":
+            await send(chat, f"{value} F = <b>{(value - 32) * 5 / 9 + 273.15:.2f} K</b>")
+        elif frm == "k" and to == "c":
+            await send(chat, f"{value} K = <b>{value - 273.15:.2f} C</b>")
+        elif frm == "k" and to == "f":
+            await send(chat, f"{value} K = <b>{(value - 273.15) * 5 / 9 + 32:.2f} F</b>")
+        else:
+            await send(chat, f"{value} {frm} = {value} {to}")
+        return
+    if frm == "mah" and to == "ah":
+        await send(chat, f"{value} mAh = <b>{value / 1000:.3f} Ah</b>")
+        return
+    if frm == "ah" and to == "mah":
+        await send(chat, f"{value} Ah = <b>{value * 1000:.0f} mAh</b>")
+        return
+    cat_f, f_factor = _find_unit(frm)
+    cat_t, t_factor = _find_unit(to)
+    if not f_factor or not t_factor:
+        await send(chat, f"Unknown unit pair '{frm}' -> '{to}'.")
+        return
+    if cat_f != cat_t:
+        await send(chat, f"Cannot convert {cat_f} to {cat_t}.")
+        return
+    await send(chat, f"{value} {frm} = <b>{value * f_factor / t_factor:g} {to}</b>")
+
+
+async def handle_solarcalc(chat, uid, args):
+    nums = re.findall(r"\d+(?:\.\d+)?", args or "")
+    if args.strip().lower().startswith("plan"):
+        wh_needed = float(nums[0]) if nums else 60.0
+        sun = float(nums[1]) if len(nums) > 1 else 4.0
+        panel = wh_needed / (sun * 0.75)
+        await send(chat, f"<b>Solar plan</b> ({wh_needed:.0f}Wh/day, {sun}h sun)\n"
+                         f"Panel needed: <b>{panel:.0f}W</b> (75% system efficiency)\n"
+                         f"Cheap options: {max(20, panel / 2):.0f}W (2 panels) or {max(20, panel):.0f}W single panel\n"
+                         f"Battery for 3 days autonomy: <b>{wh_needed * 3:.0f}Wh</b>")
+        return
+    panel = float(nums[0]) if len(nums) > 0 else 25.0
+    battery = float(nums[1]) if len(nums) > 1 else 100.0
+    deck = float(nums[2]) if len(nums) > 2 else 8.0
+    sun = float(nums[3]) if len(nums) > 3 else 4.0
+    runtime = battery * 0.85 / deck
+    daily_out = panel * sun * 0.75
+    charge_h = battery / (panel * 0.8)
+    solar_run = daily_out / deck
+    lines = [f"<b>Solar sizing</b>  panel {panel:.0f}W | battery {battery:.0f}Wh | deck {deck:.0f}W",
+             f"Runtime on battery alone: <b>{runtime:.1f}h</b> ({battery * 0.85:.0f}Wh usable @85%)",
+             f"Charge time from panel: <b>{charge_h:.1f}h</b> sun ({panel * 0.8:.0f}W effective)",
+             f"Daily harvest: <b>{daily_out:.0f}Wh</b> at {sun}h sun -> <b>{solar_run:.1f}h</b> deck time",
+             "",
+             f"Battery for 24h of deck: <b>{deck * 24 / 0.85:.0f}Wh</b>",
+             f"Panel for 24h/day at {sun}h sun: <b>{deck * 24 / (sun * 0.75):.0f}W</b>",
+             "",
+             "Defaults: 25W panel, 100Wh battery, 8W deck (7\" + SBC), 4h sun. "
+             "Usage: /solarcalc &lt;panelW&gt; [batteryWh] [deckW] [sunH] | /solarcalc plan &lt;Wh/day&gt;"]
+    await send(chat, "\n".join(lines))
 
 async def handle_3d(chat, uid, args):
     if not args:
@@ -4278,6 +4664,58 @@ async def poll():
                 await asyncio.sleep(2 ** attempt)
     return []
 
+async def _handle_chat(chat, uid, text, msg):
+    """AI reply path for plain messages, wrapped so /stop can cancel it.
+    Quoted-reply context is injected into the user message."""
+    try:
+        quoted = ""
+        rtm = msg.get("reply_to_message") if msg else None
+        if rtm and rtm.get("text"):
+            quoted = f'\n[Context: replying to "{rtm["text"][:500]}"]'
+            content = text + quoted
+            if _sessions.get(str(chat)):
+                _sessions[str(chat)][-1] = {"role": "user", "content": content}
+
+        coder = _coder_mode.get(str(uid))
+        want_local = _offline_mode or (
+            not coder and "androidllm" in PROVIDERS
+            and _local_available() and _route_local(text))
+        if want_local:
+            reply, ok = await _local_try(_sessions[str(chat)][-10:])
+            if ok:
+                _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                bname = _user_brain.get(str(uid), "default")
+                if BRAINS.get(bname, {}).get("learn"):
+                    _obsidian_learn(text, reply)
+                await send(chat, reply)
+                return
+            if _offline_mode:
+                _sessions[str(chat)].append({"role": "assistant", "content": reply})
+                await send(chat, reply)
+                return
+
+        if coder:
+            reply, _cp, _cu = await call_coding(_sessions[str(chat)][-10:])
+        else:
+            reply = await call_ai(_sessions[str(chat)][-10:], local_fallback=True)
+        _sessions[str(chat)].append({"role": "assistant", "content": reply})
+        bname = _user_brain.get(str(uid), "default")
+        if BRAINS.get(bname, {}).get("learn"):
+            _obsidian_learn(text, reply)
+        await send(chat, reply)
+    except asyncio.CancelledError:
+        try:
+            await send(chat, "Stopped.")
+        except Exception:
+            pass
+        raise
+    except Exception as e:
+        try:
+            await send(chat, f"Error: {e}")
+        except Exception:
+            pass
+
+
 async def main():
     global _current_uid
     log(f"Starting {BOT_NAME} v{BOT_VERSION}...")
@@ -4358,33 +4796,10 @@ async def main():
                 _sessions[str(chat)].append({"role": "user", "content": text})
                 await typing(chat)
 
-                coder = _coder_mode.get(str(uid))
-                want_local = _offline_mode or (
-                    not coder and "androidllm" in PROVIDERS
-                    and _local_available() and _route_local(text))
-                if want_local:
-                    reply, ok = await _local_try(_sessions[str(chat)][-10:])
-                    if ok:
-                        _sessions[str(chat)].append({"role": "assistant", "content": reply})
-                        bname = _user_brain.get(str(uid), "default")
-                        if BRAINS.get(bname, {}).get("learn"):
-                            _obsidian_learn(text, reply)
-                        await send(chat, reply)
-                        continue
-                    if _offline_mode:
-                        _sessions[str(chat)].append({"role": "assistant", "content": reply})
-                        await send(chat, reply)
-                        continue
-
-                if coder:
-                    reply, _cp, _cu = await call_coding(_sessions[str(chat)][-10:])
-                else:
-                    reply = await call_ai(_sessions[str(chat)][-10:], local_fallback=True)
-                _sessions[str(chat)].append({"role": "assistant", "content": reply})
-                bname = _user_brain.get(str(uid), "default")
-                if BRAINS.get(bname, {}).get("learn"):
-                    _obsidian_learn(text, reply)
-                await send(chat, reply)
+                t = asyncio.create_task(_handle_chat(chat, uid, text, msg))
+                _active_tasks[str(chat)] = t
+                t.add_done_callback(
+                    lambda _t, c=chat: _active_tasks.pop(str(c), None))
 
             if not updates:
                 await asyncio.sleep(1)
