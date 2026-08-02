@@ -305,7 +305,16 @@ def load_providers():
 
     androidllm_url = env.get("ANDROIDLLM_URL", "http://127.0.0.1:8080/v1/chat/completions")
     androidllm_model = env.get("ANDROIDLLM_MODEL", "auto")
-    androidllm_key = env.get("ANDROIDLLM_KEY", "skip-auth")
+    androidllm_key = env.get("ANDROIDLLM_KEY", "")
+    if not androidllm_key:
+        try:
+            with open(os.path.join(os.path.expanduser("~/androidllm"), "api_key"),
+                      encoding="utf-8") as f:
+                androidllm_key = f.read().strip()
+        except OSError:
+            pass
+    if not androidllm_key:
+        androidllm_key = "skip-auth"
     PROVIDERS["androidllm"] = {"url": androidllm_url, "model": androidllm_model, "key": androidllm_key}
 
     PROVIDERS.setdefault("9router", {"url": "http://localhost:20128/v1/chat/completions", "model": "auto", "key": "skip-auth"})
@@ -1380,6 +1389,10 @@ Uptime: {time.strftime('%H:%M:%S')}""")
         a = args.strip()
         if not a:
             lines = ["<b>Local androidllm models (one at a time):</b>", ""]
+            api_key = PROVIDERS.get("androidllm", {}).get("key")
+            if api_key and api_key != "skip-auth":
+                lines.append(f"API key: <code>{api_key}</code>")
+                lines.append("")
             active = androidllm_models.active_model()
             for m in androidllm_models.RECOMMENDED:
                 sharded = androidllm_models.is_sharded(m["id"])
