@@ -2401,3 +2401,8 @@ gateway: groq in 0.9s
 Reply: It seems like you've combined "test" with the numbers "123" again. I'll continue...
 SEND to chat=8585609360: It seems like you've combined "test" with the numbers "123" again. I'll continue...
 SEND result: ok=True error=none
+Bot started
+AI Stack memory initialized
+startup: version changed 3.7.141 -> 3.7.145
+announce_update: skipping v3.7.145 (already announced per state)
+Bot v3.7.145 started
