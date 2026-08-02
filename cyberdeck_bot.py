@@ -266,6 +266,8 @@ def load_providers():
     groq_key = env.get("GROQ_KEY", "")
     if groq_key and groq_key != "set-via-env-var":
         PROVIDERS["groq"] = {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "llama-3.3-70b-versatile", "key": groq_key}
+    if groq_key and groq_key != "set-via-env-var":
+        PROVIDERS["groq-qwen"] = {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "qwen/qwen3.6-27b", "key": groq_key}
     gemini_key = env.get("GEMINI_KEY", "")
     if gemini_key and gemini_key != "set-via-env-var":
         PROVIDERS["gemini"] = {"url": f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}", "model": "gemini-2.0-flash", "key": gemini_key}
@@ -958,8 +960,9 @@ production-ready code. Rules:
 # Ranked smartest-first across all providers in the bot. Local androidllm is
 # always last (offline/private fallback). Override with CODER_CHAIN env var.
 _CODER_PRIORITY = [
-    "kimi",        # moonshotai/kimi-k3 via OpenRouter — FREE, top coder
-    "nvidia",      # llama-3.3-nemotron-super-49b — strong free coder
+    "groq-qwen",   # qwen/qwen3.6-27b on Groq — free, fast, streams clean, strong coder
+    "kimi",        # moonshotai/kimi-k3 via OpenRouter — top coder (needs OpenRouter credits)
+    "nvidia",      # llama-3.3-nemotron-super-49b — strong free coder (slower)
     "blackbox",    # deepseek-v4-flash — strong + free
     "deepseek",    # deepseek-chat — strong
     "cerebras",    # fast Llama/Qwen

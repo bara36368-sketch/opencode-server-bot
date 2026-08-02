@@ -1808,6 +1808,11 @@ PROVIDERS = {
         "model": "llama-3.3-70b-versatile",
         "key": os.environ.get("GROQ_KEY", "set-via-env-var"),
     },
+    "groq-qwen": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "model": "qwen/qwen3.6-27b",
+        "key": os.environ.get("GROQ_KEY", "set-via-env-var"),
+    },
     "gemini": {
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
         "model": "gemini-2.0-flash",
