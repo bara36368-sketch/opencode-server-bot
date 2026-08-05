@@ -11,6 +11,10 @@ CRASH_LOG = os.path.join(DIR, "crash.log")
 NOTIFY_COOLDOWN = 300
 CRASH_HISTORY = os.path.join(DIR, "crash_history.json")
 
+# obsidian-memory companion repo (sibling of this bot repo). Supervised as
+# the "memory" process and kept in sync via git_update/git_push_fix.
+MEMORY_REPO = os.environ.get("MEMORY_REPO", os.path.join(os.path.dirname(DIR), "obsidian-memory"))
+
 logging.basicConfig(
     filename=LOG_FILE, level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
@@ -135,72 +139,90 @@ def file_hashes():
             pass
     return h
 
-def git_update():
+def _git_update_dir(d, label, allow_reset=True):
     try:
-        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode != 0:
-            log(f"not a git repo: {r.stderr.strip()}", "git")
+            log(f"[{label}] not a git repo: {r.stderr.strip()}", "git")
             return False
         old_head = r.stdout.strip()
-        log("trying git pull...", "git")
-        r = subprocess.run(["git", "pull", "--ff-only", "--depth=1"], cwd=DIR, capture_output=True, text=True, timeout=30, encoding="utf-8")
+        log(f"[{label}] trying git pull...", "git")
+        r = subprocess.run(["git", "pull", "--ff-only", "--depth=1"], cwd=d, capture_output=True, text=True, timeout=30, encoding="utf-8")
         if r.returncode == 0 and "Already up to date" not in r.stdout:
-            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
             new_head = r2.stdout.strip()
-            log(f"pull success ({new_head})", "git")
+            log(f"[{label}] pull success ({new_head})", "git")
             return True
-        log("pull: no updates or failed, trying fetch+reset...", "git")
-        subprocess.run(["git", "stash", "--include-untracked"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        r = subprocess.run(["git", "fetch", "--depth=1", "origin"], cwd=DIR, capture_output=True, text=True, timeout=20, encoding="utf-8")
-        if r.returncode != 0:
-            log(f"fetch failed: {r.stderr.strip()}", "git")
+        log(f"[{label}] pull: no updates or failed, trying fetch+reset...", "git")
+        if not allow_reset:
+            log(f"[{label}] reset disabled for this repo, keeping local state", "git")
             return False
-        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        subprocess.run(["git", "stash", "--include-untracked"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        r = subprocess.run(["git", "fetch", "--depth=1", "origin"], cwd=d, capture_output=True, text=True, timeout=20, encoding="utf-8")
+        if r.returncode != 0:
+            log(f"[{label}] fetch failed: {r.stderr.strip()}", "git")
+            return False
+        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode != 0:
             default_branch = "origin/master"
         else:
             ref = r.stdout.strip()
             default_branch = ref.replace("refs/remotes/", "")
-        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         new_commits = [l for l in r.stdout.strip().split("\n") if l.strip()]
         if not new_commits:
             return False
-        log("update detected", "git")
+        log(f"[{label}] update detected", "git")
         for c in new_commits:
             log(f"  {c}", "git")
-        log("resetting...", "git")
-        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        log(f"[{label}] resetting...", "git")
+        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=d, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         new_head = r2.stdout.strip()
         if new_head == old_head[:len(new_head)]:
             return False
-        log(f"success ({new_head}) is pulled!", "git")
+        log(f"[{label}] success ({new_head}) is pulled!", "git")
         return True
     except Exception as e:
-        log(f"update failed: {e}", "git")
+        log(f"[{label}] update failed: {e}", "git")
     return False
 
-def git_push_fix(message="auto-fix: runner patch"):
+def git_update():
+    return _git_update_dir(DIR, "bot")
+
+def git_update_memory():
+    if not os.path.isdir(os.path.join(MEMORY_REPO, ".git")):
+        return False
+    return _git_update_dir(MEMORY_REPO, "memory", allow_reset=False)
+
+def _git_push_fix_dir(d, label, message="auto-fix: runner patch"):
     try:
-        r = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        r = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode != 0:
             return False
-        subprocess.run(["git", "add", "-A"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        r = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=DIR, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=d, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         if r.returncode == 0:
-            log("nothing to push", "git")
+            log(f"[{label}] nothing to push", "git")
             return False
-        subprocess.run(["git", "commit", "-m", message, "--no-verify"], cwd=DIR, capture_output=True, text=True, timeout=15, encoding="utf-8")
-        r = subprocess.run(["git", "push", "--force-with-lease"], cwd=DIR, capture_output=True, text=True, timeout=60, encoding="utf-8")
+        subprocess.run(["git", "commit", "-m", message, "--no-verify"], cwd=d, capture_output=True, text=True, timeout=15, encoding="utf-8")
+        r = subprocess.run(["git", "push", "--force-with-lease"], cwd=d, capture_output=True, text=True, timeout=60, encoding="utf-8")
         if r.returncode == 0:
-            log("auto-push successful", "git")
+            log(f"[{label}] auto-push successful", "git")
             return True
         else:
-            log(f"push failed: {r.stderr.strip()}", "git")
+            log(f"[{label}] push failed: {r.stderr.strip()}", "git")
             return False
     except Exception as e:
-        log(f"git push error: {e}", "git")
+        log(f"[{label}] git push error: {e}", "git")
         return False
+
+def git_push_fix(message="auto-fix: runner patch"):
+    ok = _git_push_fix_dir(DIR, "bot", message)
+    mem_ok = False
+    if os.path.isdir(os.path.join(MEMORY_REPO, ".git")):
+        mem_ok = _git_push_fix_dir(MEMORY_REPO, "memory", message)
+    return ok or mem_ok
 
 def load_crash_history():
     try:
@@ -453,6 +475,11 @@ PROCESSES = {
     "web": ["python", "web_gateway.py"],
     "cyberdeck": ["python", "cyberdeck_bot.py"],
 }
+if os.path.isfile(os.path.join(MEMORY_REPO, "om.py")):
+    PROCESSES["memory"] = [sys.executable, os.path.join(MEMORY_REPO, "om.py"), "watch"]
+    log(f"memory daemon supervision enabled ({MEMORY_REPO})", "proc")
+else:
+    log(f"memory daemon supervision disabled (om.py not found at {MEMORY_REPO})", "proc")
 CHECK_INTERVAL = 15
 HEALTH_URL = "http://127.0.0.1:4357/api/providers"
 MAX_RESTARTS = 5
@@ -547,7 +574,8 @@ if __name__ == "__main__":
                 stderr_file = os.path.join(DIR, f"{name}.stderr")
                 stderr_fh = open(stderr_file, "w", encoding="utf-8")
                 proc_env = _androidllm_env() if name == "androidllm" else bot_env
-                proc = subprocess.Popen(cmd, cwd=DIR, env=proc_env, stderr=stderr_fh)
+                proc_cwd = MEMORY_REPO if name == "memory" else DIR
+                proc = subprocess.Popen(cmd, cwd=proc_cwd, env=proc_env, stderr=stderr_fh)
                 procs[name] = proc
                 threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
                 if name == "web":
@@ -571,6 +599,7 @@ if __name__ == "__main__":
         last_hashes = current
 
         git_changed = git_update()
+        memory_git_changed = git_update_memory()
 
         web_dead = "web" in procs and procs["web"].poll() is not None and not health_check()
 
@@ -585,6 +614,9 @@ if __name__ == "__main__":
             log(f"git update, restarting all processes...", "proc")
             kill_all()
             last_hashes = file_hashes()
+        elif memory_git_changed:
+            log(f"memory repo updated, restarting memory daemon...", "proc")
+            kill_one("memory")
         elif changed_files:
             code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
             cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
