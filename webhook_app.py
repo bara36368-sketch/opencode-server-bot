@@ -12,7 +12,7 @@ SESSIONS_FILE = os.path.join(BASE_DIR, "sessions.json")
 
 PROVIDERS = {
     "groq": {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "llama-3.3-70b-versatile", "key": os.environ.get("GROQ_KEY", "set-via-env-var")},
-    "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "model": "gemini-2.0-flash", "key": os.environ.get("GEMINI_KEY", "set-via-env-var")},
+    "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "model": "gemini-3.5-flash", "key": os.environ.get("GEMINI_KEY", "set-via-env-var")},
     "openrouter": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "gryphe/mythomax-l2-13b", "key": os.environ.get("OPENROUTER_KEY", "")},
     "deepseek": {"url": "https://api.deepseek.com/v1/chat/completions", "model": "deepseek-chat", "key": os.environ.get("DEEPSEEK_KEY", "")},
     "mistral": {"url": "https://api.mistral.ai/v1/chat/completions", "model": "mistral-small-latest", "key": os.environ.get("MISTRAL_KEY", "")},

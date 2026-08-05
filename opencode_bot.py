@@ -1814,8 +1814,8 @@ PROVIDERS = {
         "key": os.environ.get("GROQ_KEY", "set-via-env-var"),
     },
     "gemini": {
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        "model": "gemini-2.0-flash",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+        "model": "gemini-3.5-flash",
         "key": os.environ.get("GEMINI_KEY", "set-via-env-var"),
     },
     "openrouter": {
@@ -2387,6 +2387,98 @@ load_multi()
 load_custom_commands()
 load_context_files()
 load_conversation_tags()
+_opencode_swarm = None
+
+def _get_opencode_swarm():
+    global _opencode_swarm
+    if _opencode_swarm is not None:
+        return _opencode_swarm
+    chain = [name for name, p in PROVIDERS.items() if p.get("key") and p["key"] != "set-via-env-var"]
+    if not chain:
+        return None
+    from swarm import Swarm
+    _opencode_swarm = Swarm(call_provider, chain)
+    return _opencode_swarm
+
+_MCP_SERVERS = {
+    "free-llm": ("free-llm-mcp", "Ranked free-tier LLM chain (chat, coding_chain)"),
+    "telegram": ("telegram-mcp", "Telegram sender (send_message, get_me, send_chat_action)"),
+    "cyberdeck": ("cyberdeck-mcp", "Parametric OpenSCAD enclosure generator (generate_openscad, ...)"),
+}
+
+async def _handle_mcp(chat, parts, send_fn):
+    parts = parts or []
+    verb = parts[0].lower() if parts else ""
+    if not verb or (verb in ("help", "list") and len(parts) < 2):
+        lines = ["🧩 <b>MCP Servers</b> — zero-dependency stdio JSON-RPC",
+                 "Add to Claude/opencode config as a command/stdio server:",
+                 "`python mcp_servers.py free-llm|telegram|cyberdeck`", ""]
+        for name, (_m, desc) in _MCP_SERVERS.items():
+            lines.append(f"  • <code>{name}</code> — {desc}")
+        lines += ["", "Commands:",
+                  "/mcp list <server> — tools of one server",
+                  "/mcp run <server> <tool> <json> — execute a tool",
+                  "/mcp test <server> — quick self-test"]
+        return await send_fn(chat, "\n".join(lines))
+    try:
+        import mcp_servers as _ms
+    except Exception as e:
+        return await send_fn(chat, f"MCP module unavailable: {e}")
+    if verb in ("run", "test"):
+        if len(parts) < 2:
+            return await send_fn(chat, "Usage: /mcp run|test <server> ...")
+        sname = parts[1].lower()
+        if sname not in _MCP_SERVERS:
+            return await send_fn(chat, f"Unknown server. Choose from: {', '.join(_MCP_SERVERS)}")
+        try:
+            srv = _ms.BUILDERS[sname]()
+        except Exception as e:
+            return await send_fn(chat, f"Failed to build {sname} server: {e}")
+        if verb == "test":
+            prompt = " ".join(parts[2:]) or "explain MCP in 3 lines"
+            out = [f"<b>MCP self-test —</b> {_MCP_SERVERS[sname][0]}"]
+            if "chat" in srv.tools:
+                try:
+                    out.append("chat → " + srv.tools["chat"].handler({"messages": prompt})[:400])
+                except Exception as e:
+                    out.append(f"chat → error: {e}")
+            if "generate_openscad" in srv.tools:
+                try:
+                    code = srv.tools["generate_openscad"].handler(
+                        {"sbc_key": "rpi5", "display_key": "hdmi7", "battery_key": "npf970"})
+                    out.append(f"generate_openscad → {len(code)} chars SCAD")
+                except Exception as e:
+                    out.append(f"generate_openscad → error: {e}")
+            return await send_fn(chat, "\n".join(out)[:4000])
+        if len(parts) < 4:
+            return await send_fn(chat, "Usage: /mcp run <server> <tool> <json-args>")
+        tool = srv.tools.get(parts[2])
+        if not tool:
+            return await send_fn(chat, f"Unknown tool '{parts[2]}'. Available: {', '.join(srv.tools)}")
+        try:
+            args_dict = json.loads(" ".join(parts[3:]))
+        except Exception as e:
+            return await send_fn(chat, f"Invalid JSON args: {e}")
+        await send_fn(chat, f"🧩 Running <code>{parts[2]}</code> on {sname}...")
+        try:
+            result = tool.handler(args_dict)
+            await send_fn(chat, f"<b>{parts[2]}</b> →\n{str(result)[:4000]}")
+        except Exception as e:
+            await send_fn(chat, f"<code>{parts[2]}</code> error: {e}")
+        return
+    if verb == "list" or verb in _MCP_SERVERS:
+        sname = parts[1].lower() if len(parts) > 1 else verb
+        if sname not in _MCP_SERVERS:
+            return await send_fn(chat, f"Unknown server. Choose from: {', '.join(_MCP_SERVERS)}")
+        try:
+            srv = _ms.BUILDERS[sname]()
+        except Exception as e:
+            return await send_fn(chat, f"Failed to build {sname} server: {e}")
+        lines = [f"🧩 <b>{_MCP_SERVERS[sname][0]}</b> tools:", ""]
+        for t in srv.tools.values():
+            lines.append(f"  • <code>{t.name}</code> — {t.description.splitlines()[0]}")
+        return await send_fn(chat, "\n".join(lines))
+    return await send_fn(chat, "Usage: /mcp list|run|test <server> ...")
 
 async def tg(method, data=None):
     c = await get_http()
@@ -3397,6 +3489,9 @@ async def main():
                             "/status — Current agent + provider",
                             "/multi start <p1> [p2] [rounds=2] — Talk to 2 AIs at once",
                             "/multi stop — End multi-AI session",
+                            "/swarm divide|round <task> — Parallel agent swarm (health-aware pool)",
+                            "/swarmstatus — Swarm pool health & lifetime stats",
+                            "/mcp list|run|test <server> — MCP servers (free-llm/telegram/cyberdeck)",
                             "/clear — Clear history",
                             "/remember <fact> — Store a fact in memory",
                             "/recall <query> — Search your memories",
@@ -3961,6 +4056,51 @@ async def main():
                         f"Effort: {effort} ({EFFORT_LEVELS[effort]['desc']})\n"
                         f"Thinking: {thinking_mode}"
                     ))
+
+                elif cmd == "/swarm":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /swarm divide|round <task>\n  divide — plan → parallel workers → merge\n  round — N role-agents attack the same task")
+                        continue
+                    mode = parts[1].lower()
+                    if mode not in ("divide", "round"):
+                        await send(chat, "Unknown swarm mode. Use divide or round.")
+                        continue
+                    swarm = _get_opencode_swarm()
+                    if not swarm:
+                        await send(chat, "No providers configured. Set at least one provider key (e.g. GROQ_KEY) in .env")
+                        continue
+                    task = " ".join(parts[2:]) or "continue the conversation topic"
+                    await send(chat, f"🐝 Swarm <b>{mode}</b> started — up to {swarm.max_workers} workers over a health-aware provider pool...")
+                    try:
+                        if mode == "divide":
+                            run = await swarm.run(task)
+                        else:
+                            run = await swarm.run_round(task)
+                    except Exception as e:
+                        await send(chat, f"Swarm error: {e}")
+                        continue
+                    from swarm import _fmt_run
+                    await send(chat, _fmt_run(run))
+
+                elif cmd == "/swarmstatus":
+                    swarm = _get_opencode_swarm()
+                    if not swarm:
+                        await send(chat, "No providers configured. Set at least one provider key (e.g. GROQ_KEY) in .env")
+                        continue
+                    st = swarm.status()
+                    lines = [
+                        f"<b>Swarm pool</b> — {st['providers']} providers, {st['max_workers']} max workers",
+                        f"Lifetime: spawned {st['total_spawned']} · ok {st['total_succeeded']} · failed {st['total_failed']}",
+                        "",
+                    ]
+                    lines += st["health"]
+                    if st.get("last_run"):
+                        ls = st["last_run"]
+                        lines += ["", f"Last run: planned {ls['planned']} · ok {ls['succeeded']} · failed {ls['failed']} · {ls['elapsed']}s"]
+                    await send(chat, "\n".join(lines))
+
+                elif cmd == "/mcp":
+                    await _handle_mcp(chat, parts[1:], send)
 
                 elif cmd == "/reset":
                     reset_user_state(chat)
@@ -8806,7 +8946,7 @@ async def main():
                             lines.append(f"  Chat {cid} — #{tag} ({count}x)")
                         await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/youtube_search", "/tiktok", "/github_search", "/analyze", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge", "/reddit", "/hn", "/social", "/memory", "/cron", "/monitor", "/announcementoff", "/announcementon", "/announce", "/rich", "/richv2", "/cyberdeck", "/iot", "/edu", "/fin", "/cv", "/style", "/pollplus", "/content", "/analytics", "/sub", "/safety", "/dev", "/aiint", "/community", "/automate", "/secapi", "/languages", "/ocr", "/loc", "/miniapp", "/backup-keys", "/market", "/voice", "/auto", "/guard", "/kg", "/vault", "/watch-video"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/youtube_search", "/tiktok", "/github_search", "/analyze", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/swarm", "/swarmstatus", "/mcp", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge", "/reddit", "/hn", "/social", "/memory", "/cron", "/monitor", "/announcementoff", "/announcementon", "/announce", "/rich", "/richv2", "/cyberdeck", "/iot", "/edu", "/fin", "/cv", "/style", "/pollplus", "/content", "/analytics", "/sub", "/safety", "/dev", "/aiint", "/community", "/automate", "/secapi", "/languages", "/ocr", "/loc", "/miniapp", "/backup-keys", "/market", "/voice", "/auto", "/guard", "/kg", "/vault", "/watch-video"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:

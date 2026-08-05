@@ -270,7 +270,7 @@ def load_providers():
         PROVIDERS["groq-qwen"] = {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "qwen/qwen3.6-27b", "key": groq_key}
     gemini_key = env.get("GEMINI_KEY", "")
     if gemini_key and gemini_key != "set-via-env-var":
-        PROVIDERS["gemini"] = {"url": f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}", "model": "gemini-2.0-flash", "key": gemini_key}
+        PROVIDERS["gemini"] = {"url": f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}", "model": "gemini-3.5-flash", "key": gemini_key}
     deepseek_key = env.get("DEEPSEEK_KEY", "")
     if deepseek_key and deepseek_key != "set-via-env-var":
         PROVIDERS["deepseek"] = {"url": "https://api.deepseek.com/v1/chat/completions", "model": "deepseek-chat", "key": deepseek_key}
@@ -589,7 +589,7 @@ async def handle_autopick(chat, uid, args):
     await send(chat, "\n".join(_autopick_lines(cands, info)))
 
 
-async def call_ai(messages, provider_name=None, local_fallback=False):
+async def call_ai(messages, provider_name=None, local_fallback=False, _depth=0):
     pname = provider_name or _get_provider_for()
     p = PROVIDERS.get(pname)
     if not p:
@@ -613,21 +613,77 @@ async def call_ai(messages, provider_name=None, local_fallback=False):
                 if candidates:
                     return candidates[0].get("content", {}).get("parts", [{}])[0].get("text", str(data))
                 return str(data)[:2000]
-            return await _maybe_local(messages, pname, f"Gemini error: {r.status_code}", local_fallback)
+            return await _maybe_provider(messages, pname, f"Gemini error: {r.status_code}", local_fallback, _depth)
         else:
             headers = {"Content-Type": "application/json", "Authorization": f"Bearer {p['key']}"}
-            body = {"model": p["model"], "messages": messages, "max_tokens": 4096}
+            body = {"model": p["model"], "messages": messages, "max_tokens": 2048}
             r = await c.post(p["url"], json=body, headers=headers, timeout=30)
             if r.status_code == 200:
                 data = r.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 if content:
                     return content
-            return await _maybe_local(messages, pname,
-                                      f"{pname} error: {r.status_code} - {r.text[:300]}",
-                                      local_fallback)
+            if r.status_code == 429:
+                wait = _retry_after_seconds(r)
+                log(f"{pname} 429 rate limited — retrying in {wait:.1f}s", "provider")
+                await asyncio.sleep(min(wait, 30))
+                r = await c.post(p["url"], json=body, headers=headers, timeout=30)
+                if r.status_code == 200:
+                    data = r.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if content:
+                        return content
+                if r.status_code == 429:
+                    log(f"{pname} still 429 after retry", "provider")
+            return await _maybe_provider(messages, pname,
+                                         f"{pname} error: {r.status_code} - {r.text[:300]}",
+                                         local_fallback, _depth)
     except Exception as e:
-        return await _maybe_local(messages, pname, f"AI call failed: {e}", local_fallback)
+        return await _maybe_provider(messages, pname, f"AI call failed: {e}", local_fallback, _depth)
+
+
+_RETRY_AFTER_RE = re.compile(r"try again in ([\d.]+)\s*s(?:econds)?\b", re.IGNORECASE)
+
+
+def _retry_after_seconds(r):
+    """Extract the retry wait from a 429 response: JSON field, then message regex."""
+    try:
+        data = r.json()
+        ra = (data.get("retry_after")
+              or (data.get("error") or {}).get("retry_after")
+              or (data.get("error") or {}).get("message", ""))
+        if isinstance(ra, (int, float)):
+            return float(ra)
+        m = _RETRY_AFTER_RE.search(str(ra))
+        if m:
+            return float(m.group(1))
+    except Exception:
+        pass
+    try:
+        m = _RETRY_AFTER_RE.search(r.text)
+        if m:
+            return float(m.group(1))
+    except Exception:
+        pass
+    return 5.0
+
+
+async def _maybe_provider(messages, pname, err, local_fallback, _depth):
+    """Cloud failure failover: try one other configured provider (deepseek
+    first via _CODER_PRIORITY), then the local model. Depth-capped so two
+    rate-limited providers can't ping-pong."""
+    if _depth < 1:
+        for cand in _CODER_PRIORITY:
+            if cand == pname or cand == "androidllm":
+                continue
+            if cand not in PROVIDERS or not PROVIDERS[cand].get("key"):
+                continue
+            reply = await call_ai(messages, provider_name=cand,
+                                  local_fallback=False, _depth=_depth + 1)
+            if reply and isinstance(reply, str) and not reply.startswith("No AI provider"):
+                log(f"provider failover {pname} -> {cand}", "provider")
+                return reply
+    return await _maybe_local(messages, pname, err, local_fallback)
 
 # ============================================================
 # Local androidllm serving — hybrid router, airgap, idle wake
@@ -977,7 +1033,7 @@ _CODER_PRIORITY = [
     "cerebras",    # fast Llama/Qwen
     "openrouter",  # free llama/qwen/deepseek variants
     "mistral",     # codestral-flash if configured
-    "gemini",      # gemini-2.0-flash free tier
+    "gemini",      # gemini-3.5-flash free tier
     "groq",        # llama-3.3-70b, qwen-2.5-32b (fast, free)
     "omniroute",   # 290+ providers
     "9router",     # universal gateway
@@ -1065,6 +1121,169 @@ async def handle_codeall(chat, task):
     await send(chat, "\n\n".join(blocks))
 
 _coder_mode = {}
+
+_swarm_instance = None
+
+def _get_swarm():
+    """Lazily build the agent swarm wired to this bot's coding chain."""
+    global _swarm_instance
+    if _swarm_instance is not None:
+        return _swarm_instance
+    try:
+        import swarm as _swarm_mod
+    except Exception as e:
+        log(f"swarm import failed: {e}", "init")
+        return None
+    async def _swarm_call(msgs, provider):
+        reply, _p, _used = await call_coding(msgs, [provider])
+        return reply
+    _swarm_instance = _swarm_mod.Swarm(_swarm_call, _coding_chain())
+    return _swarm_instance
+
+
+def _swarm_fmt(run):
+    s = run["stats"]
+    lines = [f"🐝 <b>Swarm · {run['mode']}</b> — {s['elapsed']}s",
+             f"Planned {s['planned']} · spawned {s['spawned']} · "
+             f"✅ {s['succeeded']} · ❌ {s['failed']}",
+             f"Providers: {', '.join(f'{k}={v}' for k, v in (s.get('providers_used') or {}).items())}",
+             ""]
+    for r in run["results"]:
+        mark = "✅" if r["ok"] else "❌"
+        lines.append(f"{mark} #{r['index']} [{r['provider']}] {str(r['subtask'])[:80]}")
+    syn = run.get("synthesis") or ""
+    lines += ["", "<b>Merged answer:</b>", syn[:4000]]
+    return "\n".join(lines)
+
+
+async def handle_swarm(chat, uid, args):
+    s = _get_swarm()
+    if s is None:
+        return await send(chat, "Swarm module not available.")
+    if not args:
+        return await send(chat, "Usage: /swarm &lt;task&gt;\n/swarm round &lt;task&gt; — round-table mode\n/swarmstatus — pool health")
+    mode = "divide"
+    task = args
+    if task.lower().startswith("round "):
+        mode, task = "round", task[6:].strip()
+    if not task:
+        return await send(chat, "Give the swarm a task: /swarm &lt;task&gt;")
+    await send(chat, f"🐝 <b>Swarm engaged</b> ({s.max_workers} concurrent workers, {len(s.chain)} providers)\nPlanning subtasks...")
+    try:
+        run = await (s.run_round(task) if mode == "round" else s.run(task))
+        await send(chat, _swarm_fmt(run))
+    except Exception as e:
+        await send(chat, f"Swarm error: {e}")
+
+
+async def handle_swarmstatus(chat, uid, args=""):
+    s = _get_swarm()
+    if s is None:
+        return await send(chat, "Swarm module not available.")
+    st = s.status()
+    lines = ["🐝 <b>Swarm status</b>",
+             f"Providers: {st['providers']} · Max workers: {st['max_workers']}",
+             f"Lifetime: spawned {st['total_spawned']} · ok {st['total_succeeded']} · failed {st['total_failed']}",
+             ""]
+    lines += st["health"]
+    if st.get("last_run"):
+        s2 = st["last_run"]
+        lines += ["", f"<b>Last run:</b> {s2['planned']} planned · {s2['succeeded']} ok · {s2['failed']} fail · {s2['elapsed']}s"]
+    await send(chat, "\n".join(lines))
+
+
+_MCP_SERVERS = {
+    "free-llm": ("free-llm-mcp", "Ranked free-tier LLM chain (chat, coding_chain)"),
+    "telegram": ("telegram-mcp", "Telegram sender (send_message, get_me, send_chat_action)"),
+    "cyberdeck": ("cyberdeck-mcp", "Parametric OpenSCAD enclosure generator (generate_openscad, ...)"),
+}
+
+
+def _build_mcp_server(name):
+    import mcp_servers as _ms
+    return _ms.BUILDERS[name]()
+
+
+async def handle_mcp(chat, uid, args=""):
+    parts = args.split()
+    verb = parts[0].lower() if parts else ""
+
+    def _summary():
+        lines = ["🧩 <b>MCP Servers</b> — zero-dependency stdio JSON-RPC",
+                 "Add to Claude/opencode config as a command/stdio server:",
+                 "`python mcp_servers.py free-llm|telegram|cyberdeck`", ""]
+        for name, (_m, desc) in _MCP_SERVERS.items():
+            lines.append(f"  • <code>{name}</code> — {desc}")
+        lines += ["", "Commands:",
+                  "/mcp list &lt;server&gt; — tools of one server",
+                  "/mcp run &lt;server&gt; &lt;tool&gt; &lt;json&gt; — execute a tool",
+                  "/mcp test &lt;server&gt; — quick self-test"]
+        return "\n".join(lines)
+
+    if not verb or verb in ("help", "list") and len(parts) < 2:
+        return await send(chat, _summary())
+
+    if verb in ("run", "test"):
+        if len(parts) < 2:
+            return await send(chat, "Usage: /mcp run|test &lt;server&gt; ...")
+        sname = parts[1].lower()
+        if sname not in _MCP_SERVERS:
+            return await send(chat, f"Unknown server. Choose from: {', '.join(_MCP_SERVERS)}")
+        try:
+            srv = _build_mcp_server(sname)
+        except Exception as e:
+            return await send(chat, f"Failed to build {sname} server: {e}")
+
+        if verb == "test":
+            prompt = " ".join(parts[2:]) or "explain MCP in 3 lines"
+            out = ["<b>MCP self-test —</b> " + _MCP_SERVERS[sname][0]]
+            if "chat" in srv.tools:
+                try:
+                    out.append("chat → " + srv.tools["chat"].handler({"messages": prompt})[:400])
+                except Exception as e:
+                    out.append(f"chat → error: {e}")
+            if "generate_openscad" in srv.tools:
+                try:
+                    code = srv.tools["generate_openscad"].handler(
+                        {"sbc_key": "rpi5", "display_key": "hdmi7", "battery_key": "npf970"})
+                    out.append(f"generate_openscad → {len(code)} chars SCAD")
+                except Exception as e:
+                    out.append(f"generate_openscad → error: {e}")
+            return await send(chat, "\n".join(out)[:4000])
+
+        if len(parts) < 4:
+            return await send(chat, "Usage: /mcp run &lt;server&gt; &lt;tool&gt; &lt;json-args&gt;")
+        tool_name = parts[2]
+        tool = srv.tools.get(tool_name)
+        if not tool:
+            return await send(chat, f"Unknown tool '{tool_name}'. Available: {', '.join(srv.tools)}")
+        try:
+            args_dict = json.loads(" ".join(parts[3:]))
+        except Exception as e:
+            return await send(chat, f"Invalid JSON args: {e}")
+        await send(chat, f"🧩 Running <code>{tool_name}</code> on {sname}...")
+        try:
+            result = tool.handler(args_dict)
+            await send(chat, f"<b>{tool_name}</b> →\n{str(result)[:4000]}")
+        except Exception as e:
+            await send(chat, f"<code>{tool_name}</code> error: {e}")
+        return
+
+    if verb == "list" or verb in _MCP_SERVERS:
+        sname = parts[1].lower() if len(parts) > 1 else verb
+        if sname not in _MCP_SERVERS:
+            return await send(chat, f"Unknown server. Choose from: {', '.join(_MCP_SERVERS)}")
+        try:
+            srv = _build_mcp_server(sname)
+        except Exception as e:
+            return await send(chat, f"Failed to build {sname} server: {e}")
+        lines = [f"🧩 <b>{_MCP_SERVERS[sname][0]}</b> tools:", ""]
+        for t in srv.tools.values():
+            lines.append(f"  • <code>{t.name}</code> — {t.description.splitlines()[0]}")
+        return await send(chat, "\n".join(lines))
+
+    return await send(chat, "Usage: /mcp list|run|test &lt;server&gt; ...")
+
 
 def _brain_system(uid=None):
     """System prompt for the user's active brain (default or Obsidian memory brain)."""
@@ -1512,6 +1731,15 @@ Uptime: {time.strftime('%H:%M:%S')}""")
 
     elif cmd == "/codeall":
         await handle_codeall(chat, args)
+
+    elif cmd == "/swarm":
+        await handle_swarm(chat, uid, args)
+
+    elif cmd == "/swarmstatus":
+        await handle_swarmstatus(chat, uid, args)
+
+    elif cmd == "/mcp":
+        await handle_mcp(chat, uid, args)
 
     elif cmd == "/v1":
         await send(chat, "Switched to General AI mode (opencode-bot).\n\nAll general AI commands available.\nSwitch back: /v2")

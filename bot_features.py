@@ -31,7 +31,7 @@ async def vision_analyze(photo_url, prompt="Describe this image in detail"):
     gemini_key = os.environ.get("GEMINI_KEY", "")
     openai_key = os.environ.get("OPENAI_KEY", "")
 
-    models = ["gemini-2.0-flash-001", "gemini-2.0-flash", "gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
+    models = ["gemini-3.5-flash", "gemini-2.0-flash-001", "gemini-2.0-flash", "gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro"]
     last_err = None
     for model in models:
         if gemini_key and gemini_key not in ("", "set-via-env-var"):
