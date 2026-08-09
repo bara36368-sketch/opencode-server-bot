@@ -360,7 +360,8 @@ def _get_provider_for(uid=None):
 def _switch_local_model(model_id):
     """Point androidllm at <model_id> and nudge androidllm-serve to restart.
     runner.py (which supervises androidllm-serve) sees the new state file and
-    restarts the serve on the new model within a poll cycle."""
+    restarts the serve on the new model within a poll cycle.
+    Used after the consent gate approves a requested change (/approve)."""
     try:
         androidllm_models.write_state(model_id, androidllm_models.shard_dir(model_id))
     except Exception as e:
@@ -373,9 +374,11 @@ def _switch_local_model(model_id):
     return True
 
 
-async def _shard_and_switch(chat, model, switch=True):
-    """Download + shard a recommended model in the background, then switch to it.
-    With switch=False the model is only sharded (used for draft models)."""
+async def _shard_and_switch(chat, model, switch=True, consent=False):
+    """Download + shard a recommended model in the background. With
+    switch=True the caller expects the model to serve immediately; with
+    consent=True the run only asks the owner via /approve when done and
+    never switches silently."""
     adir = androidllm_models.androidllm_dir()
     script = os.path.join(adir, "scripts", "shard_model.sh")
     if not os.path.exists(script):
@@ -393,7 +396,16 @@ async def _shard_and_switch(chat, model, switch=True):
             stderr=asyncio.subprocess.STDOUT)
         out, _ = await proc.communicate()
         if proc.returncode == 0:
-            if switch:
+            if consent:
+                req = androidllm_models.request_consent(
+                    "switch", model["id"], "shard-complete switch",
+                    requester="telegram", env=None)
+                await send(chat, f"<b>{model['id']}</b> finished sharding.\n"
+                                 f"Switch the model server to it?\n"
+                                 f"Reply <b>/approve</b> to switch, or <b>/deny</b> to "
+                                 f"keep <b>{req.get('from')}</b>.\n"
+                                 f"(No reply within 30 min cancels.)")
+            elif switch:
                 _switch_local_model(model["id"])
                 await send(chat, f"<b>{model['id']}</b> sharded and switched. "
                                  f"androidllm-serve is restarting on the new model...")
@@ -498,14 +510,21 @@ async def _autopick_install(chat, uid, cand):
                              f"(small, quick).")
             asyncio.create_task(_shard_and_switch(chat, dmodel, switch=False))
     if androidllm_models.is_sharded(cand["id"]):
-        _switch_local_model(cand["id"])
-        await send(chat, f"Switched local model to <b>{cand['id']}</b>. "
-                         f"androidllm-serve restarting...")
+        # consent gate: never switch the server without an owner /approve
+        req = androidllm_models.request_consent(
+            "switch", cand["id"], "autopick selection",
+            requester=f"tg:{uid}", env=None)
+        await send(chat, f"Switched? <b>{cand['id']}</b> is ready and is the "
+                         f"top pick for this device.\n"
+                         f"Reply <b>/approve</b> to switch the model server, or "
+                         f"<b>/deny</b> to keep <b>{req.get('from')}</b>.\n"
+                         f"(No reply within 30 min cancels.)")
     else:
         await send(chat, f"<b>{cand['id']}</b> ({cand['repo']}) is not sharded yet — "
                          f"downloading + sharding in the background "
-                         f"(~{cand['disk_gb']} GB). I'll notify when done.")
-        asyncio.create_task(_shard_and_switch(chat, cand))
+                         f"(~{cand['disk_gb']} GB). I'll ask you to approve the "
+                         f"switch when it's done.")
+        asyncio.create_task(_shard_and_switch(chat, cand, switch=False))
 
 
 async def handle_autopick(chat, uid, args):
@@ -1480,7 +1499,9 @@ Dedicated cyberdeck builder with v6.0 AI engine.
 /provider routers — List local router providers
 /provider test &lt;name&gt; — Ping a provider
 /providers — List providers
-/model — Switch local androidllm model (qwen15, smollm2, qwen3)
+/model — Switch local androidllm model (always asks /approve first)
+/approve — Approve the pending model server switch/downgrade
+/deny — Deny the pending model server switch/downgrade
 /autopick [n|specs|search &lt;q&gt;] — Auto-pick best model for this device's RAM/storage
 /status — Local model stats: context bar, battery, speed, prefix reuse
 /export [name] — Save chat session to offline JSON
@@ -1624,15 +1645,56 @@ Uptime: {time.strftime('%H:%M:%S')}""")
         elif a in androidllm_models.recommended_ids():
             m = next(x for x in androidllm_models.RECOMMENDED if x["id"] == a)
             if androidllm_models.is_sharded(a):
-                _switch_local_model(a)
-                await send(chat, f"Switched local model to <b>{a}</b>. androidllm-serve restarting...")
+                # consent gate: the model server only switches after the
+                # owner answers /approve (or /deny) — never silently.
+                req = androidllm_models.request_consent(
+                    "switch", a, "manual /model switch",
+                    requester="telegram", env=None)
+                await send(chat,
+                           f"Switch local model server to <b>{a}</b>?\n"
+                           f"Reason: {req['reason']}\n\n"
+                           f"Reply <b>/approve</b> to switch, or <b>/deny</b> to keep "
+                           f"<b>{req.get('from')}</b>.\n"
+                           f"(No reply within 30 min cancels the request.)")
             else:
                 await send(chat, f"<b>{a}</b> is not sharded yet — auto-sharding in the background.\n"
                                  f"Manual alternative:\n<code>bash ~/androidllm/scripts/setup_termux.sh {m['repo']} {a}</code>")
-                asyncio.create_task(_shard_and_switch(chat, m))
+                asyncio.create_task(_shard_and_switch(chat, m, switch=False, consent=True))
         else:
             await send(chat, f"Unknown model: <b>{a}</b>. "
                              f"Available: {', '.join(androidllm_models.recommended_ids())}")
+
+    elif cmd == "/approve":
+        if not is_owner(uid):
+            await send(chat, "Only the bot owner can approve model changes.")
+            return
+        req = androidllm_models.decide_consent(True, by=f"tg:{uid}")
+        if not req:
+            await send(chat, "No pending model change to approve.")
+            return
+        applied = androidllm_models.apply_consent(None)
+        if applied:
+            _switch_local_model(applied)
+            await send(chat,
+                       f"Approved: local model server switching to <b>{applied}</b>. "
+                       f"androidllm-serve is restarting...")
+        else:
+            await send(chat,
+                       f"Approved <b>{req.get('target')}</b>, but it is not sharded "
+                       f"or the request expired — nothing switched.")
+
+    elif cmd == "/deny":
+        if not is_owner(uid):
+            await send(chat, "Only the bot owner can deny model changes.")
+            return
+        req = androidllm_models.decide_consent(False, by=f"tg:{uid}")
+        if not req:
+            await send(chat, "No pending model change to deny.")
+            return
+        androidllm_models.clear_consent(None)
+        await send(chat,
+                   f"Denied: staying on <b>{req.get('from')}</b>. "
+                   f"The model server keeps serving the current model.")
 
     elif cmd == "/autopick":
         await handle_autopick(chat, uid, args)

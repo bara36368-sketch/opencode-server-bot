@@ -439,8 +439,8 @@ def _record_downgrade():
 
 
 def _maybe_downgrade_androidllm(exit_code, stderr_text):
-    """On OOM crash: switch current_model.json to the next smaller sharded
-    model. Returns (new_model_id | None, message)."""
+    """On OOM crash: ASK the owner before switching to the next smaller
+    sharded model. Returns (pending | apply | None, message)."""
     global _androidllm_state_ts
     if not _is_oom_crash(exit_code, stderr_text):
         return None, None
@@ -456,14 +456,23 @@ def _maybe_downgrade_androidllm(exit_code, stderr_text):
     if not nxt:
         return None, (f"OOM crash with {cur} but no smaller sharded model "
                       f"available (ladder bottom or not installed)")
-    androidllm_models.write_state(nxt, androidllm_models.shard_dir(nxt, bot_env))
+    # consent gate: an already-pending request means we already asked —
+    # don't re-ask, don't apply; the owner will answer or it expires.
+    pending = androidllm_models.peek_consent(bot_env)
+    if pending:
+        return None, f"OOM crash but consent for {pending.get('target')} already pending"
+    req = androidllm_models.request_consent(
+        "downgrade", nxt, f"OOM crash of {cur}", requester="runner", env=bot_env)
     _down_last["ts"] = now
     _record_downgrade()
-    try:
-        _androidllm_state_ts = os.path.getmtime(_androidllm_state)
-    except OSError:
-        _androidllm_state_ts = None
-    return nxt, f"OOM downgrade {cur} -> {nxt}"
+    if _can_notify("model_consent"):
+        send_telegram(
+            f"<b>Androidllm model server</b> crashed with <b>out of memory</b> "
+            f"while serving <b>{cur}</b>.\n\n"
+            f"Proposed: downgrade the server to <b>{nxt}</b> "
+            f"({androidllm_models.shard_dir(nxt, bot_env)}).\n\n"
+            f"Reply <b>/approve</b> to switch, or <b>/deny</b> to stay on {cur}.")
+    return "pending", f"OOM downgrade {cur} -> {nxt} ASKED OWNER (pending consent)"
 
 def health_check():
     try:
@@ -495,7 +504,11 @@ def monitor_process(name, proc):
         try:
             nxt, msg = _maybe_downgrade_androidllm(exit_code, stderr_text)
             if nxt:
-                downgrade_info = f"Downgraded to <b>{nxt}</b> - restarting on smaller model"
+                if nxt == "pending":
+                    downgrade_info = (f"<b>{msg}</b>\n"
+                                      f"Waiting for <b>/approve</b> or <b>/deny</b> (30 min TTL).")
+                else:
+                    downgrade_info = f"Downgraded to <b>{nxt}</b> - restarting on smaller model"
                 log(f"androidllm {msg}", "proc")
             elif msg:
                 log(f"androidllm {msg}", "proc")
@@ -618,6 +631,14 @@ def kill_one(name):
 if __name__ == "__main__":
     while True:
         if _androidllm_enabled:
+            try:
+                # consent gate: owner replied /approve -> apply the switch
+                # (write_state bumps current_model.json mtime, restart below)
+                applied = androidllm_models.apply_consent(bot_env)
+                if applied:
+                    log(f"consent approved: switching androidllm to {applied}", "proc")
+            except Exception as e:
+                log(f"consent apply error: {e}", "proc")
             try:
                 _ts = os.path.getmtime(_androidllm_state)
             except OSError:

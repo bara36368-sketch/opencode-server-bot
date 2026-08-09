@@ -7,6 +7,9 @@ Per-model defaults: each catalog entry can carry a "defaults" dict of
 ANDROIDLLM_* env overrides applied by runner.py when that model is serving
 (threads, pinned/kept layers, prefix KV, throttle, etc.). Engine-side knobs
 are documented in androidllm/serve.py.
+
+Consent gate: model changes (switches + OOM downgrades) are pending until
+the owner replies /approve or /deny — see request_consent/decide/apply.
 """
 import json
 import os
@@ -151,3 +154,104 @@ def next_smaller(model_id, env=None):
         if is_sharded(mid, env):
             return mid
     return None
+
+
+# -- model-change consent gate --------------------------------------------
+# The local model server is a supervised SYSTEM, not a fire-and-forget
+# command: switching models (manual /model, /autopick, or the OOM
+# downgrade cascade) always asks the owner first.  A pending request is
+# written to a JSON file OUTSIDE both repos (runner file-watcher never
+# sees it); owner replies /approve or /deny and the change is applied (or
+# rejected) by whichever process sees the decision next.
+CONSENT_TTL = int(os.environ.get("MODEL_CONSENT_TTL", "1800"))  # 30 min
+
+
+def consent_path(env=None):
+    base = (env or os.environ).get(
+        "MODEL_STATE_DIR",
+        os.path.join(os.path.expanduser("~"), ".opencode-runner"))
+    return os.path.join(base, "model_consent.json")
+
+
+def _now():
+    import time
+    return int(time.time())
+
+
+def request_consent(action, target_model, reason, requester="runner", env=None):
+    """Persist a pending model change: nothing switches until /approve."""
+    req = {
+        "action": action,          # "switch" | "downgrade"
+        "target": target_model,
+        "from": active_model(env),
+        "reason": reason,
+        "requester": requester,
+        "ts": _now(),
+        "status": "pending",
+        "decided": None,
+        "decided_by": None,
+    }
+    p = consent_path(env)
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+    except OSError:
+        pass
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(req, f)
+    return req
+
+
+def peek_consent(env=None):
+    """Active pending request, or None. Expired requests are cleared."""
+    try:
+        with open(consent_path(env), encoding="utf-8") as f:
+            req = json.load(f)
+    except Exception:
+        return None
+    if req.get("status") != "pending":
+        return None
+    if _now() - req.get("ts", 0) > CONSENT_TTL:
+        clear_consent(env)
+        return None
+    return req
+
+
+def decide_consent(approved, by="owner", env=None):
+    """Owner answered: mark the pending request decided (does NOT apply the
+    change — the supervisor applies it and then clears). Returns the
+    decision dict (with target) or None when nothing was pending."""
+    req = peek_consent(env)
+    if not req:
+        return None
+    req["status"] = "approved" if approved else "denied"
+    req["decided"] = _now()
+    req["decided_by"] = by
+    with open(consent_path(env), "w", encoding="utf-8") as f:
+        json.dump(req, f)
+    return req
+
+
+def apply_consent(env=None):
+    """Atomic apply of an approved request: only the first caller wins.
+    Returns the applied model id or None. write_state touches current
+    model.json which the androidllm supervisor watches and restarts on."""
+    try:
+        with open(consent_path(env), encoding="utf-8") as f:
+            req = json.load(f)
+    except Exception:
+        return None
+    if req.get("status") != "approved":
+        return None
+    target = req.get("target")
+    if not target or not is_sharded(target, env):
+        return None
+    write_state(target, shard_dir(target, env), env)
+    clear_consent(env)
+    return target
+
+
+def clear_consent(env=None):
+    try:
+        os.remove(consent_path(env))
+    except OSError:
+        pass
