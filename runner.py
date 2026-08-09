@@ -475,6 +475,19 @@ PROCESSES = {
     "web": ["python", "web_gateway.py"],
     "cyberdeck": ["python", "cyberdeck_bot.py"],
 }
+# MCP reference pack (modelcontextprotocol/servers): HTTP bridge on :8430.
+# Both bots (bot + web gateway) reach the same tools over HTTP. Supervised
+# only when the pack manager + a written servers.json config exist; the
+# bridge itself spawns the TS (node) / Python (uv) servers as children.
+_mcp_pack = os.path.join(DIR, "mcp_servers.py")
+_mcp_config = os.path.join(os.path.expanduser("~"), ".mcp", "servers.json")
+if os.path.isfile(_mcp_pack) and os.path.isfile(_mcp_config):
+    PROCESSES["mcp"] = ["python", "mcp_servers.py", "bridge"]
+    log(f"mcp bridge supervision enabled (:"
+        f"{os.environ.get('MCP_HTTP_PORT', '8430')}, {_mcp_config})", "proc")
+else:
+    log(f"mcp bridge supervision disabled (mcp_servers.py or "
+        f"servers.json missing: {_mcp_config})", "proc")
 if os.path.isfile(os.path.join(MEMORY_REPO, "om.py")):
     PROCESSES["memory"] = [sys.executable, os.path.join(MEMORY_REPO, "om.py"), "watch"]
     log(f"memory daemon supervision enabled ({MEMORY_REPO})", "proc")
@@ -620,6 +633,7 @@ if __name__ == "__main__":
         elif changed_files:
             code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
             cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
+            mcp_changed = any(os.path.basename(f) in ("mcp_servers.py",) for f in changed_files)
             if code_changed:
                 log(f"code changed, restarting bot+web...", "proc")
                 kill_one("bot")
@@ -627,6 +641,9 @@ if __name__ == "__main__":
             if cyberdeck_changed:
                 log(f"cyberdeck changed, restarting cyberdeck...", "proc")
                 kill_one("cyberdeck")
+            if mcp_changed:
+                log(f"mcp pack changed, restarting mcp...", "proc")
+                kill_one("mcp")
         elif web_dead:
             log(f"web not responding, restarting web only...", "health")
             kill_one("web")
