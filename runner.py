@@ -23,6 +23,15 @@ logging.basicConfig(
 OWNER_ID = os.environ.get("OWNER_ID", "8585609360")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
+# Git auto-update hardening: after GIT_FAIL_STRIKES consecutive pull
+# failures the repo is force-synced (git fetch origin; git reset --hard),
+# then git is left alone for GIT_RESET_COOLDOWN seconds. Failure counters
+# persist across runner restarts in GIT_STATE_DIR (outside the repo so
+# the file watcher never sees them).
+GIT_FAIL_STRIKES = int(os.environ.get("GIT_FAIL_STRIKES", "3"))
+GIT_RESET_COOLDOWN = int(os.environ.get("GIT_RESET_COOLDOWN", "600"))
+GIT_STATE_DIR = os.environ.get("GIT_STATE_DIR", os.path.join(os.path.expanduser("~"), ".opencode-runner"))
+
 def log(msg, section="runner"):
     ts = time.strftime("%H:%M:%S")
     print(f"{ts} [{section}] {msg}")
@@ -146,46 +155,89 @@ def _git_update_dir(d, label, allow_reset=True):
             log(f"[{label}] not a git repo: {r.stderr.strip()}", "git")
             return False
         old_head = r.stdout.strip()
+        now = time.time()
+        state = _load_git_state(d)
+        fail = int(state.get("fail_count", 0))
+        last_reset = float(state.get("last_reset", 0))
+        if now - last_reset < GIT_RESET_COOLDOWN:
+            log(f"[{label}] hard-reset cooldown ({int(now - last_reset)}s ago), skipping git", "git")
+            return False
         log(f"[{label}] trying git pull...", "git")
         r = subprocess.run(["git", "pull", "--ff-only", "--depth=1"], cwd=d, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        if r.returncode == 0 and "Already up to date" not in r.stdout:
-            r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-            new_head = r2.stdout.strip()
-            log(f"[{label}] pull success ({new_head})", "git")
-            return True
-        log(f"[{label}] pull: no updates or failed, trying fetch+reset...", "git")
+        if r.returncode == 0:
+            if "Already up to date" not in r.stdout:
+                r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
+                new_head = r2.stdout.strip()
+                log(f"[{label}] pull success ({new_head})", "git")
+                _save_git_state(d, {"fail_count": 0, "last_reset": 0})
+                return True
+            # up to date is healthy: reset the failure counter too
+            _save_git_state(d, {"fail_count": 0, "last_reset": 0})
+            return False
+        fail += 1
+        log(f"[{label}] pull failed (strike {fail}/{GIT_FAIL_STRIKES}): {r.stderr.strip()}", "git")
         if not allow_reset:
-            log(f"[{label}] reset disabled for this repo, keeping local state", "git")
+            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
             return False
-        subprocess.run(["git", "stash", "--include-untracked"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        r = subprocess.run(["git", "fetch", "--depth=1", "origin"], cwd=d, capture_output=True, text=True, timeout=20, encoding="utf-8")
+        if fail < GIT_FAIL_STRIKES:
+            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
+            return False
+        # 3+ consecutive pull failures: hard reset to origin (user: git fetch
+        # origin; git reset --hard origin/master when pull fails 3 times)
+        log(f"[{label}] 3 pull failures, hard reset: git fetch origin && git reset --hard origin/master", "git")
+        r = subprocess.run(["git", "fetch", "origin"], cwd=d, capture_output=True, text=True, timeout=60, encoding="utf-8")
         if r.returncode != 0:
-            log(f"[{label}] fetch failed: {r.stderr.strip()}", "git")
+            log(f"[{label}] fetch failed (network?): {r.stderr.strip()}", "git")
+            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
             return False
-        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        branch = _git_default_branch(d)
+        ref = f"origin/{branch}" if branch else "origin/master"
+        r = subprocess.run(["git", "reset", "--hard", ref], cwd=d, capture_output=True, text=True, timeout=30, encoding="utf-8")
         if r.returncode != 0:
-            default_branch = "origin/master"
-        else:
-            ref = r.stdout.strip()
-            default_branch = ref.replace("refs/remotes/", "")
-        r = subprocess.run(["git", "log", "--oneline", "-3", default_branch], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        new_commits = [l for l in r.stdout.strip().split("\n") if l.strip()]
-        if not new_commits:
+            log(f"[{label}] hard reset failed: {r.stderr.strip()}", "git")
+            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
             return False
-        log(f"[{label}] update detected", "git")
-        for c in new_commits:
-            log(f"  {c}", "git")
-        log(f"[{label}] resetting...", "git")
-        r = subprocess.run(["git", "reset", "--hard", default_branch], cwd=d, capture_output=True, text=True, timeout=15, encoding="utf-8")
         r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
         new_head = r2.stdout.strip()
-        if new_head == old_head[:len(new_head)]:
+        _save_git_state(d, {"fail_count": 0, "last_reset": now})
+        if new_head == old_head[:len(new_head)] and fail == GIT_FAIL_STRIKES:
+            log(f"[{label}] hard reset: no change, clearing strikes", "git")
             return False
-        log(f"[{label}] success ({new_head}) is pulled!", "git")
+        log(f"[{label}] hard reset success ({new_head})!", "git")
+        if _can_notify("git_reset"):
+            send_telegram(f"<b>Runner</b>: {label} repo stalled (3 pull failures) - hard reset to {new_head} done. Repos in sync.")
         return True
     except Exception as e:
         log(f"[{label}] update failed: {e}", "git")
     return False
+
+def _git_default_branch(d):
+    try:
+        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
+        if r.returncode == 0:
+            return r.stdout.strip().replace("refs/remotes/origin/", "").strip()
+    except Exception:
+        pass
+    return "master"
+
+def _load_git_state(d):
+    try:
+        with open(_git_state_path(d), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_git_state(d, state):
+    try:
+        os.makedirs(GIT_STATE_DIR, exist_ok=True)
+        with open(_git_state_path(d), "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except Exception:
+        pass
+
+def _git_state_path(d):
+    ident = hashlib.sha256(d.encode("utf-8")).hexdigest()[:12]
+    return os.path.join(GIT_STATE_DIR, f"git_{ident}.json")
 
 def git_update():
     return _git_update_dir(DIR, "bot")
