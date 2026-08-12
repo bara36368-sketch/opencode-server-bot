@@ -35,7 +35,41 @@ _bot_file_cache = None
 
 
 def registry_dir():
+    """State dir OUTSIDE the bot repo so registry writes never dirty the
+    git working tree (which would defeat --ff-only pulls and trigger the
+    reset fallback in an endless loop)."""
+    d = os.environ.get("REPO_STATE_DIR",
+                       os.path.join(os.path.expanduser("~"),
+                                    ".opencode-runner", "repos"))
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        pass
+    return d
+
+
+def _seed_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "repos")
+
+
+def seed_registry():
+    """First-run: copy the bundled repos/*.json (Windows/this-host entries)
+    into the state dir so labels survive. Entries pointing at missing paths
+    are ignored by registry_entries()."""
+    dst = registry_dir()
+    if glob.glob(os.path.join(dst, "*.json")):
+        return 0
+    copied = 0
+    for p in glob.glob(os.path.join(_seed_dir(), "*.json")):
+        try:
+            with open(p, encoding="utf-8") as f:
+                e = json.load(f)
+            if e.get("label") and e.get("path"):
+                write_entry(e)
+                copied += 1
+        except Exception:
+            continue
+    return copied
 
 
 def registry_path(label):
@@ -62,6 +96,7 @@ def write_entry(entry):
 
 
 def registry_entries():
+    seed_registry()
     out = []
     for p in sorted(glob.glob(os.path.join(registry_dir(), "*.json"))):
         try:
