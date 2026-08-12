@@ -32,6 +32,23 @@ GIT_FAIL_STRIKES = int(os.environ.get("GIT_FAIL_STRIKES", "3"))
 GIT_RESET_COOLDOWN = int(os.environ.get("GIT_RESET_COOLDOWN", "600"))
 GIT_STATE_DIR = os.environ.get("GIT_STATE_DIR", os.path.join(os.path.expanduser("~"), ".opencode-runner"))
 
+# Multi-repo auto-update: every repo related to runner.py is git-synced on the
+# main loop. Each entry is (label, path, allow_reset). allow_reset=False means
+# pull-only (never force-sync). Add more with
+#   GIT_EXTRA_REPOS="label=path;label2=path2"
+_PARENT = os.path.dirname(DIR)
+GIT_REPOS = [
+    ("bot", DIR, True),
+    ("memory", MEMORY_REPO, False),
+    ("agents-places", os.path.join(_PARENT, "agents-places"), True),
+    ("cyberdeck", os.path.join(_PARENT, "cyberdeck"), True),
+]
+for _extra in (os.environ.get("GIT_EXTRA_REPOS", "") or "").split(";"):
+    _entry = _extra.strip()
+    if "=" in _entry:
+        _label, _path = _entry.split("=", 1)
+        GIT_REPOS.append((_label.strip(), _path.strip(), True))
+
 def log(msg, section="runner"):
     ts = time.strftime("%H:%M:%S")
     print(f"{ts} [{section}] {msg}")
@@ -240,12 +257,11 @@ def _git_state_path(d):
     return os.path.join(GIT_STATE_DIR, f"git_{ident}.json")
 
 def git_update():
-    return _git_update_dir(DIR, "bot")
-
-def git_update_memory():
-    if not os.path.isdir(os.path.join(MEMORY_REPO, ".git")):
-        return False
-    return _git_update_dir(MEMORY_REPO, "memory", allow_reset=False)
+    changed = set()
+    for label, d, allow_reset in GIT_REPOS:
+        if _git_update_dir(d, label, allow_reset=allow_reset):
+            changed.add(label)
+    return changed
 
 def _git_push_fix_dir(d, label, message="auto-fix: runner patch"):
     try:
@@ -590,6 +606,21 @@ if _androidllm_enabled:
 else:
     log(f"androidllm supervision disabled (binary={bool(_androidllm_bin)}, model={os.path.isdir(_androidllm_model)})", "proc")
 
+# deep-memory-ai ("dma") — secondary androidllm: an OpenAI-compatible
+# memory server on :8101 running from the sibling deep-memory-ai repo.
+# Supervised only on hosts that have the repo + its venv (Windows desktop).
+_DMA_DIR = os.environ.get("DMA_DIR", os.path.join(_PARENT, "deep-memory-ai"))
+_DMA_PORT = os.environ.get("DMA_PORT", "8101")
+_DMA_PY = os.path.join(_DMA_DIR, "venv", "Scripts", "python.exe")
+if not os.path.isfile(_DMA_PY):
+    _DMA_PY = os.path.join(_DMA_DIR, ".venv", "Scripts", "python.exe")
+_dma_serve = os.path.join(_DMA_DIR, "serve.py")
+if os.path.isfile(_dma_serve) and os.path.isfile(_DMA_PY):
+    PROCESSES["dma"] = [_DMA_PY, _dma_serve, "--port", _DMA_PORT]
+    log(f"dma supervision enabled (deep-memory on :{_DMA_PORT})", "proc")
+else:
+    log(f"dma supervision disabled (serve.py/venv missing at {_DMA_DIR})", "proc")
+
 def _androidllm_cmd():
     st = androidllm_models.read_state(bot_env)
     model_path = st.get("path") or _androidllm_model
@@ -660,7 +691,7 @@ if __name__ == "__main__":
                 stderr_file = os.path.join(DIR, f"{name}.stderr")
                 stderr_fh = open(stderr_file, "w", encoding="utf-8")
                 proc_env = _androidllm_env() if name == "androidllm" else bot_env
-                proc_cwd = MEMORY_REPO if name == "memory" else DIR
+                proc_cwd = MEMORY_REPO if name == "memory" else (_DMA_DIR if name == "dma" else DIR)
                 proc = subprocess.Popen(cmd, cwd=proc_cwd, env=proc_env, stderr=stderr_fh)
                 procs[name] = proc
                 threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
@@ -684,8 +715,11 @@ if __name__ == "__main__":
             log(f"changed: {os.path.basename(f)}", "watch")
         last_hashes = current
 
-        git_changed = git_update()
-        memory_git_changed = git_update_memory()
+        changed_repos = git_update()
+        git_changed = "bot" in changed_repos
+        memory_git_changed = "memory" in changed_repos
+        if changed_repos - {"bot", "memory"}:
+            log(f"extra repo(s) synced: {', '.join(sorted(changed_repos - {'bot', 'memory'}))}", "git")
 
         web_dead = "web" in procs and procs["web"].poll() is not None and not health_check()
 
