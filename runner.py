@@ -32,22 +32,21 @@ GIT_FAIL_STRIKES = int(os.environ.get("GIT_FAIL_STRIKES", "3"))
 GIT_RESET_COOLDOWN = int(os.environ.get("GIT_RESET_COOLDOWN", "600"))
 GIT_STATE_DIR = os.environ.get("GIT_STATE_DIR", os.path.join(os.path.expanduser("~"), ".opencode-runner"))
 
-# Multi-repo auto-update: every repo related to runner.py is git-synced on the
-# main loop. Each entry is (label, path, allow_reset). allow_reset=False means
-# pull-only (never force-sync). Add more with
-#   GIT_EXTRA_REPOS="label=path;label2=path2"
+# Multi-repo auto-update: every repo linked to the runner is git-synced on
+# the main loop. Registry: one small file per repo under <bot>/repos/,
+# managed by repo_updater.py (auto-discovers new repos linked to
+# cyberdeck.py / runner.py / opencode.py). Each entry is
+#   (label, path, allow_reset); allow_reset=False means pull-only
+#   (never force-sync). Add more with
+#   GIT_EXTRA_REPOS="label=path;label2=path2"  (or drop a repos/*.json file).
 _PARENT = os.path.dirname(DIR)
-GIT_REPOS = [
-    ("bot", DIR, True),
-    ("memory", MEMORY_REPO, False),
-    ("agents-places", os.path.join(_PARENT, "agents-places"), True),
-    ("cyberdeck", os.path.join(_PARENT, "cyberdeck"), True),
-]
+import repo_updater as _repo_updater
+_GIT_EXTRA = {}
 for _extra in (os.environ.get("GIT_EXTRA_REPOS", "") or "").split(";"):
     _entry = _extra.strip()
     if "=" in _entry:
         _label, _path = _entry.split("=", 1)
-        GIT_REPOS.append((_label.strip(), _path.strip(), True))
+        _GIT_EXTRA[_label.strip()] = _path.strip()
 
 def log(msg, section="runner"):
     ts = time.strftime("%H:%M:%S")
@@ -154,9 +153,13 @@ def file_hashes():
             "context_files.json", "conversation_tags.json", "bridges.json",
             "checkpoints.json", "premade_skills.json", "schedule.json",
             "reminders.json", "usage_stats.json", "workflows.json",
-            "bot_crash.txt", "bot.log", "security_warnings.txt"}
+            "bot_crash.txt", "bot.log", "security_warnings.txt",
+            "runner-notes.md"}
+    _repo_dir_prefix = os.path.join(DIR, "repos")
     for f in glob.glob(os.path.join(DIR, "*.py")) + glob.glob(os.path.join(DIR, "*.json")) + glob.glob(os.path.join(DIR, "whatsapp", "*.js")):
         if os.path.basename(f) in skip:
+            continue
+        if os.path.dirname(f) == _repo_dir_prefix or f.startswith(_repo_dir_prefix + os.sep):
             continue
         try:
             with open(f, "rb") as fh:
@@ -257,11 +260,32 @@ def _git_state_path(d):
     return os.path.join(GIT_STATE_DIR, f"git_{ident}.json")
 
 def git_update():
-    changed = set()
-    for label, d, allow_reset in GIT_REPOS:
-        if _git_update_dir(d, label, allow_reset=allow_reset):
-            changed.add(label)
-    return changed
+    """Multi-repo sync with live progress (0/N -> N/N). New repos that are
+    linked to the bot (reference cyberdeck.py/runner.py/opencode.py, or are
+    referenced by them) are auto-added to the update set. Returns the set
+    of labels that actually changed."""
+    try:
+        entries, ignored = _repo_updater.sync_registry(_PARENT, _GIT_EXTRA)
+    except Exception as e:
+        log(f"multi-repo registry error: {e}", "git")
+        return set()
+    if ignored:
+        log(f"multi-repo: new repos not linked to bot, skipped: "
+            f"{', '.join(ignored)}", "git")
+        if _can_notify("git_unlinked"):
+            send_telegram(f"<b>Runner</b>: found new repos not linked to the "
+                          f"bot (no cyberdeck.py/runner.py/opencode.py "
+                          f"reference) — skipped: {', '.join(ignored)}")
+    def _notify(prefix, msg):
+        log(f"multi-repo {prefix}: {msg}", "git")
+        if not msg.startswith("searching") or _can_notify(f"git_prog_{prefix}"):
+            if _can_notify("git_prog"):
+                send_telegram(f"<b>Runner</b> ({prefix}): {msg}")
+    try:
+        return _repo_updater.update_all(entries, notify=_notify)
+    except Exception as e:
+        log(f"multi-repo update error: {e}", "git")
+        return set()
 
 def _git_push_fix_dir(d, label, message="auto-fix: runner patch"):
     try:
@@ -718,6 +742,12 @@ if __name__ == "__main__":
         changed_repos = git_update()
         git_changed = "bot" in changed_repos
         memory_git_changed = "memory" in changed_repos
+        repo_to_proc = {"cyberdeck": "cyberdeck", "agent-01": "cyberdeck"}
+        proc_restart = set()
+        for _label in changed_repos - {"bot", "memory"}:
+            _proc = repo_to_proc.get(_label)
+            if _proc and _proc in PROCESSES:
+                proc_restart.add(_proc)
         if changed_repos - {"bot", "memory"}:
             log(f"extra repo(s) synced: {', '.join(sorted(changed_repos - {'bot', 'memory'}))}", "git")
 
@@ -737,6 +767,10 @@ if __name__ == "__main__":
         elif memory_git_changed:
             log(f"memory repo updated, restarting memory daemon...", "proc")
             kill_one("memory")
+        elif proc_restart:
+            for _proc in sorted(proc_restart):
+                log(f"repo update, restarting {_proc}...", "proc")
+                kill_one(_proc)
         elif changed_files:
             code_changed = any(os.path.basename(f) in ("opencode_bot.py", "web_gateway.py", "bot_features.py", "bot_to_bot_agent.py", "providers.json") for f in changed_files)
             cyberdeck_changed = any(os.path.basename(f) in ("cyberdeck_bot.py", "cyberdeck_agent.py") for f in changed_files)
