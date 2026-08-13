@@ -387,6 +387,50 @@ def update_all(entries, notify=None):
     return changed
 
 
+def repo_status():
+    """Read-only sync status for every registry entry, no network.
+    Each item: label, path, exists, dirty, ahead, behind, head, branch.
+    Used by the bot's /status command."""
+    out = []
+    for e in registry_entries():
+        d = e["path"]
+        item = {"label": e["label"], "path": d,
+                "exists": os.path.isdir(os.path.join(d, ".git"))}
+        if item["exists"]:
+            item.update(_git_sync_state(d))
+        out.append(item)
+    return out
+
+
+def _git_sync_state(d):
+    st = {"dirty": False, "ahead": 0, "behind": 0, "head": None, "branch": None}
+
+    def _run(args):
+        try:
+            r = subprocess.run(args, cwd=d, capture_output=True, text=True,
+                               timeout=10, encoding="utf-8")
+            return r.returncode, r.stdout.strip()
+        except Exception:
+            return -1, ""
+
+    rc, head = _run(["git", "rev-parse", "--short", "HEAD"])
+    if rc == 0:
+        st["head"] = head
+    rc, branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if rc == 0:
+        st["branch"] = branch
+    rc, por = _run(["git", "status", "--porcelain"])
+    st["dirty"] = rc == 0 and bool(por)
+    rc, counts = _run(["git", "rev-list", "--left-right", "--count", "HEAD...@{u}"])
+    if rc == 0 and counts:
+        try:
+            left, right = counts.split()
+            st["ahead"], st["behind"] = int(left), int(right)
+        except Exception:
+            pass
+    return st
+
+
 def _now():
     import time
     return int(time.time())

@@ -818,6 +818,38 @@ CUSTOM_COMMANDS_FILE = os.path.join(os.path.dirname(__file__), "custom_commands.
 CONTEXT_FILES_FILE = os.path.join(os.path.dirname(__file__), "context_files.json")
 CONVERSATION_TAGS_FILE = os.path.join(os.path.dirname(__file__), "conversation_tags.json")
 BRIDGES_FILE = os.path.join(os.path.dirname(__file__), "bridges.json")
+SKILLS_CATALOG = {
+    "ai-engineering": ("Stanford CS229 → production AI systems. Covers ML, RLHF, RAG, fine-tuning, MLOps.",
+                       ["ML", "RAG", "fine-tuning"]),
+    "browser-automation": ("Skyvern + Browser Use — AI-driven browser automation, CAPTCHA handling, dynamic pages.",
+                           ["automation", "web"]),
+    "video-analysis": ("Claude Video — Extract key frames, detect objects/scenes/actions, generate video summaries.",
+                       ["video", "vision"]),
+    "text-to-speech": ("Pocket TTS + Voicebox — Natural TTS, SSML, voiceovers, audiobooks, accessibility audio.",
+                       ["audio", "tts"]),
+    "system-prompts": ("System prompt engineering — meta-prompt structures, guardrails, anti-jailbreak patterns.",
+                       ["prompts", "security"]),
+    "knowledge-graph": ("Graphify + Neo4j — Entity extraction, relationship mapping, graph RAG, Cypher queries.",
+                        ["graph", "RAG"]),
+    "code-review-graph": ("Dependency graph analysis — circular deps, dead code, impact path tracing, module coupling.",
+                          ["code-review", "graph"]),
+    "copilot-ui": ("CopilotKit — Build AI copilot UIs with React: sidebar, popup, textarea, co-agents.",
+                   ["react", "UI", "copilot"]),
+    "multi-agent": ("Agency-Agents — Agent-to-agent messaging, hierarchical structures, tool sharing.",
+                    ["agents", "orchestration"]),
+    "goose": ("Goose (Block) — Autonomous task execution with structured tool calling, file ops, shell.",
+              ["automation", "tools"]),
+    "cube-analytics": ("Cube.js — Semantic analytics layer, data modeling, pre-aggregations, multi-tenant.",
+                       ["analytics", "data"]),
+    "penpot-design": ("Penpot — Open-source design tooling, prototypes, design tokens, collaborative workflows.",
+                      ["design", "UI"]),
+    "lobehub-chat": ("LobeChat — Modern chat UIs, streaming text, multi-modal messages, session mgmt.",
+                     ["chat", "UI"]),
+    "cognee-memory": ("Cognee — Cognitive graph memory with episodic/semantic/procedural layers for agents.",
+                      ["memory", "RAG", "graph"]),
+    "openhands-dev": ("OpenHands — Full AI developer: code, debug, run commands, build complete apps.",
+                      ["coding", "dev"]),
+}
 bridges = {}
 vector_memory = {}
 class _MemoryBuffer(dict):
@@ -2600,6 +2632,108 @@ async def bot_delete_message(chat, mid):
     except Exception:
         pass
 
+def _proc_uptime(keyword):
+    """Seconds the newest matching process has been up, or None. Best-effort,
+    cross-platform (wmic on Windows, ps on Unix)."""
+    import subprocess
+    try:
+        if os.name == "nt":
+            out = subprocess.run(
+                ["wmic", "process", "where", "Name='python.exe'",
+                 "get", "CreationDate,CommandLine", "/format:csv"],
+                capture_output=True, text=True, timeout=15, encoding="utf-8")
+            best = None
+            for line in out.stdout.splitlines():
+                if keyword not in line or "wmic" in line:
+                    continue
+                cols = [c.strip() for c in line.split(",")]
+                if len(cols) >= 2:
+                    try:
+                        ts = cols[-2].split(".")[0]
+                        t = datetime.strptime(ts, "%Y%m%d%H%M%S")
+                        up = int((datetime.now() - t).total_seconds())
+                        best = max(best or 0, up)
+                    except Exception:
+                        continue
+            return best
+        else:
+            out = subprocess.run(["ps", "-eo", "etimes,cmd"],
+                                 capture_output=True, text=True, timeout=10,
+                                 encoding="utf-8")
+            best = None
+            for line in out.stdout.splitlines():
+                if keyword in line:
+                    try:
+                        best = max(best or 0, int(line.split()[0]))
+                    except Exception:
+                        continue
+            return best
+    except Exception:
+        return None
+    return None
+
+def _fmt_uptime(secs):
+    if not secs:
+        return "not running"
+    if secs < 90:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}m"
+    if secs < 86400:
+        return f"{secs // 3600}h {(secs % 3600) // 60}m"
+    return f"{secs // 86400}d {(secs % 86400) // 3600}h"
+
+async def _dma_health():
+    """Return (ok, detail) for the deep-memory server on :8101."""
+    port = os.environ.get("DMA_PORT", "8101")
+    url = f"http://127.0.0.1:{port}/healthz"
+    try:
+        c = await get_http()
+        t0 = datetime.now()
+        r = await c.get(url, timeout=5)
+        ms = int((datetime.now() - t0).total_seconds() * 1000)
+        if r.status_code == 200:
+            return True, f"OK ({ms}ms)"
+        return False, f"HTTP {r.status_code}"
+    except Exception as e:
+        return False, str(e)[:60]
+
+async def _system_status():
+    """Aggregated system status: runner uptime, dma health, memory daemon,
+    and sync state of every repo in the registry. Best-effort."""
+    lines = ["— System —"]
+    runner_up = _proc_uptime("runner.py")
+    lines.append(f"Runner: {_fmt_uptime(runner_up)}")
+    mem_up = _proc_uptime("om.py") or _proc_uptime("watch")
+    lines.append(f"Memory daemon: {_fmt_uptime(mem_up)}")
+    dma_ok, dma_detail = await _dma_health()
+    lines.append(f"Deep-memory (:8101): {dma_detail if dma_ok else 'down — ' + dma_detail}")
+    try:
+        import repo_updater as _ru
+        rows = _ru.repo_status()
+        lines.append(f"Repos ({len(rows)}):")
+        if rows:
+            w = max(len(r["label"]) for r in rows)
+            for r in sorted(rows, key=lambda x: x["label"]):
+                if not r["exists"]:
+                    state = "missing"
+                else:
+                    parts = []
+                    if r["behind"]:
+                        parts.append(f"behind {r['behind']}")
+                    elif r["ahead"]:
+                        parts.append(f"ahead {r['ahead']}")
+                    if r["dirty"]:
+                        parts.append("dirty")
+                    state = ", ".join(parts) if parts else "ok"
+                head = r["head"] or "?"
+                lines.append(f"  {r['label']:<{w}}  {state:<14} {head}")
+        else:
+            lines.append("  (no registry entries — runner not synced yet)")
+    except Exception as e:
+        lines.append(f"Repos: unavailable ({e})")
+    return "\n".join(lines)
+
 async def call_provider(messages, provider, override=None):
     if override:
         p = override
@@ -3352,6 +3486,7 @@ async def main():
                         "  /agents — List agents",
                         "  /agent <name> — Switch agent",
                         "  /skills — List available skills from repo catalog",
+                        "  /skill <name> <task> — Run a skill from the catalog",
                         "  /repo — List providers",
                         "  /repo <name> — Switch provider",
                         "  /arch — List architectures",
@@ -3368,7 +3503,7 @@ async def main():
                         "  /low|/normal|/medium|/high|/superhigh — Set effort",
                         "  /thinking off|extended|adaptive — Thinking mode",
                         "  /help — Help",
-                        "  /status — Current agent + provider",
+                        "  /status — Agent, provider, runner, dma + repo sync",
                         "  /providers — Provider health dashboard",
                         "  /reset — Reset your personal settings",
                         "  /myrole — Your role",
@@ -3486,7 +3621,7 @@ async def main():
                             "/repo — List / switch AI provider",
                             "/providers — Provider health dashboard",
                             "/reset — Reset your personal settings",
-                            "/status — Current agent + provider",
+                            "/status — Agent, provider, runner, dma + repo sync",
                             "/multi start <p1> [p2] [rounds=2] — Talk to 2 AIs at once",
                             "/multi stop — End multi-AI session",
                             "/swarm divide|round <task> — Parallel agent swarm (health-aware pool)",
@@ -4056,6 +4191,7 @@ async def main():
                         f"Effort: {effort} ({EFFORT_LEVELS[effort]['desc']})\n"
                         f"Thinking: {thinking_mode}"
                     ))
+                    await send(chat, await _system_status())
 
                 elif cmd == "/swarm":
                     if len(parts) < 2:
@@ -4614,29 +4750,48 @@ async def main():
                     await send(chat, f"Announced v{ver} to all chats.")
                     
                 elif cmd == "/skills":
-                    skills_db = {
-                        "ai-engineering": "Stanford CS229 → production AI systems. Covers ML, RLHF, RAG, fine-tuning, MLOps.",
-                        "browser-automation": "Skyvern + Browser Use — AI-driven browser automation, CAPTCHA handling, dynamic pages.",
-                        "video-analysis": "Claude Video — Extract key frames, detect objects/scenes/actions, generate video summaries.",
-                        "text-to-speech": "Pocket TTS + Voicebox — Natural TTS, SSML, voiceovers, audiobooks, accessibility audio.",
-                        "system-prompts": "System prompt engineering — meta-prompt structures, guardrails, anti-jailbreak patterns.",
-                        "knowledge-graph": "Graphify + Neo4j — Entity extraction, relationship mapping, graph RAG, Cypher queries.",
-                        "code-review-graph": "Dependency graph analysis — circular deps, dead code, impact path tracing, module coupling.",
-                        "copilot-ui": "CopilotKit — Build AI copilot UIs with React: sidebar, popup, textarea, co-agents.",
-                        "multi-agent": "Agency-Agents — Agent-to-agent messaging, hierarchical structures, tool sharing.",
-                        "goose": "Goose (Block) — Autonomous task execution with structured tool calling, file ops, shell.",
-                        "cube-analytics": "Cube.js — Semantic analytics layer, data modeling, pre-aggregations, multi-tenant.",
-                        "penpot-design": "Penpot — Open-source design tooling, prototypes, design tokens, collaborative workflows.",
-                        "lobehub-chat": "LobeChat — Modern chat UIs, streaming text, multi-modal messages, session mgmt.",
-                        "cognee-memory": "Cognee — Cognitive graph memory with episodic/semantic/procedural layers for agents.",
-                        "openhands-dev": "OpenHands — Full AI developer: code, debug, run commands, build complete apps.",
-                    }
-                    lines = [f"Available skills from repo catalog ({len(skills_db)}):"]
-                    for sname, sdesc in sorted(skills_db.items()):
+                    lines = [f"Available skills from repo catalog ({len(SKILLS_CATALOG)}):"]
+                    for sname, (sdesc, _tags) in sorted(SKILLS_CATALOG.items()):
                         lines.append(f"  {sname} — {sdesc}")
                     lines.append("")
-                    lines.append("Use /agent <name> to switch to an agent, or just chat with any agent about these skills.")
+                    lines.append("Run one with /skill <name> <task>, or use /agent <name> to switch to an agent.")
                     await send(chat, "\n".join(lines))
+
+                elif cmd == "/skill":
+                    if len(parts) < 2 or parts[1] in ("list", "help"):
+                        usage = ["Usage: /skill <name> [task...]",
+                                 "  /skill list — List skills",
+                                 "  /skill <name> — Explain how to use the skill",
+                                 "  /skill <name> <task> — Run the task with that skill's context",
+                                 "",
+                                 f"Skills ({len(SKILLS_CATALOG)}): " + ", ".join(sorted(SKILLS_CATALOG))]
+                        await send(chat, "\n".join(usage))
+                        continue
+                    sname = parts[1].lower()
+                    if sname not in SKILLS_CATALOG:
+                        await send(chat, f"Unknown skill '{sname}'. See /skill list.")
+                        continue
+                    sdesc, stags = SKILLS_CATALOG[sname]
+                    task = " ".join(parts[2:]) or f"Explain how to use the {sname} skill and give a concrete example."
+                    skill_msgs = [
+                        {"role": "system", "content": (
+                            f"You are the '{sname}' skill expert. Skill: {sdesc}. "
+                            f"Tags: {', '.join(stags)}. Complete the user's task strictly "
+                            f"through the lens of this skill — give actionable, concrete output.")},
+                        {"role": "user", "content": task},
+                    ]
+                    await typing(chat)
+                    await send(chat, f"Running skill <b>{sname}</b> — {sdesc}\n")
+                    try:
+                        ap = AGENT_PROVIDERS.get(active_agent)
+                        if ap and _is_configured(ap.get("key", "")):
+                            reply = await call_provider(skill_msgs, active_provider,
+                                                        override=ap)
+                        else:
+                            reply = await call_provider(skill_msgs, active_provider)
+                        await send(chat, reply)
+                    except Exception as e:
+                        await send(chat, f"Skill error: {e}")
 
                 elif cmd == "/pocket-tts":
                     if len(parts) < 3:
@@ -8946,7 +9101,7 @@ async def main():
                             lines.append(f"  Chat {cid} — #{tag} ({count}x)")
                         await send(chat, "\n".join(lines))
 
-                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/youtube_search", "/tiktok", "/github_search", "/analyze", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/swarm", "/swarmstatus", "/mcp", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge", "/reddit", "/hn", "/social", "/memory", "/cron", "/monitor", "/announcementoff", "/announcementon", "/announce", "/rich", "/richv2", "/cyberdeck", "/iot", "/edu", "/fin", "/cv", "/style", "/pollplus", "/content", "/analytics", "/sub", "/safety", "/dev", "/aiint", "/community", "/automate", "/secapi", "/languages", "/ocr", "/loc", "/miniapp", "/backup-keys", "/market", "/voice", "/auto", "/guard", "/kg", "/vault", "/watch-video"):
+                elif cmd.startswith("/") and cmd not in ("/start", "/version", "/help", "/agents", "/agent", "/repo", "/status", "/clear", "/myrole", "/checkrole", "/profile", "/addadmin", "/removeadmin", "/adminlist", "/addmod", "/removemod", "/modlist", "/addprovider", "/reset", "/providers", "/agentprovider", "/createagent", "/premadeskills", "/addprompt", "/arch", "/mode", "/tools", "/teams", "/putteam", "/createteam", "/useteam", "/stopteam", "/routes", "/gateway", "/repair", "/pyrit", "/toolfk", "/synoxcloud", "/webgateway", "/effort", "/thinking", "/low", "/normal", "/medium", "/high", "/superhigh", "/vision", "/draw", "/schedule", "/export", "/doc", "/ask", "/context", "/search", "/youtube", "/youtube_search", "/tiktok", "/github_search", "/analyze", "/run", "/fetch", "/remind", "/digest", "/routine", "/multi", "/translate", "/qr", "/stats", "/data", "/plugin", "/n8n", "/n8n-status", "/n8n-logs", "/github", "/gmail", "/sheets", "/notion", "/crypto", "/stack", "/stackstatus", "/swarm", "/swarmstatus", "/mcp", "/remember", "/recall", "/tokens", "/weather", "/backup", "/restore", "/dailydigest", "/experimental", "/update", "/skills", "/skill", "/pocket-tts", "/video-analyze", "/prompt-analyze", "/kgraph", "/history", "/view", "/change", "/resume", "/archive", "/video", "/cmd", "/tags", "/find", "/bridge", "/reddit", "/hn", "/social", "/memory", "/cron", "/monitor", "/announcementoff", "/announcementon", "/announce", "/rich", "/richv2", "/cyberdeck", "/iot", "/edu", "/fin", "/cv", "/style", "/pollplus", "/content", "/analytics", "/sub", "/safety", "/dev", "/aiint", "/community", "/automate", "/secapi", "/languages", "/ocr", "/loc", "/miniapp", "/backup-keys", "/market", "/voice", "/auto", "/guard", "/kg", "/vault", "/watch-video"):
                     if not is_owner and not is_admin:
                         await send(chat, "Unknown command.")
                     else:
