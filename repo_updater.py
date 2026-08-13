@@ -306,15 +306,56 @@ def update_all(entries, notify=None):
             else:
                 say(i + 1, total, "%s — up to date" % label)
             continue
-        # pull failed -> fallback method (fetch + hard reset)
+        # pull failed -> stash-then-pull (preserve local changes)
+        say(i, total, "%s — pull failed, trying stash-then-pull" % label)
+        stashed = False
+        try:
+            sp = subprocess.run(["git", "stash", "push", "-m", "runner-auto"],
+                                cwd=d, capture_output=True, text=True,
+                                timeout=30, encoding="utf-8")
+            comb = (sp.stdout or "") + (sp.stderr or "")
+            if sp.returncode == 0:
+                stashed = "No local changes" not in comb
+            else:
+                say(i, total, "%s — stash error: %s" % (label, sp.stderr.strip()[-200:]))
+        except Exception as e:
+            say(i, total, "%s — stash error: %s" % (label, e))
+        try:
+            pr2 = subprocess.run(["git", "pull", "--ff-only", "--depth=1"],
+                                 cwd=d, capture_output=True, text=True,
+                                 timeout=30, encoding="utf-8")
+        except Exception as e:
+            pr2 = None
+            say(i, total, "%s — pull retry error: %s" % (label, e))
+        restored = True
+        if stashed:
+            try:
+                rp = subprocess.run(["git", "stash", "pop"], cwd=d,
+                                    capture_output=True, text=True,
+                                    timeout=30, encoding="utf-8")
+                restored = rp.returncode == 0
+                if not restored:
+                    say(i, total, "%s — stash pop conflict, run 'git stash list' to recover" % label)
+            except Exception as e:
+                restored = False
+                say(i, total, "%s — stash pop error: %s" % (label, e))
+        if pr2 and pr2.returncode == 0:
+            new_head = _head_short(d)
+            if new_head and new_head != old_head[:len(new_head)]:
+                changed.add(label)
+                say(i + 1, total, "%s — pulled %s (stash-then-pull)" % (label, new_head))
+            else:
+                say(i + 1, total, "%s — up to date (stash)" % label)
+            continue
+        # last resort: fetch + hard reset (local edits already stashed)
         if not allow_reset:
-            say(i, total, "%s — pull failed, reset not allowed, skipped" % label)
+            say(i, total, "%s — pull still failed, reset not allowed, skipped" % label)
             continue
         now = _now()
         if now - _last_reset.get(d, 0) < _RESET_COOLDOWN:
-            say(i, total, "%s — pull failed, fallback on cooldown" % label)
+            say(i, total, "%s — pull still failed, fallback on cooldown" % label)
             continue
-        say(i, total, "%s — pull failed, using fallback (fetch + hard reset)" % label)
+        say(i, total, "%s — pull still failed, using fallback (fetch + hard reset)" % label)
         remote = _primary_remote(d)
         if not remote:
             say(i, total, "%s — no git remote, cannot fallback" % label)
