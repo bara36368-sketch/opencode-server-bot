@@ -22,6 +22,7 @@ ngrok.zip
 setenv.sh
 providers.json
 whatsapp/
+vansrouter/
 keys_backup.json
 *.log
 target/
