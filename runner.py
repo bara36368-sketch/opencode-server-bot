@@ -23,15 +23,6 @@ logging.basicConfig(
 OWNER_ID = os.environ.get("OWNER_ID", "8585609360")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
-# Git auto-update hardening: after GIT_FAIL_STRIKES consecutive pull
-# failures the repo is force-synced (git fetch origin; git reset --hard),
-# then git is left alone for GIT_RESET_COOLDOWN seconds. Failure counters
-# persist across runner restarts in GIT_STATE_DIR (outside the repo so
-# the file watcher never sees them).
-GIT_FAIL_STRIKES = int(os.environ.get("GIT_FAIL_STRIKES", "3"))
-GIT_RESET_COOLDOWN = int(os.environ.get("GIT_RESET_COOLDOWN", "600"))
-GIT_STATE_DIR = os.environ.get("GIT_STATE_DIR", os.path.join(os.path.expanduser("~"), ".opencode-runner"))
-
 # Multi-repo auto-update: every repo linked to the runner is git-synced on
 # the main loop. Registry: one small file per repo under <bot>/repos/,
 # managed by repo_updater.py (auto-discovers new repos linked to
@@ -167,97 +158,6 @@ def file_hashes():
         except:
             pass
     return h
-
-def _git_update_dir(d, label, allow_reset=True):
-    try:
-        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        if r.returncode != 0:
-            log(f"[{label}] not a git repo: {r.stderr.strip()}", "git")
-            return False
-        old_head = r.stdout.strip()
-        now = time.time()
-        state = _load_git_state(d)
-        fail = int(state.get("fail_count", 0))
-        last_reset = float(state.get("last_reset", 0))
-        if now - last_reset < GIT_RESET_COOLDOWN:
-            log(f"[{label}] hard-reset cooldown ({int(now - last_reset)}s ago), skipping git", "git")
-            return False
-        log(f"[{label}] trying git pull...", "git")
-        r = subprocess.run(["git", "pull", "--ff-only", "--depth=1"], cwd=d, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        if r.returncode == 0:
-            if "Already up to date" not in r.stdout:
-                r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-                new_head = r2.stdout.strip()
-                log(f"[{label}] pull success ({new_head})", "git")
-                _save_git_state(d, {"fail_count": 0, "last_reset": 0})
-                return True
-            # up to date is healthy: reset the failure counter too
-            _save_git_state(d, {"fail_count": 0, "last_reset": 0})
-            return False
-        fail += 1
-        log(f"[{label}] pull failed (strike {fail}/{GIT_FAIL_STRIKES}): {r.stderr.strip()}", "git")
-        if not allow_reset:
-            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
-            return False
-        if fail < GIT_FAIL_STRIKES:
-            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
-            return False
-        # 3+ consecutive pull failures: hard reset to origin (user: git fetch
-        # origin; git reset --hard origin/master when pull fails 3 times)
-        log(f"[{label}] 3 pull failures, hard reset: git fetch origin && git reset --hard origin/master", "git")
-        r = subprocess.run(["git", "fetch", "origin"], cwd=d, capture_output=True, text=True, timeout=60, encoding="utf-8")
-        if r.returncode != 0:
-            log(f"[{label}] fetch failed (network?): {r.stderr.strip()}", "git")
-            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
-            return False
-        branch = _git_default_branch(d)
-        ref = f"origin/{branch}" if branch else "origin/master"
-        r = subprocess.run(["git", "reset", "--hard", ref], cwd=d, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        if r.returncode != 0:
-            log(f"[{label}] hard reset failed: {r.stderr.strip()}", "git")
-            _save_git_state(d, {"fail_count": fail, "last_reset": 0})
-            return False
-        r2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        new_head = r2.stdout.strip()
-        _save_git_state(d, {"fail_count": 0, "last_reset": now})
-        if new_head == old_head[:len(new_head)] and fail == GIT_FAIL_STRIKES:
-            log(f"[{label}] hard reset: no change, clearing strikes", "git")
-            return False
-        log(f"[{label}] hard reset success ({new_head})!", "git")
-        if _can_notify("git_reset"):
-            send_telegram(f"<b>Runner</b>: {label} repo stalled (3 pull failures) - hard reset to {new_head} done. Repos in sync.")
-        return True
-    except Exception as e:
-        log(f"[{label}] update failed: {e}", "git")
-    return False
-
-def _git_default_branch(d):
-    try:
-        r = subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=d, capture_output=True, text=True, timeout=10, encoding="utf-8")
-        if r.returncode == 0:
-            return r.stdout.strip().replace("refs/remotes/origin/", "").strip()
-    except Exception:
-        pass
-    return "master"
-
-def _load_git_state(d):
-    try:
-        with open(_git_state_path(d), encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-def _save_git_state(d, state):
-    try:
-        os.makedirs(GIT_STATE_DIR, exist_ok=True)
-        with open(_git_state_path(d), "w", encoding="utf-8") as f:
-            json.dump(state, f)
-    except Exception:
-        pass
-
-def _git_state_path(d):
-    ident = hashlib.sha256(d.encode("utf-8")).hexdigest()[:12]
-    return os.path.join(GIT_STATE_DIR, f"git_{ident}.json")
 
 def git_update():
     """Multi-repo sync with live progress (0/N -> N/N). New repos that are
@@ -533,6 +433,9 @@ def monitor_process(name, proc):
                 stderr_text = f.read()[:2000]
     except:
         pass
+    if name not in _intentional_kills:
+        _register_crash(name)
+    _intentional_kills.discard(name)
     msg = f"{name} crashed (exit {exit_code})"
     log(msg, "proc")
     with open(CRASH_LOG, "a", encoding="utf-8") as f:
@@ -603,6 +506,44 @@ HEALTH_URL = "http://127.0.0.1:4357/api/providers"
 MAX_RESTARTS = 5
 RESTART_WINDOW = 300
 
+# Per-process crash backoff: when a process crashes repeatedly, wait
+# progressively longer before restarting it (BACKOFF_BASE x 2^strikes,
+# capped at BACKOFF_CAP). Strikes decay once a process stays alive longer
+# than BACKOFF_RESET seconds, so a single hiccup restarts fast but a real
+# crash-loop gets backoff instead of hammering restarts every CHECK_INTERVAL.
+BACKOFF_BASE = 5
+BACKOFF_CAP = 300
+BACKOFF_RESET = 120
+_crash_strikes = {}
+_next_start = {}
+_started_at = {}
+# Processes killed on purpose (git restart, model switch, file change) are
+# not counted as crashes, so planned restarts never trigger backoff.
+_intentional_kills = set()
+
+
+def _register_crash(name):
+    """Record a real crash for `name` and arm its next restart time."""
+    now = time.time()
+    strikes = _crash_strikes.get(name, 0) + 1
+    _crash_strikes[name] = strikes
+    _next_start[name] = now + min(BACKOFF_BASE * (2 ** (strikes - 1)), BACKOFF_CAP)
+
+
+def _clear_backoff(name):
+    _crash_strikes.pop(name, None)
+    _next_start.pop(name, None)
+
+
+def _backoff_remaining(name):
+    """Seconds left before `name` may be (re)started. Decays strikes when
+    the process survived long enough between restarts."""
+    now = time.time()
+    up_since = _started_at.get(name, 0)
+    if up_since and now - up_since > BACKOFF_RESET:
+        _clear_backoff(name)
+    return max(0, _next_start.get(name, 0) - now)
+
 last_hashes = file_hashes()
 procs = {}
 first = True
@@ -663,6 +604,7 @@ def _androidllm_env():
 def kill_all():
     global procs
     for name, p in list(procs.items()):
+        _intentional_kills.add(name)
         try: p.terminate()
         except: pass
     time.sleep(1)
@@ -674,6 +616,7 @@ def kill_all():
 
 def kill_one(name):
     if name in procs:
+        _intentional_kills.add(name)
         try: procs[name].terminate()
         except: pass
         time.sleep(1)
@@ -707,6 +650,10 @@ if __name__ == "__main__":
         for name, base_cmd in PROCESSES.items():
             if name not in procs or procs[name].poll() is not None:
                 was_running = name in procs and procs[name].poll() is not None
+                remaining = _backoff_remaining(name)
+                if remaining > 0:
+                    log(f"{name} crash backoff, retry in {remaining:.0f}s", "proc")
+                    continue
                 if name == "web":
                     free_port(4357)
                     time.sleep(1)
@@ -718,6 +665,7 @@ if __name__ == "__main__":
                 proc_cwd = MEMORY_REPO if name == "memory" else (_DMA_DIR if name == "dma" else DIR)
                 proc = subprocess.Popen(cmd, cwd=proc_cwd, env=proc_env, stderr=stderr_fh)
                 procs[name] = proc
+                _started_at[name] = time.time()
                 threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
                 if name == "web":
                     for _ in range(6):
