@@ -136,6 +136,15 @@ except Exception as _bf_err:
         pass
     bf = _BfStub()
 
+try:
+    import project_memory as _pmem
+except Exception:
+    _pmem = None
+try:
+    import runner_connector as _rc
+except Exception:
+    _rc = None
+
 _modules_to_lazy = {
     "stack_ref": "ai_stack_reference",
     "ai_stack": "ai_stack_combined",
@@ -3685,6 +3694,10 @@ async def main():
                             "/routine create|list|show|delete|run — Prompt chaining workflows",
                             "/plugin load|list — Load/list plugins",
                             "/memory stats|search|clear — Persistent memory log",
+                            "/pmem brief|log|search|precheck — Project memory (.projectmem)",
+                            "/runner status|health|metrics|restarts|exec <cmd>|restart|disable|enable|ports — Runner fleet control",
+                            "/pdfask <question> — Ask the document index",
+                            "/video-watch <url> — Summarize a video",
                         ]),
                         ("INTEGRATIONS", [
                             "/n8n — Trigger n8n webhook",
@@ -6145,6 +6158,180 @@ async def main():
                         await send(chat, "Your memory log cleared.")
                     else:
                         await send(chat, "Usage:\n  /memory stats — Memory statistics\n  /memory search <keyword> — Search your memory\n  /memory clear — Clear your memory log")
+
+                elif cmd == "/runner":
+                    if not is_owner and not is_admin:
+                        await send(chat, "Only owners/admins can control the runner.")
+                        continue
+                    if _rc is None:
+                        await send(chat, "runner_connector unavailable.")
+                        continue
+                    sub = parts[1].lower() if len(parts) > 1 else "status"
+                    try:
+                        c = _rc.RunnerControl()
+                        if sub == "status":
+                            st = c.status()
+                            procs = st.get("processes", {})
+                            if not procs:
+                                await send(chat, f"Runner status (raw): {json.dumps(st)[:800]}")
+                            else:
+                                lines = [f"Runner status (pid {st.get('runner_pid','?')}, "
+                                         f"up {st.get('uptime_s',0)}s):"]
+                                for name, info in procs.items():
+                                    state = info.get("state", "?")
+                                    pid = info.get("pid")
+                                    up = f"{info.get('uptime_s',0)}s" if pid else "-"
+                                    extra = ""
+                                    if info.get("disabled"):
+                                        extra += "  DISABLED"
+                                    if info.get("strikes"):
+                                        extra += f"  strikes={info.get('strikes')}"
+                                    if info.get("backoff_s"):
+                                        extra += f"  backoff={info.get('backoff_s')}s"
+                                    lines.append(f"  {name}: {state} pid={pid} up={up}{extra}")
+                                if st.get("health_web"):
+                                    lines.append("  web gateway: OK")
+                                await send(chat, "\n".join(lines[:30]))
+                        elif sub == "health":
+                            h = c.health()
+                            lines = ["Runner health:"]
+                            for name, info in h.get("processes", {}).items():
+                                lines.append(f"  {name}: {info.get('state')} "
+                                             f"cpu={info.get('cpu_pct','-')}% "
+                                             f"ram={info.get('ram_mb','-')}MB")
+                            await send(chat, "\n".join(lines[:30]))
+                        elif sub == "metrics":
+                            await send(chat, json.dumps(c.metrics(), indent=1)[:3500])
+                        elif sub == "restarts":
+                            r = c.restarts()
+                            lines = [f"Recent restarts (total crashes {r.get('total_crashes','?')}):"]
+                            for e in r.get("restarts", [])[:15]:
+                                lines.append(f"  [{e.get('time')}] {e.get('proc')}: {e.get('kind')} exit={e.get('exit')}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "exec" and len(parts) >= 3:
+                            res = c.exec(" ".join(parts[2:]), timeout=60)
+                            if res.get("ok"):
+                                await send(chat, f"$ {' '.join(parts[2:])}\n{res.get('stdout','')[:3000] or '(no output)'}")
+                            else:
+                                await send(chat, f"$ {' '.join(parts[2:])}\nrc={res.get('rc')}\n{res.get('stderr','')[:1500] or res.get('error','')}")
+                        elif sub == "restart" and len(parts) >= 3:
+                            result = c.restart(parts[2])
+                            await send(chat, f"Restart {parts[2]}: {json.dumps(result)[:500]}")
+                        elif sub == "restart-all":
+                            result = c.restart_all()
+                            await send(chat, f"Restart all: {json.dumps(result)[:500]}")
+                        elif sub == "disable" and len(parts) >= 3:
+                            result = c.disable(parts[2])
+                            await send(chat, f"Disable {parts[2]}: {json.dumps(result)[:500]}")
+                        elif sub == "enable" and len(parts) >= 3:
+                            result = c.enable(parts[2])
+                            await send(chat, f"Enable {parts[2]}: {json.dumps(result)[:500]}")
+                        elif sub == "ledger":
+                            led = c.ledger().get("ledger", [])
+                            lines = ["Ledger (last 15):"]
+                            for e in led[-15:]:
+                                lines.append(f"  [{e.get('time','')}] {e.get('event','')} {e.get('proc','')} {json.dumps({k:v for k,v in e.items() if k not in ('time','event','proc')})[:120]}")
+                            await send(chat, "\n".join(lines))
+                        elif sub == "ports":
+                            rows = c.ports().get("ports", [])
+                            if not rows:
+                                await send(chat, "No listening ports found.")
+                            else:
+                                lines = ["Listening ports:"]
+                                for r in rows:
+                                    mark = "  <-- supervised" if r.get("supervised") else ("  <-- managed" if r.get("managed") else "")
+                                    lines.append(f"  :{r.get('port')}  pid {r.get('pid')}  {r.get('proc') or '?'}{mark}")
+                                await send(chat, "\n".join(lines[:40]))
+                        elif sub == "schedule":
+                            sch = c.schedule().get("schedule", [])
+                            lines = ["Scheduled tasks:"]
+                            for t in sch:
+                                lines.append(f"  {t.get('name')}: every {t.get('interval')}s  last: {t.get('last_run','?')}")
+                            await send(chat, "\n".join(lines[:20]))
+                        else:
+                            await send(chat, "Usage:\n  /runner status — Fleet status\n  /runner health — CPU/RAM per proc\n  /runner metrics — Detailed metrics\n  /runner restarts — Restart history\n  /runner exec <cmd> — Run a shell command\n  /runner restart <proc> — Restart one proc\n  /runner restart-all — Restart all\n  /runner disable|enable <proc>\n  /runner ledger — Recent events\n  /runner ports — Port scan\n  /runner schedule — Scheduled tasks")
+                    except Exception as e:
+                        await send(chat, f"Runner control error: {e}")
+
+                elif cmd == "/pmem":
+                    if _pmem is None:
+                        await send(chat, "project_memory unavailable.")
+                        continue
+                    sub = parts[1].lower() if len(parts) > 1 else "brief"
+                    if sub == "brief":
+                        await send(chat, _pmem.get_brief()[:3500])
+                    elif sub == "log" and len(parts) >= 4:
+                        kind = parts[2].lower()
+                        if kind not in ("issue", "attempt", "fix", "decision", "note"):
+                            await send(chat, "kind must be issue|attempt|fix|decision|note")
+                            continue
+                        text = " ".join(parts[3:])
+                        row = _pmem.log_event(kind, text)
+                        await send(chat, f"Logged {kind}: {text[:200]}")
+                    elif sub == "search" and len(parts) >= 3:
+                        hits = _pmem.search_events(" ".join(parts[2:]))
+                        if hits:
+                            lines = [f"Matches for '{' '.join(parts[2:])}':"]
+                            for r in hits[:8]:
+                                lines.append(f"  [{r.get('time','')}] {r.get('kind','?')}: {r.get('summary','')[:160]}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "No matches.")
+                    elif sub == "precheck" and len(parts) >= 3:
+                        warns = _pmem.precheck_file(parts[2])
+                        await send(chat, "\n".join(warns) if warns else f"{parts[2]}: all clear")
+                    elif sub == "stats":
+                        await send(chat, json.dumps(_pmem.get_stats()))
+                    elif sub == "pinned":
+                        pinned = _pmem.pinned()
+                        if pinned:
+                            lines = ["Pinned memory:"]
+                            for r in pinned[:8]:
+                                lines.append(f"  [{r.get('time','')}] {r.get('kind','?')}: {r.get('summary','')[:160]}")
+                            await send(chat, "\n".join(lines))
+                        else:
+                            await send(chat, "No pinned events. Pin a decision with /pmem log decision <text> pin=1")
+                    else:
+                        await send(chat, "Usage:\n  /pmem brief — Session briefing\n  /pmem log <issue|attempt|fix|decision|note> <text> [file] [pin=1]\n  /pmem search <query> — Search event log\n  /pmem precheck <file> — Failure history\n  /pmem stats — Event counts\n  /pmem pinned — Pinned priority events")
+
+                elif cmd == "/pdfask":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /pdfask <question> [document_id]\nQueries the local document index (Token-Saver style). Upload a PDF to add it.")
+                        continue
+                    await typing(chat)
+                    q = " ".join(parts[1:])
+                    try:
+                        chunks = bf.doc_db.query(q, top_k=4)
+                    except Exception:
+                        chunks = []
+                    if not chunks:
+                        await send(chat, "No matching document content. Upload a PDF/document first, or check /documents.")
+                        continue
+                    reply = await smart_call([
+                        {"role": "system", "content": "Answer strictly using the provided document excerpts. Cite which chunk you use."},
+                        {"role": "user", "content": f"Document excerpts (page-indexed):\n\n" + "\n---\n".join(chunks)[:6000] + f"\n\nQuestion: {q}"},
+                    ], active_provider)
+                    await send(chat, f"Document QA:\n\n{reply[:3500]}")
+
+                elif cmd == "/video-watch":
+                    if len(parts) < 2:
+                        await send(chat, "Usage: /video-watch <url>\nSummarizes a video by transcript (or frames).")
+                        continue
+                    url = parts[1]
+                    await typing(chat)
+                    transcript = None
+                    try:
+                        transcript = await bf.youtube_transcript(url)
+                    except Exception:
+                        transcript = None
+                    if transcript:
+                        reply = await smart_call([
+                            {"role": "system", "content": "Summarize this video transcript in 3-5 bullet points covering key topics."},
+                            {"role": "user", "content": f"Transcript:\n\n{str(transcript)[:7000]}"},
+                        ], active_provider)
+                        await send(chat, f"Video summary:\n\n{reply[:3500]}")
+                    else:
+                        await send(chat, "Could not fetch transcript. Try /youtube <url> or provide a direct video link.")
 
                 elif cmd == "/cron":
                     sub = parts[1].lower() if len(parts) > 1 else "list"

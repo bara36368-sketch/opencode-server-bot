@@ -156,6 +156,96 @@ def next_smaller(model_id, env=None):
     return None
 
 
+# whichllm-inspired: pick the best model that will actually run on this
+# device. Best = largest catalog entry (by disk_gb) that (a) is already
+# sharded locally, and (b) fits available RAM (disk_gb in GB <= available GB
+# as a loose heuristic for a llama.cpp-style loader on Android/desktop).
+def available_ram_gb(env=None):
+    """Free RAM in GB (best-effort). Falls back to a sane default (4 GB) so
+    the picker degrades gracefully on platforms without psutil."""
+    try:
+        import psutil
+        return psutil.virtual_memory().available / (1024 ** 3)
+    except Exception:
+        try:
+            import ctypes
+            if os.name == "nt":
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ("dwLength", ctypes.c_ulong),
+                        ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong),
+                        ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                    ]
+                st = MEMORYSTATUSEX()
+                st.dwLength = ctypes.sizeof(st)
+                if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)):
+                    return st.ullAvailPhys / (1024 ** 3)
+        except Exception:
+            pass
+    return float(os.environ.get("ANDROIDLLM_RAM_GB", "4"))
+
+
+def pick_best_model(env=None, prefer=None):
+    """Return the best model id to serve given local shards + free RAM.
+    Prefers `prefer` when it is sharded and fits; otherwise picks the largest
+    fitting catalog entry. Never returns a model that isn't sharded locally.
+    """
+    avail = available_ram_gb(env)
+    if prefer and is_sharded(prefer, env):
+        for m in RECOMMENDED:
+            if m["id"] == prefer and m.get("disk_gb", 0) <= avail:
+                return prefer
+    fitted = [m for m in RECOMMENDED
+              if is_sharded(m["id"], env) and m.get("disk_gb", 0) <= avail]
+    if fitted:
+        return max(fitted, key=lambda m: m.get("disk_gb", 0))["id"]
+    # Nothing fitting/sharded in the catalog — fall back to any local shard
+    # in RECOMMENDED order, then to the smallest ladder entry.
+    for m in RECOMMENDED:
+        if is_sharded(m["id"], env):
+            return m["id"]
+    for mid in reversed(DOWNGRADE_LADDER):
+        if is_sharded(mid, env):
+            return mid
+    return None
+
+
+def pick_report(env=None, prefer=None):
+    """Pick a model and explain the decision (RAM, shards). Context-window
+    guard: also flags models whose repo is likely too large for the free
+    RAM. whichllm-style 'pick with reasoning'."""
+    avail = available_ram_gb(env)
+    mid = pick_best_model(env=env, prefer=prefer)
+    if not mid:
+        return {"model": None, "reason": "no locally-sharded model found"}
+    entry = next((m for m in RECOMMENDED if m["id"] == mid), None)
+    return {
+        "model": mid,
+        "free_ram_gb": round(avail, 2),
+        "disk_gb": entry.get("disk_gb") if entry else None,
+        "reason": (f"{mid} ({entry['note'] if entry else 'local shard'}) "
+                   f"fits {round(avail, 2)}GB free RAM"),
+        "next_smaller": next_smaller(mid, env),
+    }
+
+
+def context_window_ok(model_id, est_tokens, env=None):
+    """True when `est_tokens` is plausibly inside the model context window.
+    We only track a rough ceiling per tier (est_tokens guard); known huge
+    prompts are refused before the edge call."""
+    tiers = {"smollm2": 2048, "qwen15": 32768, "qwen3": 32768,
+             "qwen05": 2048, "smollm2-360m": 2048, "smollm2-135m": 2048}
+    if model_id in tiers:
+        return est_tokens <= tiers[model_id]
+    return est_tokens <= 8192  # unknown tier: conservative
+
+
 # -- model-change consent gate --------------------------------------------
 # The local model server is a supervised SYSTEM, not a fire-and-forget
 # command: switching models (manual /model, /autopick, or the OOM

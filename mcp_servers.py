@@ -190,6 +190,55 @@ def status():
     return 0
 
 
+# Registry of popular third-party MCP servers (punkpeye/awesome-mcp-servers
+# inspired). name, command template, tags, description.
+MCP_REGISTRY = [
+    {"name": "playwright", "cmd": "npx -y @playwright/mcp@latest",
+     "tags": ["browser", "web"], "desc": "Browser automation (click, fill, screenshot)."},
+    {"name": "fetch", "cmd": "uvx mcp-server-fetch",
+     "tags": ["web", "http"], "desc": "Fetch URLs and convert to markdown."},
+    {"name": "git", "cmd": "uvx mcp-server-git",
+     "tags": ["git", "vcs"], "desc": "Git repo read tools (log, status, diff)."},
+    {"name": "time", "cmd": "uvx mcp-server-time",
+     "tags": ["time", "tz"], "desc": "Timezone-aware current time."},
+    {"name": "memory", "cmd": "npx -y @modelcontextprotocol/server-memory",
+     "tags": ["memory", "kg"], "desc": "Knowledge-graph memory for agents."},
+    {"name": "filesystem", "cmd": "npx -y @modelcontextprotocol/server-filesystem <ROOT>",
+     "tags": ["fs", "files"], "desc": "Scoped file read/write."},
+    {"name": "sequentialthinking", "cmd": "npx -y @modelcontextprotocol/server-sequential-thinking",
+     "tags": ["reasoning"], "desc": "Structured multi-step reasoning."},
+    {"name": "github", "cmd": "npx -y @modelcontextprotocol/server-github",
+     "tags": ["github", "vcs"], "desc": "GitHub issues/PRs/repos tools."},
+    {"name": "postgres", "cmd": "uvx mcp-server-postgres --connection <DSN>",
+     "tags": ["db", "sql"], "desc": "PostgreSQL read-only queries."},
+    {"name": "sqlite", "cmd": "uvx mcp-server-sqlite --db-path <PATH>",
+     "tags": ["db", "sql"], "desc": "SQLite local database tools."},
+    {"name": "brave-search", "cmd": "npx -y @modelcontextprotocol/server-brave-search",
+     "tags": ["search"], "desc": "Brave web search (needs BRAVE_API_KEY)."},
+    {"name": "slack", "cmd": "npx -y @modelcontextprotocol/server-slack",
+     "tags": ["slack", "chat"], "desc": "Slack channel read/post tools."},
+    {"name": "e2b", "cmd": "npx -y @e2b/mcp-server",
+     "tags": ["sandbox", "code"], "desc": "Run code in sandboxed cloud VM."},
+    {"name": "redis", "cmd": "npx -y @modelcontextprotocol/server-redis",
+     "tags": ["cache", "db"], "desc": "Redis key/value tools."},
+    {"name": "puppeteer", "cmd": "npx -y @modelcontextprotocol/server-puppeteer",
+     "tags": ["browser", "web"], "desc": "Headless Chrome automation."},
+    {"name": "gitlab", "cmd": "uvx mcp-server-gitlab",
+     "tags": ["gitlab", "vcs"], "desc": "GitLab project tools."},
+]
+
+
+def search_registry(query):
+    """Search the third-party MCP registry by keyword (registry-search idea)."""
+    q = query.lower()
+    out = []
+    for s in MCP_REGISTRY:
+        blob = (s["name"] + " " + s["desc"] + " " + " ".join(s["tags"])).lower()
+        if q in blob:
+            out.append(s)
+    return out
+
+
 def bridge():
     gate = os.path.join(GATEWAY_DIR, "gateway.py")
     if not os.path.isfile(gate):
@@ -218,6 +267,15 @@ def main():
         return write_config(verbose=True)
     if sub == "bridge":
         return bridge()
+    if sub == "search" and len(sys.argv) > 2:
+        hits = search_registry(" ".join(sys.argv[2:]))
+        if not hits:
+            print("no MCP registry matches for '%s'" % " ".join(sys.argv[2:]))
+            return 0
+        for s in hits:
+            print("  %-18s %s" % (s["name"], s["desc"]))
+            print("    cmd: %s" % s["cmd"])
+        return 0
     print(__doc__)
     return 2
 

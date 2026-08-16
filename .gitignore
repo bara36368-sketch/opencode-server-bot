@@ -30,3 +30,9 @@ zig/.zig-cache/
 zig/cyberdeck_zig.dll
 zig/cyberdeck_zig.lib
 zig/cyberdeck_zig.pdb
+*.stderr
+proc-ledger.jsonl
+runner_status.json
+crash_history.json
+announced_versions.json
+.projectmem/

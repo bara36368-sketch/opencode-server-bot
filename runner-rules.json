@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "max_strikes": 6,
+    "selfheal": true,
+    "downgrade_on_oom": false
+  },
+  "bot": {
+    "max_strikes": 4,
+    "selfheal": true
+  },
+  "web": {
+    "max_strikes": 4,
+    "selfheal": false
+  },
+  "mcp": {
+    "max_strikes": 4,
+    "selfheal": true
+  },
+  "cyberdeck": {
+    "selfheal": true
+  },
+  "memory": {
+    "selfheal": true
+  },
+  "androidllm": {
+    "downgrade_on_oom": true,
+    "selfheal": false
+  }
+}

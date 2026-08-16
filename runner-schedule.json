@@ -1,0 +1,20 @@
+{
+  "tasks": [
+    {
+      "name": "health_report",
+      "minute": 0,
+      "hour": "*",
+      "cmd": ["python", "runner.py", "status"],
+      "cwd": "C:\\Users\\ARYASATYA\\Desktop\\opencode-server-bot",
+      "timeout": 30
+    },
+    {
+      "name": "log_cleanup",
+      "minute": 30,
+      "hour": "*",
+      "cmd": ["python", "log_cleanup.py"],
+      "cwd": "C:\\Users\\ARYASATYA\\Desktop\\opencode-server-bot",
+      "timeout": 60
+    }
+  ]
+}

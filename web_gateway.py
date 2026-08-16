@@ -636,6 +636,40 @@ async def execute_workflow_crewai(workflow, initial_input=""):
 def _is_configured(key):
     return bool(key) and "YOUR_" not in key and key != "not configured"
 
+# Lightweight per-provider circuit breaker for failover: after FAIL_THRESHOLD
+# consecutive failures a provider is "open" (skipped) for COOLDOWN seconds,
+# then "half-open" (probed by the next call). axonhub-inspired.
+_CB_FAIL_THRESHOLD = 3
+_CB_COOLDOWN = 60
+_cb_state = {}  # pid -> {"fail": int, "until": float}
+
+
+def _cb_get(pid):
+    st = _cb_state.get(pid)
+    if not st:
+        return "closed"
+    if time.time() > st.get("until", 0):
+        return "half-open"
+    return "open" if st.get("fail", 0) >= _CB_FAIL_THRESHOLD else "closed"
+
+
+def circuit_breaker_status(pid):
+    return _cb_get(pid)
+
+
+def circuit_breaker_record_failure(pid):
+    st = _cb_state.setdefault(pid, {"fail": 0, "until": 0})
+    st["fail"] = st.get("fail", 0) + 1
+    if st["fail"] >= _CB_FAIL_THRESHOLD:
+        st["until"] = time.time() + _CB_COOLDOWN
+
+
+def circuit_breaker_record_success(pid):
+    st = _cb_state.get(pid)
+    if st:
+        st["fail"] = 0
+        st["until"] = 0
+
 _ENV_KEY_MAP = {
     "nvidia": "NVIDIA_KEY", "groq": "GROQ_KEY", "gemini": "GEMINI_KEY",
     "openrouter": "OPENROUTER_KEY", "deepseek": "DEEPSEEK_KEY", "mistral": "MISTRAL_KEY",
@@ -664,13 +698,19 @@ def _resolve_key(provider_id, fallback):
     return fallback
 
 def _load_providers():
-    global PROVIDERS, SYNOXCLOUD_AI_MODELS
+    global PROVIDERS, SYNOXCLOUD_AI_MODELS, _FREE_FALLBACK_CHAIN
     PROVIDERS = {}
     if os.path.exists(PROVIDERS_FILE):
         try:
             with open(PROVIDERS_FILE, encoding="utf-8") as f:
                 raw = json.load(f)
             for pid, cfg in raw.items():
+                if pid == "fallback_chain":
+                    if isinstance(cfg, list) and cfg:
+                        _FREE_FALLBACK_CHAIN = [str(x) for x in cfg]
+                    continue
+                if not isinstance(cfg, dict):
+                    continue
                 cfg["key"] = _resolve_key(pid, cfg.get("key", "not configured"))
                 PROVIDERS[pid] = cfg
         except Exception:
@@ -916,6 +956,140 @@ _PROVIDER_DISPATCH = {
     "g4f": _call_g4f,
 }
 
+# OmniRoute-style quota-aware auto-fallback. When the requested provider
+# fails (rate limit / auth / 5xx / network), try the next provider in its
+# configured "failover" chain. The chain is read from providers.json:
+#   "failover": ["nvidia-glm5", "groq", "synoxcloud"]
+# plus a few always-safe free defaults appended on the end. Only providers
+# that are actually configured are used, and a provider that has been
+# circuit-broken open recently is skipped.
+_FREE_FALLBACK_CHAIN = ["synoxcloud", "g4f", "groq"]
+
+# Ring buffer of per-provider latencies (ms) + last error, for /api/healthz.
+from collections import deque as _deque
+_LATENCY_RING = {}  # pid -> deque(float ms, maxlen=100)
+_LAST_PROVIDER_ERROR = {}  # pid -> str
+
+
+def _record_provider_latency(pid, seconds):
+    try:
+        ring = _LATENCY_RING.setdefault(pid, _deque(maxlen=100))
+        ring.append(float(seconds) * 1000.0)
+    except Exception:
+        pass
+
+
+def _provider_latency_stats(pid):
+    ring = _LATENCY_RING.get(pid)
+    if not ring:
+        return None
+    vals = list(ring)
+    vals.sort()
+    n = len(vals)
+    return {"n": n, "min_ms": round(vals[0], 1),
+            "p50_ms": round(vals[n // 2], 1),
+            "p95_ms": round(vals[int(n * 0.95) - 1], 1),
+            "max_ms": round(vals[-1], 1)}
+
+
+def _fallback_chain(provider_id):
+    """Ordered fallback candidates for `provider_id`, deduped, excluding
+    the provider itself. OmniRoute-inspired: quota-aware (skip unconfigured
+    and circuit-broken providers is done at call time)."""
+    chain = []
+    p = PROVIDERS.get(provider_id, {})
+    if isinstance(p, dict):
+        for pid in p.get("failover", []):
+            if pid and pid != provider_id:
+                chain.append(pid)
+    for pid in _FREE_FALLBACK_CHAIN:
+        if pid and pid != provider_id and pid not in chain:
+            chain.append(pid)
+    return chain
+
+
+def _tokens_est(text):
+    """Rough token estimate (chars/4) — enough for budget-aware compression."""
+    return len(str(text)) // 4
+
+
+def _compress_messages(messages, budget=18000, keep_recent=12, max_msg_chars=18000):
+    """RTK+Caveman-style context compression: keep the system prompt and the
+    most recent messages verbatim; fold anything older/over-budget into a
+    compact digest block so long sessions stop growing forever. Returns the
+    (possibly compressed) message list."""
+    msgs = list(messages)
+    if not msgs:
+        return msgs
+    # Cap any single oversized message first.
+    for m in msgs:
+        if isinstance(m, dict) and isinstance(m.get("content"), str) and len(m["content"]) > max_msg_chars:
+            m = dict(m)
+            m["content"] = m["content"][-max_msg_chars:]
+    total = sum(_tokens_est(m.get("content", "")) for m in msgs)
+    if total <= budget or len(msgs) <= keep_recent:
+        return msgs
+    system = [m for m in msgs if m.get("role") == "system"]
+    rest = [m for m in msgs if m.get("role") != "system"]
+    if len(rest) <= keep_recent:
+        return msgs
+    keep = rest[-keep_recent:]
+    drop = rest[:-keep_recent]
+    digest_lines = []
+    for m in drop:
+        c = str(m.get("content", ""))[:200]
+        if c.strip():
+            digest_lines.append(f"[{m.get('role','?')}] {c}")
+    digest = " | ".join(digest_lines)
+    # Keep the digest under ~1/3 of the budget.
+    max_digest_chars = max(800, budget // 3)
+    if len(digest) > max_digest_chars:
+        digest = digest[:max_digest_chars] + "..."
+    out = list(system)
+    if digest:
+        out.append({"role": "system", "content": (
+            "Earlier conversation digest (condensed, do not treat as literal "
+            "verbatim):\n" + digest)})
+    out.extend(keep)
+    return out
+
+
+async def _call_provider_failover(messages, provider_id, budget=18000):
+    """Call `provider_id`; on failure walk its fallback chain and return the
+    first successful result. Returns a dict that always contains "content"
+    on success or "error" (with the attempted providers in "tried")."""
+    import time as _t
+    tried = []
+    compressed = _compress_messages(messages, budget=budget)
+    candidates = [provider_id] + _fallback_chain(provider_id)
+    last_error = "no provider attempted"
+    for pid in candidates:
+        p = PROVIDERS.get(pid)
+        if not p:
+            continue
+        if not _is_configured(p.get("key", "")) and pid != "g4f":
+            tried.append(f"{pid}(unconfigured)")
+            continue
+        if circuit_breaker_status(pid) == "open":
+            tried.append(f"{pid}(cb-open)")
+            continue
+        tried.append(pid)
+        _t0 = _t.monotonic()
+        result = await call_provider(compressed, pid)
+        _record_provider_latency(pid, _t.monotonic() - _t0)
+        if result.get("content"):
+            result["provider"] = pid
+            result["fallback"] = pid != provider_id
+            result["compressed"] = compressed != messages
+            result["latency_ms"] = round((_t.monotonic() - _t0) * 1000, 1)
+            circuit_breaker_record_success(pid)
+            return result
+        if result.get("error"):
+            last_error = str(result["error"])[:300]
+            _LAST_PROVIDER_ERROR[pid] = last_error
+            circuit_breaker_record_failure(pid)
+    return {"error": last_error, "tried": tried}
+
 async def call_provider(messages, provider_id):
     p = PROVIDERS.get(provider_id)
     if not p:
@@ -1060,6 +1234,11 @@ def _parse_path(path):
     return path if path else "/"
 
 def _match_route(route_path, request_path):
+    if isinstance(route_path, re.Pattern):
+        m = route_path.match(request_path)
+        if not m:
+            return None
+        return {k: v for k, v in m.groupdict().items() if v is not None}
     stripped = route_path.strip("/")
     route_parts = stripped.split("/") if stripped else []
     stripped2 = request_path.strip("/")
@@ -1537,6 +1716,9 @@ async def handle_bot_logs(method, path, headers, body, params):
 
 @route("POST", "/v1/chat/completions")
 async def handle_chat(method, path, headers, body, params):
+    import time as _t
+    request_id = headers.get("x-request-id") or _hex_id()
+    _t0 = _t.monotonic()
     data = _parse_body(body)
     if "_parse_error" in data:
         return json_response({"error": {"message": "Invalid JSON: " + data["_parse_error"]}}, 400)
@@ -1547,19 +1729,90 @@ async def handle_chat(method, path, headers, body, params):
         return json_response({"error": {"message": "No messages"}}, 400)
     if model_id not in PROVIDERS:
         return json_response({"error": {"message": "Unknown model: " + model_id}}, 400)
-    result = await call_provider(messages, model_id)
+    # Lightweight per-client token bucket (APISIX token-rate-limit style).
+    client_key = headers.get("x-client-id") or params.get("_raw_path", "") or "local"
+    allowed = _rate_limit(client_key)
+    if not allowed:
+        return json_response({"error": {"message": "rate limit exceeded (try later)"}}, 429)
+    failover = bool(data.get("failover", True))
+    if failover:
+        result = await _call_provider_failover(messages, model_id)
+    else:
+        result = await call_provider(messages, model_id)
     content = result.get("content", "")
     error = result.get("error")
     if error:
-        return json_response({"error": {"message": error}}, 500)
-    return json_response({
+        tried = result.get("tried")
+        extra = f" (tried: {', '.join(tried)})" if tried else ""
+        print(f"[trace {request_id}] {model_id} -> error {error[:120]}")
+        return json_response({"error": {"message": error + extra}}, 500)
+    resp = {
         "id": "chatcmpl-" + str(int(time.time())),
         "object": "chat.completion",
         "created": int(time.time()),
-        "model": model_id,
+        "model": result.get("provider", model_id),
         "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    }
+    if result.get("fallback"):
+        resp["x_fallback"] = True
+    if result.get("compressed"):
+        resp["x_compressed"] = True
+    resp["x_provider_used"] = result.get("provider", model_id)
+    resp["x_request_id"] = request_id
+    resp["x_latency_ms"] = round((_t.monotonic() - _t0) * 1000, 1)
+    print(f"[trace {request_id}] {model_id} -> {resp['x_provider_used']} "
+          f"{resp['x_latency_ms']}ms")
+    return json_response(resp)
+
+# ---- Health + Provider Status ----
+
+@route("GET", "/api/healthz")
+async def handle_healthz(method, path, headers, body, params):
+    """Cascading health: gateway alive + per-provider breaker/latency view.
+    Used by runner.py's managed-server health checks."""
+    providers = {}
+    for pid, p in PROVIDERS.items():
+        if pid.startswith("synox-") or pid == "g4f":
+            continue
+        providers[pid] = {
+            "configured": _is_configured(p.get("key", "")),
+            "cb": circuit_breaker_status(pid),
+            "latency": _provider_latency_stats(pid),
+            "last_error": _LAST_PROVIDER_ERROR.get(pid),
+        }
+    return json_response({
+        "ok": True,
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "providers": providers,
+        "fallback_chain": _FREE_FALLBACK_CHAIN,
     })
+
+
+_RATE_WINDOW = 60.0
+_RATE_LIMIT = int(os.environ.get("GATEWAY_RPM_LIMIT", "0"))
+_rates = {}  # key -> deque of timestamps
+
+
+def _rate_limit(key):
+    """Token bucket: at most _RATE_LIMIT chat requests per key per minute.
+    0 = disabled (local/trusted fleet default)."""
+    if _RATE_LIMIT <= 0:
+        return True
+    import time as _t
+    now = _t.monotonic()
+    q = _rates.setdefault(key, _deque(maxlen=_RATE_LIMIT))
+    while q and now - q[0] > _RATE_WINDOW:
+        q.popleft()
+    if len(q) >= _RATE_LIMIT:
+        return False
+    q.append(now)
+    return True
+
+
+def _hex_id(nbytes=4):
+    import uuid
+    return uuid.uuid4().hex[:nbytes]
 
 # ---- Admin Dashboard ----
 
