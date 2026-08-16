@@ -1757,7 +1757,7 @@ async def run_autonomous(goal, uid):
     memory_buffers.append(uid, f"[FINAL] {final[:200]}")
     save_memory()
     steps_summary = "\n".join(f"  {s.get('step',i+1)}. [{s.get('type','?')}] {s.get('task','')}" for i, s in enumerate(steps[:8]))
-    return f"ðŸ¤– Autonomous Mode — Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
+    return f"🤖 Autonomous Mode — Plan executed ({len(steps)} steps)\n{steps_summary}\n\n{final}"
 
 DEFAULT_PREMADE_SKILLS = {
     "fullstack-web": {
@@ -3418,7 +3418,7 @@ async def main():
                         rows, summary = await bf.parse_spreadsheet(file_id, fname)
                         if rows:
                             bf.doc_db.add_document(fname, str(rows[:50]))
-                            await send(chat, f"ðŸ“Š Spreadsheet '{fname}' loaded.\n{summary}")
+                            await send(chat, f"📊 Spreadsheet '{fname}' loaded.\n{summary}")
                             if len(rows) > 5:
                                 await send(chat, f"Ask questions with /ask <question>, or use /data query <sql-like expression>")
                         else:
@@ -3427,7 +3427,7 @@ async def main():
                         extracted = await bf.extract_text_from_file(file_id, fname)
                         if extracted and len(extracted) > 20:
                             chunks = bf.doc_db.add_document(fname, extracted)
-                            await send(chat, f"ðŸ“„ Document '{fname}' indexed ({chunks} chunks, {len(extracted)} chars).\nAsk questions with /ask <question>")
+                            await send(chat, f"📄 Document '{fname}' indexed ({chunks} chunks, {len(extracted)} chars).\nAsk questions with /ask <question>")
                         else:
                             await send(chat, f"Could not extract text from '{fname}'.")
                     continue
@@ -6008,7 +6008,7 @@ async def main():
                 {"role": "system", "content": "Summarize this YouTube video transcript in 3-5 bullet points covering key topics."},
                 {"role": "user", "content": f"Transcript:\n\n{transcript[:7000]}"},
                         ], active_provider)
-                        await send(chat, f"ðŸ“¹ YouTube Summary:\n\n{reply[:3500]}")
+                        await send(chat, f"📹 YouTube Summary:\n\n{reply[:3500]}")
 
                 elif cmd == "/run":
                     if not is_owner and not is_admin:
@@ -6046,7 +6046,7 @@ async def main():
                 {"role": "system", "content": "Summarize this web page content concisely."},
                 {"role": "user", "content": f"URL: {url}\n\nContent:\n{content[:6000]}"},
                         ], active_provider)
-                        await send(chat, f"ðŸ“„ {url}\n\n{reply[:3500]}")
+                        await send(chat, f"📄 {url}\n\n{reply[:3500]}")
 
                 elif cmd == "/youtube_search":
                     if len(parts) < 2:

@@ -293,10 +293,24 @@ async def _bf_wrapper(fn_name, arguments, required_args):
         if a not in arguments:
             return {"content": [{"type": "text", "text": f"Missing required argument: {a}"}], "isError": True}
     try:
-        fn = getattr(_bf, fn_name, None)
-        if not fn:
-            return {"content": [{"type": "text", "text": f"Unknown bot_features function: {fn_name}"}], "isError": True}
-        result = await fn(**arguments)
+        import inspect as _inspect
+        obj = _bf
+        for _part in fn_name.split("."):
+            obj = getattr(obj, _part, None)
+            if obj is None:
+                return {"content": [{"type": "text", "text": f"Unknown bot_features function: {fn_name}"}], "isError": True}
+        fn = obj
+        try:
+            _sig = _inspect.signature(fn)
+            _accepts_kwargs = any(_p.kind == _inspect.Parameter.VAR_KEYWORD for _p in _sig.parameters.values())
+            if not _accepts_kwargs:
+                arguments = {k: v for k, v in arguments.items() if k in _sig.parameters}
+        except (TypeError, ValueError):
+            pass
+        if inspect.iscoroutinefunction(fn):
+            result = await fn(**arguments)
+        else:
+            result = fn(**arguments)
         return {"content": [{"type": "text", "text": str(result)[:5000]}]}
     except Exception as e:
         return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
@@ -469,8 +483,7 @@ async def _mcp_call_tool(name, arguments):
         return await _bf_wrapper("social_search_all", arguments, ["query"])
     if name == "memory_search":
         uid = arguments.get("uid", "0")
-        result = await _bf_wrapper("search_user_memories", {"uid": uid, "keyword": arguments.get("query", "")}, ["query"])
-        return result
+        return await _bf_wrapper("search_user_memories", {"uid": uid, "keyword": arguments.get("query", "")}, ["keyword"])
     if name == "memory_stats":
         uid = arguments.get("uid", "0")
         stats = await _bf_wrapper("get_memory_stats", {"uid": uid}, [])
@@ -478,7 +491,7 @@ async def _mcp_call_tool(name, arguments):
     if name == "doc_analyze":
         return await _bf_wrapper("analyze_document", arguments, ["file_id", "file_name"])
     if name == "cron_add":
-        return await _bf_wrapper("scheduler.add", arguments, ["interval_seconds", "prompt"])
+        return await _bf_wrapper("scheduler.add", dict(arguments), ["interval_seconds", "prompt", "chat_id"])
     if name == "cron_list":
         try:
             import bot_features as _bf
@@ -487,9 +500,9 @@ async def _mcp_call_tool(name, arguments):
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
     if name == "cron_remove":
-        return await _bf_wrapper("scheduler.remove", arguments, ["id"])
+        return await _bf_wrapper("scheduler.remove", {"task_id": arguments.get("id", "")}, ["task_id"])
     if name == "monitor_add":
-        return await _bf_wrapper("page_monitor.add", arguments, ["url"])
+        return await _bf_wrapper("page_monitor.add", dict(arguments), ["url", "chat_id"])
     if name == "monitor_list":
         try:
             import bot_features as _bf
@@ -1303,7 +1316,10 @@ async def _handle(reader, writer):
             headers[k.strip().lower()] = v.strip()
         i += 1
 
-    cl = int(headers.get("content-length", 0))
+    try:
+        cl = int(headers.get("content-length", 0) or 0)
+    except (TypeError, ValueError):
+        cl = 0
     body_raw = data[data.find(b"\r\n\r\n") + 4:]
     body_str = ""
     if cl > 0:
@@ -1711,7 +1727,13 @@ async def handle_bot_stop(method, path, headers, body, params):
 
 @route("GET", "/api/bot/logs")
 async def handle_bot_logs(method, path, headers, body, params):
-    n = int(headers.get("x-log-count", 50))
+    n = headers.get("x-log-count")
+    if not n:
+        n = urllib.parse.parse_qs(urllib.parse.urlparse(params.get("_raw_path", "")).query).get("count", ["50"])[0]
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        n = 50
     return json_response({"logs": bot_logs(n)})
 
 @route("POST", "/v1/chat/completions")
@@ -1882,31 +1904,6 @@ table tr:hover td{background:#1c2128}
     <div class="card"><h3>Total Requests</h3><div class="big" id="stat-requests">--</div><div class="sub">All time</div></div>
     <div class="card"><h3>Bot Status</h3><div class="big" id="stat-bot">--</div><div class="sub" id="stat-bot-detail"></div></div>
     <div class="card"><h3>Providers</h3><div class="big" id="stat-providers">--</div><div class="sub">Configured AI providers</div></div>
-  </div>
-  <div class="grid">
-    <div class="card">
-      <h3>Providers <span class="refresh-btn" onclick="loadData()" title="Refresh">↻</span></h3>
-      <table><thead><tr><th>Provider</th><th>Model</th><th>Status</th><th>Requests</th></tr></thead>
-      <tbody id="provider-table"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody></table>
-    </div>
-    <div class="card">
-      <h3>Top Agents</h3>
-      <ul class="list" id="agent-list"><li>Loading...</li></ul>
-    </div>
-  </div>
-  <div class="grid">
-    <div class="card">
-      <h3>Recent Activity</h3>
-      <ul class="list" id="activity-list"><li>Loading...</li></ul>
-    </div>
-    <div class="card">
-      <h3>System Info</h3>
-      <ul class="list" id="system-list"><li>Loading...</li></ul>
-    </div>
-  </div>
-  <div class="card">
-    <h3>System Info</h3>
-    <ul class="list" id="system-list"><li>Loading...</li></ul>
   </div>
 </div>
 
@@ -2311,7 +2308,6 @@ fetchKG();
 </script></body></html>"""
     return html_response(html_page)
 
-@route("GET", "/admin")
 def _check_admin_auth(headers, body, params):
     if not _require_admin_auth:
         return None
@@ -2323,6 +2319,7 @@ def _check_admin_auth(headers, body, params):
         return None
     return json_response({"error": "unauthorized"}, 401)
 
+@route("GET", "/admin")
 async def handle_admin(method, path, headers, body, params):
     auth_err = _check_admin_auth(headers, body, params)
     if auth_err:
