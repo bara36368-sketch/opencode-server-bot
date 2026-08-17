@@ -150,13 +150,31 @@ _DEFAULT_RULES = {
         "max_strikes": 6,
         "selfheal": True,
         "downgrade_on_oom": False,
+        # Tier-1 guardrails (all 0/off unless overridden):
+        "max_ram_mb": 0,            # pm2 max_memory_restart-style ceiling
+        "max_cpu_pct": 0,           # 0 = CPU guard off (RAM is the reliable one)
+        "guard_cooldown_s": 300,    # min gap between guard restarts of one proc
+        "grace_timeout_s": 3,       # wait after terminate() before SIGKILL
+        "storm_threshold": 5,       # restarts within storm_window_s -> hold
+        "storm_window_s": 60,
+        "storm_hold_s": 300,        # how long a storm-held proc is paused
+        "default_exit_action": "restart",  # restart|no_restart|disable
+        "exit_policy": {},          # {"<code>": "restart|no_restart|disable"}
+        "log_max_mb": 5,            # per-proc .stderr rotation size
+        "pre_stop": None,           # shell cmd run before terminate (graceful)
     },
-    "bot": {"max_strikes": 4, "selfheal": True},
-    "web": {"max_strikes": 4, "selfheal": False},
-    "mcp": {"max_strikes": 4, "selfheal": True},
+    "bot": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 1024, "max_cpu_pct": 0},
+    "web": {"max_strikes": 4, "selfheal": False, "max_ram_mb": 768, "max_cpu_pct": 0},
+    "mcp": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
+    "cyberdeck": {"selfheal": True, "max_ram_mb": 768, "max_cpu_pct": 0},
+    "memory": {"selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
+    "dma": {"selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
     "androidllm": {
         "downgrade_on_oom": True,
         "selfheal": False,
+        "max_ram_mb": 2048,         # serve.py child included via psutil sum
+        "max_cpu_pct": 0,
+        "max_strikes": 8,
     },
 }
 _rules_cache = None
@@ -814,6 +832,7 @@ def monitor_process(name, proc):
     diagnosis_str = "\n".join(analysis["diagnosis"])
     if name not in _intentional_kills:
         _maybe_disable(name)
+    _apply_exit_policy(name, exit_code)
     downgrade_info = None
     if name == "androidllm":
         try:
@@ -955,6 +974,206 @@ def _maybe_disable(name):
                           f"(max_strikes={max_strikes}). Restart runner to re-enable.")
 
 
+# ---------------------------------------------------------------------------
+# Tier-1 resilience: resource guardrails (pm2-style), restart-storm guard
+# (systemd StartLimitBurst-style), exit-code policies, graceful kill with
+# pre_stop hooks, and per-process log rotation.
+# ---------------------------------------------------------------------------
+_guard_last = {}
+_guard_restarts = {}
+_recent_restarts = {}
+_storm_held = {}
+
+
+def _proc_usage(pid):
+    """(ram_mb, cpu_pct) for pid INCLUDING its children, so wrapper procs
+    (uvx/uvicorn) report the real load. (None, None) on any error."""
+    try:
+        import psutil as _ps
+    except Exception:
+        return None, None
+    try:
+        pp = _ps.Process(pid)
+    except Exception:
+        return None, None
+    ram = 0.0
+    try:
+        ram += (pp.memory_info().rss or 0)
+    except Exception:
+        pass
+    try:
+        for ch in pp.children(recursive=True):
+            try:
+                ram += ch.memory_info().rss or 0
+            except Exception:
+                pass
+    except Exception:
+        pass
+    cpu = 0.0
+    try:
+        cpu = pp.cpu_percent(interval=0.05) or 0
+    except Exception:
+        pass
+    return round(ram / 1048576, 1), round(cpu, 1)
+
+
+def _check_resource_guards():
+    """pm2 max_memory_restart-inspired: gracefully restart any supervised
+    proc breaching its max_ram_mb / max_cpu_pct ceiling, at most once per
+    guard_cooldown_s."""
+    now = time.time()
+    for name in list(procs.keys()):
+        p = procs.get(name)
+        if p is None or p.poll() is not None:
+            continue
+        max_ram = int(_rule(name, "max_ram_mb", 0) or 0)
+        max_cpu = int(_rule(name, "max_cpu_pct", 0) or 0)
+        if max_ram <= 0 and max_cpu <= 0:
+            continue
+        if now - _guard_last.get(name, 0) < int(_rule(name, "guard_cooldown_s", 300) or 300):
+            continue
+        ram_mb, cpu_pct = _proc_usage(p.pid)
+        breach = None
+        if max_ram > 0 and ram_mb and ram_mb > max_ram:
+            breach = f"RAM {ram_mb}MB > {max_ram}MB"
+        elif max_cpu > 0 and cpu_pct and cpu_pct > max_cpu:
+            breach = f"CPU {cpu_pct}% > {max_cpu}%"
+        if not breach:
+            continue
+        _guard_last[name] = now
+        _guard_restarts[name] = _guard_restarts.get(name, 0) + 1
+        log(f"guard: {name} breach ({breach}), restarting", "guard")
+        _ledger("guard_restart", proc=name, breach=breach,
+                ram_mb=ram_mb, cpu_pct=cpu_pct)
+        if _can_notify(f"guard_{name}"):
+            send_telegram(f"<b>Runner guard</b>: <code>{name}</code> breached "
+                          f"<b>{breach}</b> - restarting.")
+        kill_one(name, reason="resource_guard")
+
+
+def _note_restart(name):
+    """Record a restart for the storm guard; if restarts in the window cross
+    storm_threshold, hold the proc and alert (systemd StartLimitBurst)."""
+    now = time.time()
+    window = int(_rule(name, "storm_window_s", 60) or 60)
+    wins = [t for t in _recent_restarts.get(name, []) if now - t < window]
+    wins.append(now)
+    _recent_restarts[name] = wins
+    thresh = int(_rule(name, "storm_threshold", 5) or 5)
+    if len(wins) >= thresh:
+        hold = int(_rule(name, "storm_hold_s", 300) or 300)
+        _storm_held[name] = now + hold
+        _ledger("storm_hold", proc=name, restarts=len(wins),
+                window_s=window, hold_s=hold)
+        log(f"{name} restart storm ({len(wins)} restarts in {window}s), "
+            f"holding {hold}s", "proc")
+        if _can_notify(f"storm_{name}"):
+            send_telegram(f"<b>Runner</b>: <code>{name}</code> restart storm "
+                          f"({len(wins)} restarts in {window}s) - "
+                          f"holding for {hold}s.")
+
+
+def _storm_remaining(name):
+    """Seconds the storm guard still holds `name` (0 = clear to start)."""
+    now = time.time()
+    until = _storm_held.get(name, 0)
+    if until <= 0:
+        return 0
+    if now >= until:
+        _storm_held.pop(name, None)
+        _recent_restarts.pop(name, None)
+        return 0
+    return int(until - now)
+
+
+def _exit_action_for(name, exit_code):
+    """Exit-code policy -> action. Explicit per-code rule wins, then
+    'default', then default_exit_action. Exit 0 with no explicit rule is a
+    clean exit -> 'restart' with backoff reset (handled by caller)."""
+    policy = _rule(name, "exit_policy", {})
+    if isinstance(policy, dict):
+        action = policy.get(str(exit_code)) or policy.get("default")
+        if action in ("restart", "no_restart", "disable"):
+            return action
+    return _rule(name, "default_exit_action", "restart")
+
+
+def _apply_exit_policy(name, exit_code):
+    """Enforce the exit-code policy after a crash. 'no_restart' parks the
+    proc until a manual /api/enable; 'disable' behaves like max_strikes;
+    exit 0 with the default 'restart' policy is a clean exit -> backoff
+    reset (no escalation) so a well-behaved daemon restarting itself on
+    exit(0) doesn't climb the backoff ladder."""
+    action = _exit_action_for(name, exit_code)
+    if action == "no_restart":
+        _next_start[name] = time.time() + 31536000
+        _ledger("no_restart", proc=name, exit=exit_code)
+        log(f"{name} exit {exit_code}: exit policy -> no_restart (manual /api/enable to revive)", "proc")
+    elif action == "disable":
+        if name not in _disabled:
+            _disabled.add(name)
+            _ledger("disabled_exit_policy", proc=name, exit=exit_code)
+            log(f"{name} exit {exit_code}: exit policy -> disable", "proc")
+            if _can_notify(f"exitpolicy_{name}"):
+                send_telegram(f"<b>Runner</b>: <code>{name}</code> exit "
+                              f"{exit_code} policy says <b>disable</b> - "
+                              f"not restarting.")
+    else:
+        policy = _rule(name, "exit_policy", {})
+        explicit = isinstance(policy, dict) and (
+            str(exit_code) in policy or "default" in policy)
+        if exit_code == 0 and not explicit:
+            _clear_backoff(name)
+
+
+def _rotate_log_file(path, max_mb, keep=2):
+    """foreverjs-style rotation: path -> path.1 -> path.2 once size breaches."""
+    try:
+        if not os.path.exists(path):
+            return
+        if (os.path.getsize(path) / 1048576) <= max_mb:
+            return
+        for i in range(keep, 0, -1):
+            src = f"{path}.{i - 1}" if i > 1 else path
+            dst = f"{path}.{i}"
+            if os.path.exists(src):
+                if os.path.exists(dst):
+                    os.remove(dst)
+                os.rename(src, dst)
+    except Exception as e:
+        log(f"rotate error for {os.path.basename(path)}: {e}", "proc")
+
+
+def _rotate_stderr(name):
+    max_mb = float(_rule(name, "log_max_mb", 5) or 5)
+    _rotate_log_file(os.path.join(DIR, f"{name}.stderr"), max_mb)
+
+
+def _rotate_fleet_logs():
+    for _path, _mb in ((LOG_FILE, 10), (CRASH_LOG, 10), (PROC_LEDGER, 50)):
+        _rotate_log_file(_path, _mb)
+
+
+def _pre_stop(name):
+    """Run the proc's pre_stop hook (runner-rules.json): a shell string or
+    {"cmd": ..., "timeout": ...} executed before termination (supervisord
+    drain-style)."""
+    hook = _rule(name, "pre_stop", None)
+    if not hook:
+        return
+    cmd = hook if isinstance(hook, str) else (
+        hook.get("cmd", "") if isinstance(hook, dict) else "")
+    if not cmd:
+        return
+    timeout = float(hook.get("timeout", 10)) if isinstance(hook, dict) else 10.0
+    log(f"{name} pre_stop: {str(cmd)[:120]}", "proc")
+    try:
+        subprocess.run(cmd, shell=isinstance(cmd, str), timeout=timeout,
+                       cwd=DIR, capture_output=True)
+    except Exception as e:
+        log(f"{name} pre_stop failed: {e}", "proc")
+
+
 def _proc_status(name):
     """Current supervision state for `name` (status-file view)."""
     p = procs.get(name)
@@ -988,6 +1207,8 @@ def _write_status():
                 "strikes": _crash_strikes.get(name, 0),
                 "backoff_s": int(_backoff_remaining(name)) if name in _next_start else 0,
                 "disabled": name in _disabled,
+                "guard_restarts": _guard_restarts.get(name, 0),
+                "storm_held_s": _storm_remaining(name),
             }
         status["managed"] = {
             s.get("name", "?"): "ok" if not _managed_down_notified.get(s.get("name", "?"), False) else "down"
@@ -1057,6 +1278,128 @@ def _run_scheduled():
 # the fleet over HTTP. Token auth via Bearer header; bind only on loopback.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Drain mode (gunicorn-inspired): when drain is active the runner stops
+# accepting new work, waits for in-flight tasks to finish, then kills procs.
+# ---------------------------------------------------------------------------
+_drain_active = False
+_drain_started_at = 0
+_DRAIN_TIMEOUT = 60  # max seconds to wait before force-kill
+
+
+def _enter_drain():
+    """Enter drain mode: no new work, in-flight tasks get DRAIN_TIMEOUT s."""
+    global _drain_active, _drain_started_at
+    if _drain_active:
+        return {"ok": False, "error": "already draining"}
+    _drain_active = True
+    _drain_started_at = time.time()
+    _ledger("drain_enter")
+    log("drain mode ACTIVATED", "drain")
+    send_telegram("<b>Runner</b>: drain mode ACTIVATED — in-flight tasks finishing.")
+    return {"ok": True, "timeout_s": _DRAIN_TIMEOUT}
+
+
+def _exit_drain():
+    global _drain_active, _drain_started_at
+    _drain_active = False
+    _drain_started_at = 0
+    _ledger("drain_exit")
+    log("drain mode DEACTIVATED", "drain")
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Startup validation (kubernetes-readiness-inspired): check ports, files,
+# env vars before accepting traffic. Returns list of issues.
+# ---------------------------------------------------------------------------
+REQUIRED_FILES = ["opencode_bot.py", "web_gateway.py", "providers.json", "runner-rules.json"]
+REQUIRED_ENV = []
+
+
+def _startup_validation():
+    issues = []
+    for fname in REQUIRED_FILES:
+        fpath = os.path.join(DIR, fname)
+        if not os.path.isfile(fpath):
+            issues.append(f"missing file: {fname}")
+    for ev in REQUIRED_ENV:
+        if not os.environ.get(ev):
+            issues.append(f"missing env: {ev}")
+    for port_name, port_val in [("web gateway", 4357), ("mcp gateway", 8430)]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.1)
+            if s.connect_ex(("127.0.0.1", int(port_val))) == 0:
+                # only flag if the port holder is NOT a supervised process
+                issues.append(f"port {port_val} ({port_name}) already in use")
+            s.close()
+        except Exception:
+            pass
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Daily fleet snapshot (openclaw-guardian-inspired): save fleet state to
+# disk every 24h for debugging and trend analysis.
+# ---------------------------------------------------------------------------
+SNAPSHOT_DIR = os.path.join(DIR, "fleet_snapshots")
+_snapshot_last_hour = -1
+
+
+def _fleet_snapshot_daily():
+    """Save a timestamped fleet state snapshot once per hour."""
+    global _snapshot_last_hour
+    now = time.localtime()
+    if now.tm_hour == _snapshot_last_hour:
+        return
+    _snapshot_last_hour = now.tm_hour
+    try:
+        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        snap = {
+            "ts": ts,
+            "uptime_s": int(time.time() - _runner_started),
+            "runner_pid": os.getpid(),
+            "processes": {},
+        }
+        try:
+            import psutil as _ps
+            snap["system"] = {
+                "cpu_pct": _ps.cpu_percent(interval=0.1),
+                "ram_used_gb": round(_ps.virtual_memory().used / (1024**3), 2),
+                "ram_total_gb": round(_ps.virtual_memory().total / (1024**3), 2),
+                "disk_free_gb": round(_ps.disk_usage("C:\\").free / (1024**3), 2),
+            }
+        except Exception:
+            pass
+        for name in PROCESSES:
+            p = procs.get(name)
+            alive = p and p.poll() is None
+            row = {"state": _proc_status(name), "pid": p.pid if alive else None,
+                   "uptime_s": int(time.time() - _started_at[name]) if alive and name in _started_at else 0,
+                   "strikes": _crash_strikes.get(name, 0),
+                   "restarts": _restart_count.get(name, 0)}
+            if alive:
+                try:
+                    import psutil as _ps
+                    pp = _ps.Process(p.pid)
+                    row["ram_mb"] = round((pp.memory_info().rss or 0) / 1048576, 1)
+                except Exception:
+                    pass
+            snap["processes"][name] = row
+        fpath = os.path.join(SNAPSHOT_DIR, f"snap_{ts}.json")
+        with open(fpath, "w", encoding="utf-8") as f:
+            json.dump(snap, f, indent=2)
+        _ledger("fleet_snapshot", ts=ts)
+        # prune old snapshots (keep 72 = 3 days)
+        snaps = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "snap_*.json")))
+        for old in snaps[:-72]:
+            os.remove(old)
+    except Exception as e:
+        log(f"fleet snapshot error: {e}", "snapshot")
+
+
 class _CtrlHandler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
@@ -1083,6 +1426,19 @@ class _CtrlHandler(BaseHTTPRequestHandler):
             if path == "/api/ping":
                 self._send(200, {"ok": True, "pid": os.getpid(),
                                  "runner_up": time.time() - _runner_started < 120})
+            elif path == "/api/health/live":
+                self._send(200, {"ok": True, "uptime_s": int(time.time() - _runner_started)})
+            elif path == "/api/health/ready":
+                issues = _startup_validation()
+                self._send(200 if not issues else 503,
+                           {"ok": not bool(issues), "issues": issues})
+            elif path == "/api/fleet":
+                snap = _fleet_snapshot()
+                snap["drain"] = _drain_active
+                snap["health_web"] = health_check()
+                snap["uptime_s"] = int(time.time() - _runner_started)
+                snap["total_restarts"] = sum(_restart_count.values())
+                self._send(200, snap)
             elif path == "/api/status":
                 _write_status()
                 with open(STATUS_FILE, encoding="utf-8") as f:
@@ -1116,7 +1472,11 @@ class _CtrlHandler(BaseHTTPRequestHandler):
             return self._bad()
         path = self.path.split("?")[0].rstrip("/")
         try:
-            if path == "/api/restart":
+            if path == "/api/drain":
+                self._send(200, _enter_drain())
+            elif path == "/api/drain/cancel":
+                self._send(200, _exit_drain())
+            elif path == "/api/restart":
                 self._send(200, _api_restart_all())
             elif path.startswith("/api/restart/"):
                 name = path[len("/api/restart/"):]
@@ -1142,6 +1502,9 @@ class _CtrlHandler(BaseHTTPRequestHandler):
                 _load_rules(force=True)
                 self._send(200, {"ok": True, "rules": _load_rules()})
             elif path == "/api/exec":
+                if _drain_active:
+                    self._send(503, {"ok": False, "error": "runner is draining"})
+                    return
                 length = int(self.headers.get("Content-Length", "0") or 0)
                 try:
                     payload = json.loads(self.rfile.read(length).decode("utf-8", "replace") or "{}")
@@ -1188,6 +1551,8 @@ def _fleet_snapshot():
             "strikes": _crash_strikes.get(name, 0),
             "backoff_s": int(_backoff_remaining(name)) if name in _next_start else 0,
             "disabled": name in _disabled,
+            "guard_restarts": _guard_restarts.get(name, 0),
+            "storm_held_s": _storm_remaining(name),
         }
     return {"processes": out, "runner_pid": os.getpid()}
 
@@ -1282,6 +1647,8 @@ def _api_metrics():
             "strikes": _crash_strikes.get(name, 0),
             "restarts": _restart_count.get(name, 0),
             "backoff_s": int(_backoff_remaining(name)) if name in _next_start else 0,
+            "guard_restarts": _guard_restarts.get(name, 0),
+            "storm_held_s": _storm_remaining(name),
         }
         if alive and have_ps:
             try:
@@ -1310,9 +1677,11 @@ def _api_restarts():
     for row in _ledger_tail(500):
         ev = row.get("event", "")
         if ev in ("restart_via_ctrl", "restart_all_via_ctrl", "crash",
-                  "managed_restart", "scheduled_start"):
+                  "managed_restart", "scheduled_start", "guard_restart",
+                  "storm_hold", "no_restart", "git_restart"):
             out.append({"time": row.get("ts"), "proc": row.get("proc"),
-                        "kind": ev, "exit": row.get("exit")})
+                        "kind": ev, "exit": row.get("exit"),
+                        "reason": row.get("reason")})
     out.sort(key=lambda r: r.get("time") or "", reverse=True)
     return {"restarts": out[:50], "total_crashes": load_crash_history().get("total", 0)}
 
@@ -1503,32 +1872,51 @@ def _androidllm_env():
         env.setdefault(k, v)
     return env
 
-def kill_all():
+def kill_all(reason="kill_all"):
+    """Graceful cascade: run pre_stop hooks, terminate children newest-first,
+    then force-kill leftovers (Supervisor/forever pattern)."""
     global procs
-    for name, p in list(procs.items()):
+    names = list(procs.keys())
+    for name in reversed(names):
         _intentional_kills.add(name)
-        _ledger("stop", proc=name, reason="kill_all")
-        try: p.terminate()
+        _pre_stop(name)
+        _ledger("stop", proc=name, reason=reason)
+        try: procs[name].terminate()
         except: pass
     time.sleep(1)
-    for name, p in list(procs.items()):
-        try: p.kill()
+    for name in names:
+        try: procs[name].kill()
         except: pass
     procs.clear()
     time.sleep(1)
 
-def kill_one(name):
-    if name in procs:
-        _intentional_kills.add(name)
-        _ledger("stop", proc=name, reason="kill_one")
-        try: procs[name].terminate()
-        except: pass
-        time.sleep(1)
-        try: procs[name].kill()
-        except: pass
-        try: procs[name].wait(timeout=3)
-        except: pass
-        procs.pop(name, None)
+def kill_one(name, reason="kill_one", graceful=True):
+    """Terminate one supervised process gracefully: optional pre_stop hook,
+    SIGTERM, wait grace_timeout_s, then SIGKILL. Returns True if it existed."""
+    if name not in procs:
+        return False
+    p = procs[name]
+    _intentional_kills.add(name)
+    _ledger("stop", proc=name, reason=reason)
+    if graceful:
+        _pre_stop(name)
+    try: p.terminate()
+    except: pass
+    grace = max(1, int(_rule(name, "grace_timeout_s", 3) or 3))
+    try:
+        p.wait(timeout=grace)
+    except Exception:
+        try:
+            p.kill()
+            _ledger("stop_forced", proc=name, reason=reason)
+        except Exception:
+            pass
+    try:
+        p.wait(timeout=3)
+    except Exception:
+        pass
+    procs.pop(name, None)
+    return True
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "status":
@@ -1555,6 +1943,7 @@ if __name__ == "__main__":
             print(f"  {row['proto']:<4} :{row['port']:<6} pid {row['pid']:<8} {row['proc'] or '?'}{mark}")
         sys.exit(0)
     _load_rules(force=True)
+    _rotate_fleet_logs()
     _start_ctrl_server()
     while True:
         _health_rows.append({
@@ -1566,6 +1955,21 @@ if __name__ == "__main__":
         _write_status()
         _run_scheduled()
         _check_managed_servers()
+        _check_resource_guards()
+        _fleet_snapshot_daily()
+
+        # drain mode: after timeout, force-kill all supervised processes
+        if _drain_active and _drain_started_at:
+            elapsed = time.time() - _drain_started_at
+            if elapsed >= _DRAIN_TIMEOUT:
+                log(f"drain timeout ({_DRAIN_TIMEOUT}s), force-killing fleet", "drain")
+                _ledger("drain_force_kill", elapsed=elapsed)
+                kill_all(reason="drain_timeout")
+                _exit_drain()
+            else:
+                # don't start new work during drain
+                time.sleep(2)
+                continue
         if _androidllm_enabled:
             try:
                 # consent gate: owner replied /approve -> apply the switch
@@ -1592,6 +1996,10 @@ if __name__ == "__main__":
                 if remaining > 0:
                     log(f"{name} crash backoff, retry in {remaining:.0f}s", "proc")
                     continue
+                storm = _storm_remaining(name)
+                if storm > 0:
+                    log(f"{name} held by restart-storm guard ({storm}s)", "proc")
+                    continue
                 if name in _disabled:
                     log(f"{name} disabled by rules, skipping start", "proc")
                     continue
@@ -1602,6 +2010,7 @@ if __name__ == "__main__":
                     time.sleep(1)
                 cmd = _androidllm_cmd() if name == "androidllm" else base_cmd
                 log(f"starting {name}...", "proc")
+                _rotate_stderr(name)
                 stderr_file = os.path.join(DIR, f"{name}.stderr")
                 stderr_fh = open(stderr_file, "w", encoding="utf-8")
                 proc_env = _androidllm_env() if name == "androidllm" else bot_env
@@ -1610,6 +2019,7 @@ if __name__ == "__main__":
                 procs[name] = proc
                 _started_at[name] = time.time()
                 _restart_count[name] = _restart_count.get(name, 0) + 1
+                _note_restart(name)
                 _ledger("start", proc=name, pid=proc.pid, cmd=" ".join(cmd)[:200])
                 threading.Thread(target=monitor_process, args=(name, proc), daemon=True).start()
                 if name == "web":
@@ -1659,7 +2069,7 @@ if __name__ == "__main__":
                 restart_times.append(now)
                 log(f"git update, restarting all processes...", "proc")
                 _ledger("git_restart", proc="all")
-                kill_all()
+                kill_all(reason="git_restart")
                 last_hashes = file_hashes()
         elif memory_git_changed:
             log(f"memory repo updated, restarting memory daemon...", "proc")
@@ -1682,14 +2092,14 @@ if __name__ == "__main__":
             mcp_changed = any(os.path.basename(f) in ("mcp_servers.py",) for f in changed_files)
             if code_changed:
                 log(f"code changed, restarting bot+web...", "proc")
-                kill_one("bot")
-                kill_one("web")
+                kill_one("bot", reason="code_changed")
+                kill_one("web", reason="code_changed")
             if cyberdeck_changed:
                 log(f"cyberdeck changed, restarting cyberdeck...", "proc")
-                kill_one("cyberdeck")
+                kill_one("cyberdeck", reason="code_changed")
             if mcp_changed:
                 log(f"mcp pack changed, restarting mcp...", "proc")
-                kill_one("mcp")
+                kill_one("mcp", reason="code_changed")
         elif web_dead:
             log(f"web not responding, restarting web only...", "health")
-            kill_one("web")
+            kill_one("web", reason="web_health")

@@ -159,6 +159,30 @@ class RunnerConnector:
     def reload_rules(self):
         return self._request("POST", "/api/reload_rules")
 
+    def fleet(self):
+        """One-call fleet status: all processes + health + drain + uptime."""
+        return self._request("GET", "/api/fleet")
+
+    def health_live(self):
+        """Liveness probe: is the runner alive?"""
+        return self._request("GET", "/api/health/live")
+
+    def health_ready(self):
+        """Readiness probe: can the runner accept traffic?"""
+        return self._request("GET", "/api/health/ready")
+
+    def drain(self):
+        """Enter drain mode: stop accepting new work, finish in-flight."""
+        return self._request("POST", "/api/drain")
+
+    def drain_cancel(self):
+        """Exit drain mode."""
+        return self._request("POST", "/api/drain/cancel")
+
+    def batch_status(self):
+        """Batch status: fleet + health + metrics in one round-trip."""
+        return self._request("GET", "/api/fleet")
+
 
 # Backward-compatible alias (older callers used RunnerControl).
 RunnerControl = RunnerConnector
@@ -171,6 +195,7 @@ As a library:
     c = RunnerConnector()                    # host/token from ~/.runner_connector.json or env
     c.status(); c.restart("bot"); c.disable("web"); c.notify("hello")
     c.exec("git pull"); c.health(); c.metrics(); c.restarts(); c.batch([...])
+    c.fleet(); c.health_live(); c.health_ready(); c.drain(); c.drain_cancel()
 
 Config file ~/.runner_connector.json (optional):
     {"host": "127.0.0.1", "port": 8431, "token": "...", "timeout": 15, "retries": 1}
@@ -178,6 +203,8 @@ Config file ~/.runner_connector.json (optional):
 As a CLI:
     runner_connector.py status|procs|ping|ledger|ports|rules|schedule|logs
     runner_connector.py health | metrics | restarts
+    runner_connector.py fleet | health-live | health-ready
+    runner_connector.py drain | drain-cancel
     runner_connector.py restart <proc> | restart-all
     runner_connector.py disable <proc> | enable <proc>
     runner_connector.py free_port <port>
@@ -229,6 +256,16 @@ def main():
         result = c.exec(" ".join(sys.argv[2:]), timeout=60)
     elif cmd == "notify" and len(sys.argv) > 2:
         result = c.notify(" ".join(sys.argv[2:]))
+    elif cmd == "fleet":
+        result = c.fleet()
+    elif cmd == "health-live":
+        result = c.health_live()
+    elif cmd == "health-ready":
+        result = c.health_ready()
+    elif cmd == "drain":
+        result = c.drain()
+    elif cmd == "drain-cancel":
+        result = c.drain_cancel()
     else:
         print(_USAGE)
         return 1

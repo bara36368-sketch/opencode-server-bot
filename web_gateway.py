@@ -1107,10 +1107,17 @@ async def call_provider(messages, provider_id):
     p = PROVIDERS.get(provider_id)
     if not p:
         return {"error": "Unknown provider: " + provider_id}
+    cached = _response_cache.get(provider_id, messages)
+    if cached is not None:
+        return cached
     if provider_id == "synoxcloud" or provider_id.startswith("synox-"):
-        return await _call_synoxcloud(p, messages)
-    handler = _PROVIDER_DISPATCH.get(provider_id, _call_openai)
-    return await handler(p, messages)
+        result = await _call_synoxcloud(p, messages)
+    else:
+        handler = _PROVIDER_DISPATCH.get(provider_id, _call_openai)
+        result = await handler(p, messages)
+    if not result.get("error"):
+        _response_cache.put(provider_id, messages, result)
+    return result
 
 async def execute_workflow(workflow, initial_input=""):
     nodes = workflow.get("nodes", [])
@@ -1183,6 +1190,44 @@ async def execute_workflow(workflow, initial_input=""):
         "error_count": sum(1 for s in steps if s["status"] == "error"),
         "total_time": round(sum(s.get("elapsed", 0) for s in steps), 2),
     }
+
+# ---- Response Cache (hidden gem: cache repeated LLM calls) ----
+
+class _ResponseCache:
+    """LRU cache for LLM responses. Key = hash(provider + messages). TTL-based expiry."""
+    def __init__(self, maxsize=256, ttl_s=300):
+        self._cache = {}
+        self._order = []
+        self._maxsize = maxsize
+        self._ttl_s = ttl_s
+
+    def _key(self, provider_id, messages):
+        import hashlib
+        raw = provider_id + ":" + json.dumps(messages, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+    def get(self, provider_id, messages):
+        k = self._key(provider_id, messages)
+        entry = self._cache.get(k)
+        if entry and time.time() - entry["ts"] < self._ttl_s:
+            return entry["result"]
+        if entry:
+            del self._cache[k]
+            self._order.remove(k)
+        return None
+
+    def put(self, provider_id, messages, result):
+        k = self._key(provider_id, messages)
+        self._cache[k] = {"result": result, "ts": time.time()}
+        self._order.append(k)
+        while len(self._order) > self._maxsize:
+            old = self._order.pop(0)
+            self._cache.pop(old, None)
+
+    def stats(self):
+        return {"size": len(self._cache), "maxsize": self._maxsize, "ttl_s": self._ttl_s}
+
+_response_cache = _ResponseCache()
 
 # ---- Bot Subprocess Manager ----
 
@@ -1809,6 +1854,20 @@ async def handle_healthz(method, path, headers, body, params):
         "providers": providers,
         "fallback_chain": _FREE_FALLBACK_CHAIN,
     })
+
+
+@route("GET", "/api/cache/stats")
+async def handle_cache_stats(method, path, headers, body, params):
+    """Response cache stats for debugging and monitoring."""
+    return json_response({"ok": True, "cache": _response_cache.stats()})
+
+
+@route("POST", "/api/cache/flush")
+async def handle_cache_flush(method, path, headers, body, params):
+    """Flush the response cache."""
+    _response_cache._cache.clear()
+    _response_cache._order.clear()
+    return json_response({"ok": True, "flushed": True})
 
 
 _RATE_WINDOW = 60.0

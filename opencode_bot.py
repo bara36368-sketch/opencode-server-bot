@@ -6248,8 +6248,46 @@ async def main():
                             for t in sch:
                                 lines.append(f"  {t.get('name')}: every {t.get('interval')}s  last: {t.get('last_run','?')}")
                             await send(chat, "\n".join(lines[:20]))
+                        elif sub == "fleet":
+                            snap = c.fleet()
+                            procs = snap.get("processes", {})
+                            lines = [f"Fleet: up {snap.get('uptime_s',0)}s | "
+                                     f"web={'OK' if snap.get('health_web') else 'DOWN'} | "
+                                     f"drain={'ON' if snap.get('drain') else 'off'} | "
+                                     f"restarts={snap.get('total_restarts',0)}"]
+                            for name, info in procs.items():
+                                state = info.get("state", "?")
+                                pid = info.get("pid")
+                                up = f"{info.get('uptime_s',0)}s" if pid else "-"
+                                strikes = info.get("strikes", 0)
+                                rest = info.get("restarts", 0)
+                                guard = info.get("guard_restarts", 0)
+                                storm = info.get("storm_held_s", 0)
+                                extra = f" s={strikes}" if strikes else ""
+                                extra += f" r={rest}" if rest else ""
+                                extra += f" g={guard}" if guard else ""
+                                extra += f" STORM={storm}s" if storm else ""
+                                lines.append(f"  {name}: {state} pid={pid} up={up}{extra}")
+                            await send(chat, "\n".join(lines[:30]))
+                        elif sub == "drain":
+                            result = c.drain()
+                            await send(chat, f"Drain: {json.dumps(result)[:500]}")
+                        elif sub == "drain-cancel":
+                            result = c.drain_cancel()
+                            await send(chat, f"Drain cancel: {json.dumps(result)[:500]}")
+                        elif sub == "health-live":
+                            result = c.health_live()
+                            await send(chat, f"Liveness: {json.dumps(result)[:500]}")
+                        elif sub == "health-ready":
+                            result = c.health_ready()
+                            ok = result.get("ok", False)
+                            issues = result.get("issues", [])
+                            if ok:
+                                await send(chat, "Readiness: READY (all checks passed)")
+                            else:
+                                await send(chat, f"Readiness: NOT READY\n" + "\n".join(f"  - {i}" for i in issues))
                         else:
-                            await send(chat, "Usage:\n  /runner status — Fleet status\n  /runner health — CPU/RAM per proc\n  /runner metrics — Detailed metrics\n  /runner restarts — Restart history\n  /runner exec <cmd> — Run a shell command\n  /runner restart <proc> — Restart one proc\n  /runner restart-all — Restart all\n  /runner disable|enable <proc>\n  /runner ledger — Recent events\n  /runner ports — Port scan\n  /runner schedule — Scheduled tasks")
+                            await send(chat, "Usage:\n  /runner status — Fleet status\n  /runner fleet — One-call fleet overview\n  /runner health — CPU/RAM per proc\n  /runner metrics — Detailed metrics\n  /runner restarts — Restart history\n  /runner exec <cmd> — Run a shell command\n  /runner restart <proc> — Restart one proc\n  /runner restart-all — Restart all\n  /runner disable|enable <proc>\n  /runner ledger — Recent events\n  /runner ports — Port scan\n  /runner schedule — Scheduled tasks\n  /runner drain — Enter drain mode\n  /runner drain-cancel — Exit drain mode\n  /runner health-live — Liveness probe\n  /runner health-ready — Readiness probe")
                     except Exception as e:
                         await send(chat, f"Runner control error: {e}")
 
