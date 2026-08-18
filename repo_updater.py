@@ -329,14 +329,18 @@ def update_all(entries, notify=None):
                 say(i + 1, total, "%s — up to date" % label)
             continue
         say(i, total, "%s — update found, git pulling..." % label)
+        # _check_outdated already fetched, so FETCH_HEAD is current.
+        # Use merge --ff-only first (works on full clones); on shallow clones
+        # (--depth=1) git refuses to fast-forward unrelated histories, so we
+        # fall back to fetch + hard reset which always works there.
         try:
-            pr = subprocess.run(["git", "pull", "--ff-only", "--depth=1"],
+            mr = subprocess.run(["git", "merge", "--ff-only", "FETCH_HEAD"],
                                 cwd=d, capture_output=True, text=True,
                                 timeout=30, encoding="utf-8")
         except Exception as e:
-            say(i, total, "%s — pull error: %s" % (label, e))
+            say(i, total, "%s — merge error: %s" % (label, e))
             continue
-        if pr.returncode == 0:
+        if mr.returncode == 0:
             new_head = _head_short(d)
             if new_head and new_head != old_head[:len(new_head)]:
                 changed.add(label)
@@ -347,8 +351,8 @@ def update_all(entries, notify=None):
                     _prev_head[d] = old_head
                     say(i + 1, total, "%s — up to date" % label)
             continue
-        # pull failed -> stash-then-pull (preserve local changes)
-        say(i, total, "%s — pull failed, trying stash-then-pull" % label)
+        # merge failed (shallow clone / divergence) -> stash, reset, pop
+        say(i, total, "%s — fast-forward blocked (shallow?), trying reset" % label)
         stashed = False
         try:
             sp = subprocess.run(["git", "stash", "push", "-m", "runner-auto"],
@@ -361,73 +365,39 @@ def update_all(entries, notify=None):
                 say(i, total, "%s — stash error: %s" % (label, sp.stderr.strip()[-200:]))
         except Exception as e:
             say(i, total, "%s — stash error: %s" % (label, e))
+        remote = _primary_remote(d)
+        if not remote:
+            say(i, total, "%s — no git remote, cannot reset" % label)
+            continue
         try:
-            pr2 = subprocess.run(["git", "pull", "--ff-only", "--depth=1"],
-                                 cwd=d, capture_output=True, text=True,
-                                 timeout=30, encoding="utf-8")
+            rr = subprocess.run(["git", "reset", "--hard", "FETCH_HEAD"],
+                                cwd=d, capture_output=True, text=True,
+                                timeout=30, encoding="utf-8")
         except Exception as e:
-            pr2 = None
-            say(i, total, "%s — pull retry error: %s" % (label, e))
-        restored = True
+            say(i, total, "%s — reset error: %s" % (label, e))
+            continue
+        if rr.returncode != 0:
+            say(i, total, "%s — reset failed: %s" % (label, rr.stderr.strip()[-200:]))
+            continue
+        _last_reset[d] = _now()
         if stashed:
             try:
                 rp = subprocess.run(["git", "stash", "pop"], cwd=d,
                                     capture_output=True, text=True,
                                     timeout=30, encoding="utf-8")
-                restored = rp.returncode == 0
-                if not restored:
+                if rp.returncode != 0:
                     say(i, total, "%s — stash pop conflict, run 'git stash list' to recover" % label)
             except Exception as e:
-                restored = False
                 say(i, total, "%s — stash pop error: %s" % (label, e))
-        if pr2 and pr2.returncode == 0:
-            new_head = _head_short(d)
-            if new_head and new_head != old_head[:len(new_head)]:
-                changed.add(label)
-                _prev_head[d] = new_head
-                say(i + 1, total, "%s — pulled %s (stash-then-pull)" % (label, new_head))
-            else:
-                if _prev_head.get(d) != old_head:
-                    _prev_head[d] = old_head
-                    say(i + 1, total, "%s — up to date (stash)" % label)
-            continue
-        # last resort: fetch + hard reset (local edits already stashed)
-        if not allow_reset:
-            say(i, total, "%s — pull still failed, reset not allowed, skipped" % label)
-            continue
-        now = _now()
-        if now - _last_reset.get(d, 0) < _RESET_COOLDOWN:
-            say(i, total, "%s — pull still failed, fallback on cooldown" % label)
-            continue
-        say(i, total, "%s — pull still failed, using fallback (fetch + hard reset)" % label)
-        remote = _primary_remote(d)
-        if not remote:
-            say(i, total, "%s — no git remote, cannot fallback" % label)
-            continue
-        try:
-            fr = subprocess.run(["git", "fetch", remote], cwd=d,
-                                capture_output=True, text=True, timeout=60,
-                                encoding="utf-8")
-            if fr.returncode != 0:
-                say(i, total, "%s — fetch failed: %s" % (label, fr.stderr.strip()[-200:]))
-                continue
-            branch = _default_branch(d)
-            ref = "%s/%s" % (remote, branch) if branch else "%s/master" % remote
-            rr = subprocess.run(["git", "reset", "--hard", ref], cwd=d,
-                                capture_output=True, text=True, timeout=30,
-                                encoding="utf-8")
-            if rr.returncode != 0:
-                say(i, total, "%s — reset failed: %s" % (label, rr.stderr.strip()[-200:]))
-                continue
-            _last_reset[d] = now
-            new_head = _head_short(d)
-            if new_head and new_head != old_head[:len(new_head)]:
-                changed.add(label)
-                say(i + 1, total, "%s — fallback reset -> %s" % (label, new_head))
-            else:
-                say(i + 1, total, "%s — fallback reset: no change" % label)
-        except Exception as e:
-            say(i, total, "%s — fallback error: %s" % (label, e))
+        new_head = _head_short(d)
+        if new_head and new_head != old_head[:len(new_head)]:
+            changed.add(label)
+            _prev_head[d] = new_head
+            say(i + 1, total, "%s — pulled %s (reset)" % (label, new_head))
+        else:
+            if _prev_head.get(d) != old_head:
+                _prev_head[d] = old_head
+                say(i + 1, total, "%s — up to date (reset)" % label)
     return changed
 
 
