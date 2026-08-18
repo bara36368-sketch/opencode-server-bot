@@ -357,6 +357,7 @@ def git_update():
     linked to the bot (reference cyberdeck.py/runner.py/opencode.py, or are
     referenced by them) are auto-added to the update set. Returns the set
     of labels that actually changed."""
+    global _repo_updater_mtime
     try:
         _path = os.path.abspath(_repo_updater.__file__)
         _mtime = os.path.getmtime(_path)
