@@ -46,6 +46,7 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 #   GIT_EXTRA_REPOS="label=path;label2=path2"  (or drop a repos/*.json file).
 _PARENT = os.path.dirname(DIR)
 import repo_updater as _repo_updater
+_repo_updater_mtime = None
 _GIT_EXTRA = {}
 for _extra in (os.environ.get("GIT_EXTRA_REPOS", "") or "").split(";"):
     _entry = _extra.strip()
@@ -357,7 +358,11 @@ def git_update():
     referenced by them) are auto-added to the update set. Returns the set
     of labels that actually changed."""
     try:
-        _importlib.reload(_repo_updater)
+        _path = os.path.abspath(_repo_updater.__file__)
+        _mtime = os.path.getmtime(_path)
+        if _repo_updater_mtime != _mtime:
+            _importlib.reload(_repo_updater)
+            _repo_updater_mtime = _mtime
     except Exception as e:
         log(f"multi-repo module reload error: {e}", "git")
     try:
@@ -1262,6 +1267,8 @@ def _run_scheduled():
         if not isinstance(cmd, list):
             cmd = str(cmd or "").split()
         cwd = task.get("cwd", DIR)
+        if not cwd or not os.path.isdir(cwd):
+            cwd = DIR
         timeout = int(task.get("timeout", 120))
         log(f"scheduled task: {name} -> {' '.join(cmd)}", "sched")
         _ledger("scheduled_start", proc=name, cmd=" ".join(cmd)[:200])
