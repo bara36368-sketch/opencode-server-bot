@@ -31,6 +31,7 @@ _LINK_NEEDLES = ("cyberdeck.py", "runner.py", "opencode.py",
                  "cyberdeck_bot.py", "opencode_bot.py", "repo_updater")
 _RESET_COOLDOWN = 300
 _last_reset = {}
+_prev_head = {}
 _bot_file_cache = None
 
 
@@ -261,6 +262,34 @@ def _head_short(d):
         return None
 
 
+def _check_outdated(d, label=None):
+    """True when the remote has commits we don't have (quiet fetch + compare).
+    Returns None when we cannot tell (offline / no remote / not a git repo) so
+    callers can skip silently instead of spamming 'update found'."""
+    if not os.path.isdir(os.path.join(d, ".git")):
+        return None
+    remote = _primary_remote(d)
+    if not remote:
+        return None
+    try:
+        fr = subprocess.run(["git", "fetch", "--quiet", "--depth=1", remote],
+                            cwd=d, capture_output=True, text=True,
+                            timeout=60, encoding="utf-8")
+        if fr.returncode != 0:
+            return None
+        rr = subprocess.run(["git", "rev-list", "--count", "HEAD..FETCH_HEAD"],
+                            cwd=d, capture_output=True, text=True,
+                            timeout=15, encoding="utf-8")
+        if rr.returncode != 0:
+            return None
+        try:
+            return int(rr.stdout.strip()) > 0
+        except ValueError:
+            return None
+    except Exception:
+        return None
+
+
 def update_all(entries, notify=None):
     """Pull every entry; on pull failure fall back to fetch + hard reset.
     notify(prefix, msg) is called with prefix like "0/6" (searching) then
@@ -290,6 +319,15 @@ def update_all(entries, notify=None):
             say(i, total, "%s — git unavailable: %s" % (label, e))
             continue
         old_head = r.stdout.strip()
+        outdated = _check_outdated(d, label)
+        if outdated is None:
+            say(i + 1, total, "%s — update check skipped (offline/no remote)" % label)
+            continue
+        if not outdated:
+            if _prev_head.get(d) != old_head:
+                _prev_head[d] = old_head
+                say(i + 1, total, "%s — up to date" % label)
+            continue
         say(i, total, "%s — update found, git pulling..." % label)
         try:
             pr = subprocess.run(["git", "pull", "--ff-only", "--depth=1"],
@@ -302,9 +340,12 @@ def update_all(entries, notify=None):
             new_head = _head_short(d)
             if new_head and new_head != old_head[:len(new_head)]:
                 changed.add(label)
+                _prev_head[d] = new_head
                 say(i + 1, total, "%s — pulled %s" % (label, new_head))
             else:
-                say(i + 1, total, "%s — up to date" % label)
+                if _prev_head.get(d) != old_head:
+                    _prev_head[d] = old_head
+                    say(i + 1, total, "%s — up to date" % label)
             continue
         # pull failed -> stash-then-pull (preserve local changes)
         say(i, total, "%s — pull failed, trying stash-then-pull" % label)
@@ -343,9 +384,12 @@ def update_all(entries, notify=None):
             new_head = _head_short(d)
             if new_head and new_head != old_head[:len(new_head)]:
                 changed.add(label)
+                _prev_head[d] = new_head
                 say(i + 1, total, "%s — pulled %s (stash-then-pull)" % (label, new_head))
             else:
-                say(i + 1, total, "%s — up to date (stash)" % label)
+                if _prev_head.get(d) != old_head:
+                    _prev_head[d] = old_head
+                    say(i + 1, total, "%s — up to date (stash)" % label)
             continue
         # last resort: fetch + hard reset (local edits already stashed)
         if not allow_reset:
