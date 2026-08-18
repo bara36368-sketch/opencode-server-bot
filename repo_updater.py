@@ -35,6 +35,38 @@ _prev_head = {}
 _bot_file_cache = None
 
 
+def _state_file():
+    d = os.environ.get("REPO_STATE_DIR",
+                       os.path.join(os.path.expanduser("~"),
+                                    ".opencode-runner", "repos"))
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        pass
+    return os.path.join(d, ".runner_state.json")
+
+
+def _load_state():
+    try:
+        with open(_state_file(), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_state():
+    try:
+        with open(_state_file(), "w", encoding="utf-8") as f:
+            json.dump({"prev_head": _prev_head, "last_reset": _last_reset}, f)
+    except Exception:
+        pass
+
+
+_state = _load_state()
+_prev_head = dict(_state.get("prev_head", {}))
+_last_reset = dict(_state.get("last_reset", {}))
+
+
 def registry_dir():
     """State dir OUTSIDE the bot repo so registry writes never dirty the
     git working tree (which would defeat --ff-only pulls and trigger the
@@ -326,6 +358,7 @@ def update_all(entries, notify=None):
         if not outdated:
             if _prev_head.get(d) != old_head:
                 _prev_head[d] = old_head
+                _save_state()
                 say(i + 1, total, "%s — up to date" % label)
             continue
         say(i, total, "%s — update found, git pulling..." % label)
@@ -345,10 +378,12 @@ def update_all(entries, notify=None):
             if new_head and new_head != old_head[:len(new_head)]:
                 changed.add(label)
                 _prev_head[d] = new_head
+                _save_state()
                 say(i + 1, total, "%s — pulled %s" % (label, new_head))
             else:
                 if _prev_head.get(d) != old_head:
                     _prev_head[d] = old_head
+                    _save_state()
                     say(i + 1, total, "%s — up to date" % label)
             continue
         # merge failed (shallow clone / divergence) -> stash, reset, pop
@@ -380,6 +415,7 @@ def update_all(entries, notify=None):
             say(i, total, "%s — reset failed: %s" % (label, rr.stderr.strip()[-200:]))
             continue
         _last_reset[d] = _now()
+        _save_state()
         if stashed:
             try:
                 rp = subprocess.run(["git", "stash", "pop"], cwd=d,
@@ -393,10 +429,12 @@ def update_all(entries, notify=None):
         if new_head and new_head != old_head[:len(new_head)]:
             changed.add(label)
             _prev_head[d] = new_head
+            _save_state()
             say(i + 1, total, "%s — pulled %s (reset)" % (label, new_head))
         else:
             if _prev_head.get(d) != old_head:
                 _prev_head[d] = old_head
+                _save_state()
                 say(i + 1, total, "%s — up to date (reset)" % label)
     return changed
 
