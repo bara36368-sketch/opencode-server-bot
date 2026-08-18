@@ -1,4 +1,4 @@
-import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, threading, re as _re, traceback, socket, shutil
+import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, threading, re as _re, traceback, socket, shutil, importlib as _importlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import androidllm_models
@@ -356,6 +356,10 @@ def git_update():
     linked to the bot (reference cyberdeck.py/runner.py/opencode.py, or are
     referenced by them) are auto-added to the update set. Returns the set
     of labels that actually changed."""
+    try:
+        _importlib.reload(_repo_updater)
+    except Exception as e:
+        log(f"multi-repo module reload error: {e}", "git")
     try:
         entries, ignored = _repo_updater.sync_registry(_PARENT, _GIT_EXTRA)
     except Exception as e:
