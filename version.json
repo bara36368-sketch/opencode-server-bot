@@ -1,6 +1,6 @@
 {
-  "version": "3.7.145",
-  "updated": "2026-07-29",
+  "version": "3.7.146",
+  "updated": "2026-08-18",
   "experimental": [
     "Multi-Agent System v2 -- /agent crew/debate/handoff/swarm/flow -- Crew delegation, structured debate, direct handoff, swarm collaboration, event-driven flows",
     "Persistent Memory -- long-term memory log per user, auto-injected into new conversations",
@@ -382,6 +382,9 @@
       "New commands: /9router, /vansrouter, /omniroute, /openclaw, /blackbox, /odysseus in both bots",
       "Fixed: /v2 command was missing from cyberdeck_bot.py (said 'Switch back: /v2' but /v2 didn't exist)",
       "All 6 reverse-engineered tools have /start help entries and /help documentation in both bots"
+    ],
+    "3.7.146": [
+      "TEST UPDATE — auto-updater verification: runner pulls pushed commits, no spam, reload works"
     ],
     "3.7.145": [
       "cyberdeck_core — Rust rewrite of Cyberdeck Agent via PyO3",
