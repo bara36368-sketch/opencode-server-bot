@@ -2,6 +2,7 @@ import subprocess, time, os, sys, hashlib, glob, urllib.request, json, logging, 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import androidllm_models
+import free_model_watcher
 
 for _lib in ["httpx", "httpcore", "urllib3", "chardet"]:
     logging.getLogger(_lib).setLevel(logging.WARNING)
@@ -132,6 +133,30 @@ def _can_notify(key):
         return False
     _last_notify_time[key] = now
     return True
+
+# Free-model watcher: polls public catalogs for newly-free / limited-time
+# models (e.g. stealth previews free for ~1 week) and broadcasts them to all
+# known Telegram chats. State persisted in freemodels_state.json so restarts
+# never re-announce. Interval via FREE_MODEL_CHECK_INTERVAL (default 4h).
+_free_model_next_check = [0.0]
+
+def _maybe_check_free_models():
+    now = time.time()
+    if now < _free_model_next_check[0]:
+        return
+    _free_model_next_check[0] = now + max(600, free_model_watcher.CHECK_INTERVAL)
+    try:
+        tok = BOT_TOKEN or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        oid = OWNER_ID or os.environ.get("OWNER_ID", "")
+        events = free_model_watcher.check_now(bot_token=tok, owner_id=oid)
+        if events.get("new"):
+            log(f"free models announced: {events['new']} -> {events['sent_to']} chats", "freemodels")
+        if events.get("expired"):
+            log(f"free models expired: {events['expired']}", "freemodels")
+        if events.get("errors"):
+            log(f"source errors: {events['errors']}", "freemodels")
+    except Exception as e:
+        log(f"free model watcher error: {e}", "freemodels")
 
 def _ledger(event, **fields):
     """Append a structured event to proc-ledger.jsonl (one JSON object per
@@ -1954,6 +1979,16 @@ if __name__ == "__main__":
                 mark = "  <-- managed"
             print(f"  {row['proto']:<4} :{row['port']:<6} pid {row['pid']:<8} {row['proc'] or '?'}{mark}")
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "freemodels":
+        # force a free-model check right now (announces + prints events).
+        # `runner.py freemodels dry` scans without sending Telegram messages.
+        _load_rules(force=True)
+        load_dotenv()
+        dry = len(sys.argv) > 2 and sys.argv[2] == "dry"
+        ev = free_model_watcher.check_now(
+            bot_token=None if dry else BOT_TOKEN, owner_id=OWNER_ID, dry=dry)
+        print(json.dumps(ev, indent=1))
+        sys.exit(0)
     _load_rules(force=True)
     _rotate_fleet_logs()
     _start_ctrl_server()
@@ -1969,6 +2004,7 @@ if __name__ == "__main__":
         _check_managed_servers()
         _check_resource_guards()
         _fleet_snapshot_daily()
+        _maybe_check_free_models()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:

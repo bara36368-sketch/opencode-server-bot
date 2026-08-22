@@ -16,6 +16,7 @@ runner.py (process manager)
 | File | Purpose |
 |---|---|
 | `runner.py` | Process manager — monitors 3 processes, health checks every 30s, file hash change detection, git auto-update |
+| `free_model_watcher.py` | Free-model watcher — polls OpenRouter/OpenCode Zen/models.dev catalogs every 4h, announces NEW limited-time free models to all Telegram chats, expiry alerts when free window ends. CLI: `python runner.py freemodels [dry]` |
 | `opencode_bot.py` | Telegram bot — 4031 lines, polling loop, 18 API providers via smart_call(), agent teams, memory, scheduler, 83 commands |
 | `web_gateway.py` | Flask gateway — 1738 lines, chat UI, workflow builder, MCP server, 23 routes, /skills marketplace, 15 provider "roles" (Strategist, Researcher, etc.) |
 | `agents.json` | 189 agent definitions with prompts |
