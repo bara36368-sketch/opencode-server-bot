@@ -102,6 +102,16 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
+## Runner Upgrade Pack v4 (added 2026-08-23) — see RUNNER_IDEAS.md for the full 20-idea doc
+1. Adaptive cadence — loop sleeps 5s when unstable (recent restart / web unhealthy), normal 15s when calm (`_adaptive_sleep`).
+2. Deploy guard auto-rollback — after any bot git update, 600s observation window; ≥3 bot crashes in it → `git reset --hard` to pre-pull SHA + kill_all + Telegram alert (`_deploy_guard_*`). Env: RUNNER_DEPLOY_GUARD_S, RUNNER_DEPLOY_GUARD_MAX_CRASHES.
+3. Stderr sentry — tails per-proc .stderr incrementally; error-line bursts (≥12, Traceback/CRITICAL/FATAL/MemoryError) notify once per cooldown; every error line hashed into a normalized signature and written to proc-ledger as error_signature events (`_stderr_sentry_tick`).
+4. Disk guard + nightly maintenance — hourly disk check prunes fleet_snapshots >14d, video_cache/* + stderr rotations >7d; nightly deep pass at MAINT_HOUR (default 4am); LOW DISK alert under RUNNER_DISK_MIN_FREE_GB (default 2GB) (`_disk_and_maintenance_tick`).
+5. Heartbeat + doctor — runner writes runner_heartbeat.json every loop (dead-man-switch for external watchers); `python runner.py doctor` = one-shot triage (heartbeat age, procs, disk, crash history, freemodels, ctrl API liveness).
+6. Hung-watchdog lite — web ALIVE but failing health checks 20 consecutive ticks → auto-restart + alert (`_hung_watchdog_tick`, RUNNER_HUNG_STREAK).
+7. Telegram remote control (bot side) — owner/admin only: /rstatus, /rrestart <proc>, /rlogs [filter], /rdisable <proc>, /renable <proc> via ctrl API :8431 (RUNNER_CTRL_TOKEN).
+- All tested: guard trips+notifies+expires cleanly, sentry detects bursts, doctor runs standalone.
+
 ## Next Steps
 1. Restart runner.py so all fixes take effect
 2. Test new features: /history, /archive, /video
