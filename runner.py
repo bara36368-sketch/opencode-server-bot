@@ -226,6 +226,191 @@ def _daily_digest(force=False):
     except Exception as e:
         log(f"daily digest error: {e}", "digest")
 
+# ---- upgrade pack v4 -------------------------------------------------------
+# adaptive cadence (#1), deploy-guard auto-rollback (#2), stderr sentry (#3/#4),
+# disk guard + nightly maintenance (#5/#11), heartbeat/doctor (#6),
+# hung-watchdog lite (#7). See RUNNER_IDEAS.md for rationale.
+
+HEARTBEAT_FILE = os.path.join(DIR, "runner_heartbeat.json")
+DEPLOY_GUARD_WINDOW = int(os.environ.get("RUNNER_DEPLOY_GUARD_S", "600"))
+DEPLOY_GUARD_MAX_CRASHES = int(os.environ.get("RUNNER_DEPLOY_GUARD_MAX_CRASHES", "3"))
+STDERR_BURST_LINES = int(os.environ.get("RUNNER_STDERR_BURST", "12"))
+STDERR_TAIL_BYTES = 8192
+DISK_MIN_FREE_GB = float(os.environ.get("RUNNER_DISK_MIN_FREE_GB", "2.0"))
+CADENCE_FAST_S = max(2, int(os.environ.get("RUNNER_CADENCE_FAST_S", "5")))
+HUNG_STREAK_NOTIFY = int(os.environ.get("RUNNER_HUNG_STREAK", "20"))
+
+_deploy_guard = {"armed_at": None, "prev_sha": None, "crashes_at_arm": 0}
+_stderr_offsets = {}
+_web_unhealthy_streak = [0]
+_last_maint_day = [None]
+
+def _git_head_sha():
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=DIR,
+                           capture_output=True, text=True, timeout=10, encoding="utf-8")
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+def write_heartbeat():
+    """Dead-man-switch file: external watchers check age to detect a stalled runner."""
+    try:
+        snap = {
+            "ts": time.time(),
+            "iso": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "procs": {n: (p.poll() is None) for n, p in procs.items()},
+            "uptime_s": int(time.time() - _runner_started),
+            "total_restarts": sum(_restart_count.values()),
+        }
+        tmp = HEARTBEAT_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        os.replace(tmp, HEARTBEAT_FILE)
+    except Exception:
+        pass
+
+def _deploy_guard_arm():
+    if os.path.isdir(os.path.join(DIR, ".git")):
+        _deploy_guard["prev_sha"] = _git_head_sha()
+        _deploy_guard["armed_at"] = time.time()
+        _deploy_guard["crashes_at_arm"] = _restart_count.get("bot", 0)
+
+def _deploy_guard_tick():
+    """If bot crash-spikes right after a git deploy, revert to pre-pull commit."""
+    armed = _deploy_guard.get("armed_at")
+    if not armed:
+        return
+    now = time.time()
+    if now - armed > DEPLOY_GUARD_WINDOW:
+        _deploy_guard["armed_at"] = None
+        log(f"deploy guard passed ({DEPLOY_GUARD_WINDOW}s stable)", "guard")
+        return
+    crashes = _restart_count.get("bot", 0) - _deploy_guard.get("crashes_at_arm", 0)
+    if crashes < DEPLOY_GUARD_MAX_CRASHES:
+        return
+    sha = _deploy_guard.get("prev_sha")
+    current_sha = _git_head_sha()
+    log(f"deploy guard TRIPPED: {crashes} bot crashes within {int(now-armed)}s of deploy", "guard")
+    _ledger("deploy_rollback_start", sha=(sha or "?")[:12], crashes=crashes)
+    rolled_back = False
+    if sha and sha != current_sha:
+        try:
+            r = subprocess.run(["git", "reset", "--hard", sha], cwd=DIR,
+                               capture_output=True, text=True, timeout=30, encoding="utf-8")
+            rolled_back = r.returncode == 0
+        except Exception as e:
+            log(f"rollback git error: {e}", "guard")
+    kill_all(reason="deploy_rollback")
+    globals()["last_hashes"] = file_hashes()
+    _deploy_guard["armed_at"] = None
+    tail = ("Reverted to previous commit. Fleet restarting." if rolled_back
+            else "No revert needed (HEAD unchanged or unknown) — fleet restarting.")
+    msg = ("<b>Runner</b>: deploy auto-ROLLBACK\n"
+           f"{crashes} bot crashes within {int(now-armed)}s of git update.\n"
+           + tail)
+    send_telegram(msg)
+    _ledger("deploy_rollback_done", reverted=bool(rolled_back))
+
+def _stderr_sentry_tick():
+    """Detect error bursts in per-proc stderr; alert once per cooldown with excerpt."""
+    pat = _re.compile(r"Traceback|CRITICAL|FATAL|Unhandled|uncaught|MemoryError|Segmentation", _re.I)
+    for name in PROCESSES:
+        path = os.path.join(DIR, f"{name}.stderr")
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        off = _stderr_offsets.get(name)
+        if off is None or size < off:
+            off = max(0, size - STDERR_TAIL_BYTES)
+        if size <= off:
+            continue
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                f.seek(off)
+                chunk = f.read()
+            _stderr_offsets[name] = min(size, off + len(chunk.encode("utf-8")))
+        except OSError:
+            continue
+        hits = [ln.strip()[:160] for ln in chunk.splitlines() if pat.search(ln)]
+        if not hits:
+            continue
+        for ln in hits[-5:]:
+            sig = _re.sub(r"[0-9a-f]{6,}", "H", _re.sub(r"\d+", "N", ln))[:120]
+            _ledger("error_signature", proc=name, sig=sig)
+        if len(hits) >= STDERR_BURST_LINES and _can_notify(f"errburst_{name}"):
+            excerpt = "\n".join(hits[-3:])
+            log(f"stderr burst: {len(hits)} errors from {name}", "sentry")
+            send_telegram(f"<b>Runner</b>: {len(hits)} error lines just appeared in "
+                          f"{name}.stderr\n<pre>{excerpt}</pre>")
+
+def _disk_and_maintenance_tick():
+    """Hourly disk check w/ pruning; nightly deep maintenance."""
+    global _last_maint_day
+    today = time.strftime("%Y-%m-%d")
+    hourly_due = not getattr(_disk_and_maintenance_tick, "_last", 0) \
+        or time.time() - _disk_and_maintenance_tick._last > 3600
+    nightly_due = _last_maint_day[0] != today and time.localtime().tm_hour >= int(os.environ.get("MAINT_HOUR", "4"))
+    if not hourly_due and not nightly_due:
+        return
+    _disk_and_maintenance_tick._last = time.time()
+    freed_files = 0
+    cutoff_snap = time.time() - 14 * 86400
+    cutoff_cache = time.time() - 7 * 86400
+    for pattern, cutoff in ((os.path.join(SNAPSHOT_DIR, "snap_*.json"), cutoff_snap),
+                            (os.path.join(DIR, "video_cache", "*"), cutoff_cache),
+                            (os.path.join(DIR, "*.stderr.*"), cutoff_cache)):
+        for f in glob.glob(pattern):
+            try:
+                if os.path.getmtime(f) < cutoff:
+                    os.remove(f)
+                    freed_files += 1
+            except OSError:
+                pass
+    free_gb = 0.0
+    try:
+        du = shutil.disk_usage(DIR)
+        free_gb = du.free / 1e9
+    except Exception:
+        pass
+    if nightly_due:
+        _last_maint_day[0] = today
+        try:
+            _rotate_fleet_logs()
+        except Exception:
+            pass
+        log(f"nightly maintenance done (pruned {freed_files} files)", "maint")
+        _ledger("nightly_maintenance", pruned=freed_files)
+    if free_gb and free_gb < DISK_MIN_FREE_GB:
+        if _can_notify("disk_low"):
+            send_telegram(f"<b>Runner</b>: LOW DISK {free_gb:.1f}GB free "
+                          f"(pruned {freed_files} old files already)")
+            log(f"low disk warning: {free_gb:.2f}GB free", "maint")
+
+def _hung_watchdog_tick():
+    """web alive but health failing continuously -> restart it (zombie detection)."""
+    if "web" not in procs or procs["web"].poll() is not None:
+        _web_unhealthy_streak[0] = 0
+        return
+    if health_check():
+        _web_unhealthy_streak[0] = 0
+        return
+    _web_unhealthy_streak[0] += 1
+    if _web_unhealthy_streak[0] == HUNG_STREAK_NOTIFY:
+        log(f"web hung: {HUNG_STREAK_NOTIFY} consecutive failed health checks while alive", "watchdog")
+        send_telegram("<b>Runner</b>: web process ALIVE but unhealthy for many checks — restarting (possible hang)")
+        kill_one("web", reason="hung_watchdog")
+
+def _adaptive_sleep(base_s):
+    """Fast cadence when unstable (recent restart / unhealthy), slow when calm."""
+    all_ts = [t for wins in _recent_restarts.values() for t in (wins or [])]
+    recent_restart = bool(all_ts) and (time.time() - max(all_ts)) < 90
+    web_ok = health_check()
+    if recent_restart or not web_ok:
+        return CADENCE_FAST_S
+    return base_s
+
 def _ledger(event, **fields):
     """Append a structured event to proc-ledger.jsonl (one JSON object per
     line). Continuous-Claude-v3-inspired: full machine-readable lifecycle."""
@@ -2069,6 +2254,57 @@ if __name__ == "__main__":
                 send_telegram(_build_daily_digest())
                 print("(sent to Telegram)")
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "doctor":
+        # one-shot fleet triage: heartbeat, procs, disk, crashes, freemodels
+        print("=== runner doctor ===")
+        try:
+            with open(HEARTBEAT_FILE, encoding="utf-8") as f:
+                hb = json.load(f)
+            age = time.time() - hb.get("ts", 0)
+            state = "OK" if age < 120 else "STALLED"
+            print(f"heartbeat : {age:.0f}s old [{state}] (uptime {hb.get('uptime_s', '?')}s, "
+                  f"restarts {hb.get('total_restarts', '?')})")
+        except FileNotFoundError:
+            print("heartbeat : MISSING (runner never ran here)")
+        except Exception as e:
+            print(f"heartbeat : error ({e})")
+        try:
+            with open(STATUS_FILE, encoding="utf-8") as f:
+                st = json.load(f)
+            for pname, pinfo in (st.get("processes") or {}).items():
+                print(f"proc      : {pname:<10} {pinfo.get('state', '?')}")
+        except Exception:
+            print("status    : no status file yet")
+        try:
+            du = shutil.disk_usage(DIR)
+            print(f"disk      : {du.free / 1e9:.1f}GB free / {du.total / 1e9:.0f}GB")
+        except Exception:
+            pass
+        try:
+            with open(CRASH_HISTORY, encoding="utf-8") as f:
+                hist = json.load(f)
+            rows = hist[-5:] if isinstance(hist, list) else []
+            print(f"crashes   : {len(hist) if isinstance(hist, list) else '?'} total, last {len(rows)}:")
+            for c in rows:
+                if isinstance(c, dict):
+                    print(f"  - {c.get('ts', '?')} {c.get('proc', '?')}: {str(c.get('error', ''))[:70]}")
+        except Exception:
+            print("crashes   : none recorded")
+        try:
+            fm = free_model_watcher.load_state()
+            adopted = list((fm.get("adopted") or {}).keys())
+            print(f"freemodels: {len(fm.get('seen', {}))} tracked, adopted: {', '.join(adopted) or 'none'}")
+        except Exception as e:
+            print(f"freemodels: error ({e})")
+        import urllib.request as _ur
+        try:
+            req = _ur.Request(f"http://127.0.0.1:{CTRL_PORT}/api/health/live",
+                              headers={"Authorization": f"Bearer {CTRL_TOKEN}"})
+            with _ur.urlopen(req, timeout=3) as r:
+                print(f"ctrl api  : UP on :{CTRL_PORT}")
+        except Exception:
+            print(f"ctrl api  : DOWN on :{CTRL_PORT} (runner not running?)")
+        sys.exit(0)
     _load_rules(force=True)
     _rotate_fleet_logs()
     _start_ctrl_server()
@@ -2086,6 +2322,11 @@ if __name__ == "__main__":
         _fleet_snapshot_daily()
         _maybe_check_free_models()
         _daily_digest()
+        write_heartbeat()
+        _stderr_sentry_tick()
+        _disk_and_maintenance_tick()
+        _hung_watchdog_tick()
+        _deploy_guard_tick()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:
@@ -2163,7 +2404,7 @@ if __name__ == "__main__":
             time.sleep(CHECK_INTERVAL)
             first = False
         else:
-            time.sleep(CHECK_INTERVAL // 2 if not health_check() else CHECK_INTERVAL)
+            time.sleep(_adaptive_sleep(CHECK_INTERVAL))
 
         current = file_hashes()
         changed_files = [f for f, h in current.items() if last_hashes.get(f) != h]
@@ -2198,6 +2439,7 @@ if __name__ == "__main__":
                 restart_times.append(now)
                 log(f"git update, restarting all processes...", "proc")
                 _ledger("git_restart", proc="all")
+                _deploy_guard_arm()
                 kill_all(reason="git_restart")
                 last_hashes = file_hashes()
         elif memory_git_changed:

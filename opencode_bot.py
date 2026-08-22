@@ -8748,6 +8748,68 @@ async def main():
                     except Exception as e:
                         await send(chat, f"/freemodels error: {e}")
 
+                elif cmd in ("/rstatus", "/rrestart", "/rlogs", "/rdisable", "/renable"):
+                    if not is_owner and not is_admin:
+                        await send(chat, "Owner/Admin only.")
+                        continue
+                    await typing(chat)
+                    try:
+                        import httpx as _hx
+                        base = f"http://127.0.0.1:{os.environ.get('RUNNER_CTRL_PORT', '8431')}"
+                        headers = {"Authorization": f"Bearer {os.environ.get('RUNNER_CTRL_TOKEN', 'sk-runner-local')}"}
+                        arg = parts[1].strip() if len(parts) > 1 else ""
+                        async with _hx.AsyncClient(timeout=10) as rc:
+                            if cmd == "/rstatus":
+                                r = await rc.get(f"{base}/api/status", headers=headers)
+                                st = r.json()
+                                procs_map = st.get("processes", {}) if isinstance(st.get("processes"), dict) else {}
+                                lines = [f"\U0001F96D Runner fleet — uptime {st.get('uptime_s', 0) // 3600}h{st.get('uptime_s', 0) % 3600 // 60}m"]
+                                for pname, pinfo in sorted(procs_map.items()):
+                                    s = pinfo.get("state", "?")
+                                    icon = "\U0001F7E2" if s == "running" else ("\u26D4" if pinfo.get("disabled") else "\U0001F534")
+                                    extra = []
+                                    if pinfo.get("backoff_s"):
+                                        extra.append(f"backoff {pinfo['backoff_s']}s")
+                                    if pinfo.get("storm_held_s"):
+                                        extra.append(f"storm {pinfo['storm_held_s']}s")
+                                    if pinfo.get("strikes"):
+                                        extra.append(f"strikes {pinfo['strikes']}")
+                                    lines.append(f"{icon} {pname}: {s}" + (" | " + ", ".join(extra) if extra else ""))
+                                hw = st.get("health_web")
+                                lines.append(f"\U0001F5A5\uFE0F web health: {'OK' if hw else 'FAIL'}")
+                                await send(chat, "\n".join(lines))
+                            elif cmd == "/rlogs":
+                                r = await rc.get(f"{base}/api/logs", headers=headers)
+                                data = r.json()
+                                logs = data.get("logs", data) if isinstance(data, dict) else data
+                                which = arg or None
+                                text_out = []
+                                items = logs.items() if isinstance(logs, dict) else enumerate(logs)
+                                for k, v in (items if isinstance(logs, dict) else [(i, x.get("text", "")) for i, x in enumerate(logs)]):
+                                    if which and which not in str(k):
+                                        continue
+                                    tail_txt = str(v)[-600:]
+                                    text_out.append(f"— {k} —\n{tail_txt}")
+                                out = ("\n\n".join(text_out) or "no logs")[:3500]
+                                await send(chat, f"<pre>{out}</pre>")
+                            elif cmd == "/rrestart":
+                                if not arg:
+                                    await send(chat, "Usage: /rrestart <bot|web|cyberdeck|memory|mcp>")
+                                    continue
+                                r = await rc.post(f"{base}/api/restart/{arg}", headers=headers)
+                                ok = r.json().get("ok", False)
+                                await send(chat, f"\U0001F504 Restart {arg}: {'OK' if ok else 'FAILED'} ({r.status_code})")
+                            else:
+                                action = "disable" if cmd == "/rdisable" else "enable"
+                                if not arg:
+                                    await send(chat, f"Usage: {cmd} <proc>")
+                                    continue
+                                r = await rc.post(f"{base}/api/{action}/{arg}", headers=headers)
+                                ok = r.json().get("ok", False)
+                                await send(chat, f"{action} {arg}: {'OK' if ok else 'FAILED'}")
+                    except Exception as e:
+                        await send(chat, f"runner ctrl error (is runner.py running?): {e}")
+
                 elif cmd == "/backup":
                     if not is_owner and not is_admin:
                         await send(chat, "Owner/Admin only.")
