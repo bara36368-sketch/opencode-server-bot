@@ -92,6 +92,7 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 ## Workflow Rules
 1. After every update, auto git commit + git push. (Set by user 2026-07-19)
 2. Version auto-bumps on every git push — no need to edit version.json manually. Changelog is generated from git log messages. (Set by user 2026-07-19)
+3. NEVER integration-test destructive paths (deploy guard rollback, kill_all, git reset) against the live repo with uncommitted changes — mock subprocess git calls too, or commit first. (Incident 2026-08-23: guard test's real `git reset --hard` wiped its own uncommitted implementation; restored in 189a386.)
 
 ## Free Model System (added 2026-08-23)
 - Watcher polls OpenRouter + OpenCode Zen + models.dev public catalogs every 4h (FREE_MODEL_CHECK_INTERVAL).
