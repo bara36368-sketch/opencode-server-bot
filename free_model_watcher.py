@@ -23,6 +23,12 @@ import urllib.request
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(DIR, "freemodels_state.json")
+PROVIDERS_FILE = os.path.join(DIR, "providers.json")
+
+ADOPT_ENABLED = os.environ.get("FREE_MODEL_ADOPT", "1") != "0"
+OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
+PROBE_MAX_TOKENS = int(os.environ.get("FREE_MODEL_PROBE_MAX_TOKENS", "8"))
+PROBE_TIMEOUT = float(os.environ.get("FREE_MODEL_PROBE_TIMEOUT", "25"))
 
 CHECK_INTERVAL = int(os.environ.get("FREE_MODEL_CHECK_INTERVAL", str(4 * 3600)))
 BROADCAST_ENABLED = os.environ.get("FREE_MODEL_BROADCAST", "1") != "0"
@@ -201,7 +207,9 @@ def _rank_key(m):
     return -(ctx + bonus)
 
 
-def build_new_model_message(models):
+def build_new_model_message(models, adopted=None):
+    """adopted: {model_id: provider_name} for models registered into providers.json."""
+    adopted = adopted or {}
     lines = [
         "\U0001F381 ==============================",
         "   FREE MODEL ALERT!",
@@ -217,9 +225,15 @@ def build_new_model_message(models):
         lines.append(f"   • Input: {mods}")
         if m.get("desc"):
             lines.append(f"   • {m['desc']}")
+        pname = adopted.get(m.get("id"))
+        if pname:
+            lines.append(f"   ✅ Ready to use: /provider {pname}")
         lines.append("")
     lines.append("⏳ These are usually limited-time (often 5-7 days).")
-    lines.append("💡 Try it now via /codeall <task> before it's gone!")
+    if adopted:
+        lines.append("💡 Adopted models are live in the bot — try /freemodels!")
+    else:
+        lines.append("💡 Try it now via /codeall <task> before it's gone!")
     return "\n".join(lines)
 
 
@@ -244,6 +258,124 @@ def build_expired_message(entries):
     lines.append("")
     lines.append("It may still be available paid, or gone entirely.")
     return "\n".join(lines)
+
+
+def get_openrouter_key():
+    key = os.environ.get("OPENROUTER_KEY", "")
+    if key:
+        return key
+    try:
+        with open(PROVIDERS_FILE, encoding="utf-8") as f:
+            provs = json.load(f)
+        return (provs.get("openrouter") or {}).get("key", "")
+    except Exception:
+        return ""
+
+
+def slugify(text):
+    s = re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).strip("_")
+    return s[:28] or "model"
+
+
+def probe_openrouter(model_id, key):
+    """Live-test a model with a tiny completion. Returns (ok, latency_ms, err)."""
+    data = json.dumps({
+        "model": model_id,
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": PROBE_MAX_TOKENS,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        OPENROUTER_CHAT_URL,
+        data=data,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "https://localhost",
+            "X-Title": "opencode-server-bot freemodel-watcher",
+        },
+        method="POST",
+    )
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=PROBE_TIMEOUT) as r:
+            body = json.loads(r.read().decode("utf-8", "replace"))
+        ms = int((time.time() - t0) * 1000)
+        ok = bool(body.get("choices"))
+        return ok, ms, None if ok else "empty choices"
+    except Exception as e:
+        msg = ""
+        try:
+            msg = e.read().decode("utf-8", "replace")[:200]
+        except Exception:
+            msg = str(e)[:200]
+        return False, int((time.time() - t0) * 1000), msg
+
+
+def load_providers():
+    try:
+        with open(PROVIDERS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_providers(provs):
+    tmp = PROVIDERS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(provs, f, indent=1)
+    os.replace(tmp, PROVIDERS_FILE)
+
+
+def adopt_model(info, state):
+    """Register a free model into providers.json as free_<slug>.
+
+    Returns provider name or None. Only adopts openrouter-sourced models
+    (probe needs a key and the id must route on openrouter).
+    """
+    if not ADOPT_ENABLED or info.get("provider") != "openrouter":
+        return None
+    mid = info.get("id") or ""
+    if not mid or "/" not in mid:
+        return None
+    name = "free_" + slugify(mid.split("/", 1)[1])
+    key = get_openrouter_key()
+    if not key:
+        log_err(f"adopt skipped ({mid}): no OPENROUTER_KEY")
+        return None
+    ok, ms, err = probe_openrouter(mid, key)
+    if not ok:
+        log_err(f"probe failed for {mid} ({ms}ms): {err}")
+        return None
+    provs = load_providers()
+    existed = name in provs
+    provs[name] = {
+        "url": OPENROUTER_CHAT_URL,
+        "model": mid,
+        "key": key,
+    }
+    save_providers(provs)
+    state.setdefault("adopted", {})[name] = {
+        "model_id": mid,
+        "adopted_at": time.time(),
+        "probe_ms": ms,
+    }
+    log_err(f"{'updated' if existed else 'adopted'} provider {name} -> {mid} (probe {ms}ms)")
+    return name
+
+
+def retire_provider(name, state):
+    """Remove an adopted provider from providers.json when its free window ends."""
+    if not name:
+        return False
+    provs = load_providers()
+    if name not in provs:
+        state.get("adopted", {}).pop(name, None)
+        return False
+    del provs[name]
+    save_providers(provs)
+    state.get("adopted", {}).pop(name, None)
+    log_err(f"retired provider {name} (no longer free)")
+    return True
 
 
 def collect_broadcast_chats(owner_id=None):
@@ -354,20 +486,40 @@ def check_now(bot_token=None, owner_id=None, dry=False):
         save_state(state)
         return events
 
+    adopted_map = {}
     if announce_new:
-        msg = build_new_model_message([r["info"] for r in announce_new])
+        for r in announce_new:
+            pname = adopt_model(r.get("info") or {}, state)
+            if pname:
+                adopted_map[r["info"].get("id")] = pname
+        msg = build_new_model_message([r["info"] for r in announce_new], adopted_map)
         events["sent_to"] = broadcast(bot_token, owner_id, msg)
         for r in announce_new:
             r["announced"] = now
             events["new"].append(r["info"].get("id"))
-        log_err(f"announced {len(announce_new)} new free model(s) to {events['sent_to']} chat(s)")
+        events["adopted"] = list(adopted_map.values())
+        log_err(f"announced {len(announce_new)} new free model(s) to {events['sent_to']} chat(s)"
+                f" (adopted: {len(adopted_map)})")
 
     if vanished:
-        msg = build_expired_message([
+        retired = []
+        for k, rec in vanished:
+            mid = (rec.get("info") or {}).get("id")
+            src = k.split(":", 1)[0]
+            pname = None
+            if src == "openrouter" and mid:
+                pname = "free_" + slugify(mid.split("/", 1)[1])
+                if pname not in state.get("adopted", {}):
+                    pname = None
+            if retire_provider(pname, state):
+                retired.append(pname)
+        events["retired"] = retired
+        exp_rows = [
             {"key": k.split(':', 1)[-1], "first_seen": r.get("first_seen"),
              "last_seen": r.get("last_seen"), "info": r.get("info", {})}
             for k, r in vanished
-        ])
+        ]
+        msg = build_expired_message(exp_rows)
         broadcast(bot_token, owner_id, msg)
         for k, _r in vanished:
             events["expired"].append(k)

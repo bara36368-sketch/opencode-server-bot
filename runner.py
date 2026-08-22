@@ -158,6 +158,74 @@ def _maybe_check_free_models():
     except Exception as e:
         log(f"free model watcher error: {e}", "freemodels")
 
+# Daily owner digest: one Telegram message per day summarizing fleet health,
+# restarts, and the free-model tracker. Hour via DIGEST_HOUR (default 8am).
+_digest_last_day = [None]
+
+def _build_daily_digest():
+    up_s = int(time.time() - _runner_started)
+    uptime = f"{up_s // 86400}d {up_s % 86400 // 3600}h {up_s % 3600 // 60}m"
+    lines = [f"\U0001F4DF <b>Fleet digest</b> — {time.strftime('%Y-%m-%d %H:%M')}",
+             f"Uptime: {uptime}", ""]
+    total_restarts = 0
+    for name in PROCESSES:
+        alive = name in procs and procs[name].poll() is None
+        rc = _restart_count.get(name, 0)
+        total_restarts += rc
+        state = "\U0001F7E2 up" if alive else ("\u26D4 disabled" if name in _disabled else "\U0001F534 down")
+        ram = ""
+        if alive:
+            try:
+                usage = _proc_usage(procs[name].pid)
+                if usage and usage.get("rss_mb"):
+                    ram = f" | {usage['rss_mb']:.0f}MB"
+            except Exception:
+                pass
+        lines.append(f"• {name}: {state}{ram} | restarts {rc}")
+    lines.append("")
+    lines.append(f"\U0001F501 Total restarts: {total_restarts}")
+    try:
+        fm_state = free_model_watcher.load_state()
+        n_seen = len(fm_state.get("seen", {}))
+        adopted = list((fm_state.get("adopted") or {}).keys())
+        lines.append(f"\U0001F381 Free models tracked: {n_seen}")
+        if adopted:
+            lines.append(f"✅ Adopted providers: {', '.join(adopted[:6])}")
+    except Exception as e:
+        lines.append(f"\U0001F381 freemodels: error ({e})")
+    try:
+        with open(CRASH_HISTORY, encoding="utf-8") as f:
+            hist = json.load(f)
+        recent = [c for c in (hist if isinstance(hist, list) else [])][-3:]
+        if recent:
+            lines.append("")
+            lines.append("\U0001FAE1 Recent crashes:")
+            for c in recent:
+                if isinstance(c, dict):
+                    lines.append(f"• {c.get('proc', '?')} {c.get('ts', '')}: {str(c.get('error', ''))[:60]}")
+    except Exception:
+        pass
+    return "\n".join(lines)
+
+def _daily_digest(force=False):
+    today = time.strftime("%Y-%m-%d")
+    if not force and _digest_last_day[0] == today:
+        return
+    hour = int(os.environ.get("DIGEST_HOUR", "8"))
+    if not force and time.localtime().tm_hour < hour:
+        return
+    _digest_last_day[0] = today
+    try:
+        tok = BOT_TOKEN or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        oid = OWNER_ID or os.environ.get("OWNER_ID", "")
+        msg = _build_daily_digest()
+        if tok and oid and send_telegram(msg):
+            log("daily digest sent", "digest")
+        else:
+            log("daily digest skipped (no token/chat or send failed)", "digest")
+    except Exception as e:
+        log(f"daily digest error: {e}", "digest")
+
 def _ledger(event, **fields):
     """Append a structured event to proc-ledger.jsonl (one JSON object per
     line). Continuous-Claude-v3-inspired: full machine-readable lifecycle."""
@@ -1989,6 +2057,18 @@ if __name__ == "__main__":
             bot_token=None if dry else BOT_TOKEN, owner_id=OWNER_ID, dry=dry)
         print(json.dumps(ev, indent=1))
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "digest":
+        # build + send the daily fleet digest right now
+        _load_rules(force=True)
+        load_dotenv()
+        print(_build_daily_digest())
+        if not (len(sys.argv) > 2 and sys.argv[2] == "dry"):
+            tok = BOT_TOKEN or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+            oid = OWNER_ID or os.environ.get("OWNER_ID", "")
+            if tok and oid:
+                send_telegram(_build_daily_digest())
+                print("(sent to Telegram)")
+        sys.exit(0)
     _load_rules(force=True)
     _rotate_fleet_logs()
     _start_ctrl_server()
@@ -2005,6 +2085,7 @@ if __name__ == "__main__":
         _check_resource_guards()
         _fleet_snapshot_daily()
         _maybe_check_free_models()
+        _daily_digest()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:

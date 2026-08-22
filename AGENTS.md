@@ -16,7 +16,7 @@ runner.py (process manager)
 | File | Purpose |
 |---|---|
 | `runner.py` | Process manager — monitors 3 processes, health checks every 30s, file hash change detection, git auto-update |
-| `free_model_watcher.py` | Free-model watcher — polls OpenRouter/OpenCode Zen/models.dev catalogs every 4h, announces NEW limited-time free models to all Telegram chats, expiry alerts when free window ends. CLI: `python runner.py freemodels [dry]` |
+| `free_model_watcher.py` | Free-model watcher — polls OpenRouter/OpenCode Zen/models.dev catalogs every 4h, announces NEW limited-time free models to all Telegram chats, expiry alerts when free window ends. **Adoption engine: probes then auto-registers openrouter free models into providers.json as `free_<name>`; auto-retires when expired.** CLI: `python runner.py freemodels [dry]`, digest: `python runner.py digest [dry]` |
 | `opencode_bot.py` | Telegram bot — 4031 lines, polling loop, 18 API providers via smart_call(), agent teams, memory, scheduler, 83 commands |
 | `web_gateway.py` | Flask gateway — 1738 lines, chat UI, workflow builder, MCP server, 23 routes, /skills marketplace, 15 provider "roles" (Strategist, Researcher, etc.) |
 | `agents.json` | 189 agent definitions with prompts |
@@ -92,6 +92,15 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 ## Workflow Rules
 1. After every update, auto git commit + git push. (Set by user 2026-07-19)
 2. Version auto-bumps on every git push — no need to edit version.json manually. Changelog is generated from git log messages. (Set by user 2026-07-19)
+
+## Free Model System (added 2026-08-23)
+- Watcher polls OpenRouter + OpenCode Zen + models.dev public catalogs every 4h (FREE_MODEL_CHECK_INTERVAL).
+- NEW free model → probe via OPENROUTER_KEY → adopt into providers.json as `free_<slug>` → broadcast alert with "/provider <name>" hint to all chats.
+- Expired free model (gone >2 check cycles) → retire adopted provider → broadcast "FREE MODEL ENDED" with window length.
+- State in freemodels_state.json: seen/expired/adopted — restarts never re-announce.
+- `/freemodels` Telegram command: top tracked models by context, ✅ marks adopted ones with /provider names.
+- Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
+- Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
 ## Next Steps
 1. Restart runner.py so all fixes take effect

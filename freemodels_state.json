@@ -16374,5 +16374,12 @@
   }
  },
  "expired": {},
- "last_check": 1787418299.3855462
+ "last_check": 1787418299.3855462,
+ "adopted": {
+  "free_ox_alpha": {
+   "model_id": "stealth/ox-alpha",
+   "adopted_at": 1787419242.9870212,
+   "probe_ms": 5658
+  }
+ }
 }

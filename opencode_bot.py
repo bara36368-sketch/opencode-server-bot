@@ -1,4 +1,4 @@
-import sys, os, json, signal, traceback as _tb, io as _io, re as _re
+import sys, os, json, signal, time, traceback as _tb, io as _io, re as _re
 from datetime import datetime
 
 def _security_check():
@@ -8698,6 +8698,55 @@ async def main():
                             await send(chat, f"Weather error: HTTP {r.status_code}")
                     except Exception as e:
                         await send(chat, f"Weather error: {e}")
+
+                elif cmd == "/freemodels":
+                    await typing(chat)
+                    try:
+                        fm_path = os.path.join(os.path.dirname(__file__), "freemodels_state.json")
+                        if not os.path.exists(fm_path):
+                            await send(chat, "No free-model data yet. The runner watcher seeds it on first cycle (~4h interval).")
+                            continue
+                        with open(fm_path, encoding="utf-8") as f:
+                            fm_state = json.load(f)
+                        seen = fm_state.get("seen") or {}
+                        adopted = fm_state.get("adopted") or {}
+                        if not seen:
+                            await send(chat, "Free-model tracker is empty.")
+                            continue
+                        rows = []
+                        for key, rec in seen.items():
+                            info = rec.get("info") or {}
+                            mid = info.get("id") or key
+                            src = key.split(":", 1)[0]
+                            pname = "free_" + _re.sub(r"[^a-z0-9]+", "_", mid.split("/", 1)[-1].lower()).strip("_")[:28] if src == "openrouter" and "/" in mid else None
+                            is_adopted = bool(pname and pname in adopted)
+                            rows.append((info.get("context") or 0, mid, src, is_adopted, pname))
+                        rows.sort(reverse=True)
+                        lines = [f"\U0001F381 Currently FREE models ({len(seen)} tracked)", ""]
+                        shown = 0
+                        for ctx_val, mid, src, is_adopted, pname in rows:
+                            if not is_adopted and shown >= 10:
+                                continue
+                            ctx_txt = f"{ctx_val // 1000000}M" if ctx_val >= 1000000 else (f"{ctx_val // 1000}K" if ctx_val >= 1000 else str(ctx_val or "?"))
+                            mark = "✅ " + pname if is_adopted else f"({src})"
+                            lines.append(f"• {mid} [{ctx_txt}] {mark}")
+                            shown += 1
+                        if len(rows) > shown:
+                            lines.append(f"\n…+{len(rows) - shown} more (top 10 shown)")
+                        lines.append("")
+                        n_adopted = len(adopted)
+                        if n_adopted:
+                            lines.append(f"✅ {n_adopted} adopted — switch with /provider <name>")
+                        else:
+                            lines.append("None adopted yet — new ones get auto-adopted when they appear.")
+                        last_check = fm_state.get("last_check")
+                        if last_check:
+                            import datetime as _dt
+                            age_min = int((time.time() - last_check) / 60)
+                            lines.append(f"\U0001F504 Last scan: {age_min} min ago")
+                        await send(chat, "\n".join(lines))
+                    except Exception as e:
+                        await send(chat, f"/freemodels error: {e}")
 
                 elif cmd == "/backup":
                     if not is_owner and not is_admin:
