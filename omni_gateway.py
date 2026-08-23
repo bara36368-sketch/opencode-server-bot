@@ -32,7 +32,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 DIR = os.path.dirname(os.path.abspath(__file__))
 KEYS_FILE = os.path.join(DIR, "omni_keys.json")
 CATALOG_FILE = os.path.join(DIR, "omni_catalog.json")
+USAGE_FILE = os.path.join(DIR, "omni_usage.json")
+FREE_STATE_FILE = os.path.join(DIR, "freemodels_state.json")
 PORT = int(os.environ.get("OMNI_PORT", "4455"))
+HEALTH_INTERVAL_H = float(os.environ.get("OMNI_HEALTH_INTERVAL_H", "6"))
+STEALTH_WINDOW_DAYS = float(os.environ.get("OMNI_STEALTH_WINDOW_DAYS", "7"))
+BLENDED_RETAIL_PER_M = float(os.environ.get("OMNI_RETAIL_PER_M", "2.50"))  # est. $/M tokens
 
 # provider registry: key-prefix detect -> endpoints. auth: bearer | query | header
 PROVIDERS = {
@@ -132,6 +137,15 @@ _PREFIX_TO_PROVIDER = {}
 for _pname, _pcfg in PROVIDERS.items():
     for _pre in _pcfg["prefixes"]:
         _PREFIX_TO_PROVIDER[_pre] = _pname
+_CHATHOST_TO_PROVIDER = {cfg["chat_url"].split("//")[1].split("/")[0]: pname
+                         for pname, cfg in PROVIDERS.items()}
+
+
+def _provider_by_chat_url(chat_url):
+    try:
+        return _CHATHOST_TO_PROVIDER.get(chat_url.split("//")[1].split("/")[0], "unknown")
+    except Exception:
+        return "unknown"
 
 
 def detect_provider(key):
@@ -263,12 +277,152 @@ def scan_all():
         ok, detail, entries = validate_key(pname, key)
         results[pname] = {"ok": ok, "detail": detail,
                           "masked": mask_key(key)}
+        record_key_health(pname, ok, detail)
         if ok:
             all_free.extend(extract_free_models(pname, entries))
     all_free.sort(key=rank_score, reverse=True)
     catalog = {"ts": time.time(), "free": all_free, "results": results}
     save_json(CATALOG_FILE, catalog)
     return catalog
+
+
+# ---- #1 key health monitor -------------------------------------------------
+def record_key_health(provider, ok, detail=""):
+    """Merge a validation result into the stored key's health record."""
+    keys = load_json(KEYS_FILE, {})
+    rec = keys.get(provider)
+    if not rec:
+        return
+    h = rec.setdefault("health", {"status": "unknown", "fails": 0,
+                                  "last_ok": 0, "last_fail": 0})
+    now = time.time()
+    prev = h.get("status")
+    h["last_checked"] = now
+    h["detail"] = detail[:80]
+    if ok:
+        h["status"] = "healthy"
+        h["fails"] = 0
+        h["last_ok"] = now
+    else:
+        h["status"] = "failing"
+        h["fails"] = int(h.get("fails", 0)) + 1
+        h["last_fail"] = now
+        if h["fails"] >= 3 and prev in ("healthy", "unknown", None):
+            h["status"] = "dead"       # 3 consecutive failures = likely dead
+    rec["health"] = h
+    save_json(KEYS_FILE, keys)
+
+
+def _health_monitor_loop():
+    """Daemon: re-validate every stored key on an interval so dead/expiring
+    keys are flagged BEFORE they fail mid-chat."""
+    while True:
+        try:
+            keys = load_json(KEYS_FILE, {})
+            for provider, rec in keys.items():
+                key = rec.get("key", "")
+                ok, detail, _e = validate_key(provider, key)
+                record_key_health(provider, ok, detail)
+                time.sleep(1)          # gentle pacing between providers
+        except Exception:
+            pass
+        time.sleep(max(0.5, HEALTH_INTERVAL_H) * 3600)
+
+
+def start_health_monitor():
+    import threading
+    t = threading.Thread(target=_health_monitor_loop, daemon=True)
+    t.start()
+
+
+def key_health_snapshot():
+    keys = load_json(KEYS_FILE, {})
+    out = []
+    for provider, rec in keys.items():
+        h = rec.get("health") or {}
+        out.append({
+            "provider": provider,
+            "masked": rec.get("masked") or mask_key(rec.get("key", "")),
+            "status": h.get("status", "unchecked"),
+            "detail": h.get("detail", ""),
+            "fails": h.get("fails", 0),
+            "last_ok_ago_h": round((time.time() - h["last_ok"]) / 3600, 1) if h.get("last_ok") else None,
+        })
+    return out
+
+
+# ---- #2 usage leaderboard --------------------------------------------------
+def record_usage(provider, model_id, chars_in, chars_out):
+    data = load_json(USAGE_FILE, {"totals": {}, "daily": {}})
+    today = time.strftime("%Y-%m-%d")
+    for bucket in (data["totals"], data["daily"].setdefault(today, {})):
+        k = f"{provider}/{model_id}"
+        u = bucket.setdefault(k, {"calls": 0, "chars_in": 0, "chars_out": 0})
+        u["calls"] += 1
+        u["chars_in"] += chars_in
+        u["chars_out"] += chars_out
+    # prune daily beyond 30 days + totals beyond 500 models
+    cutoff = time.strftime("%Y-%m-%d", time.localtime(time.time() - 30 * 86400))
+    data["daily"] = {d: v for d, v in sorted(data["daily"].items())[-40:] if d >= cutoff}
+    if len(data["totals"]) > 500:
+        top = sorted(data["totals"].items(),
+                     key=lambda kv: kv[1]["calls"], reverse=True)[:500]
+        data["totals"] = dict(top)
+    save_json(USAGE_FILE, data)
+
+
+def usage_leaderboard():
+    data = load_json(USAGE_FILE, {})
+    rows = []
+    for mid, u in (data.get("totals") or {}).items():
+        tok_est = (u["chars_in"] + u["chars_out"]) / 4.0
+        saved = tok_est / 1e6 * BLENDED_RETAIL_PER_M
+        prov = mid.split("/", 1)[0]
+        rows.append({"model": mid, "provider": prov,
+                     "calls": u["calls"],
+                     "tokens_est": int(tok_est),
+                     "saved_usd_est": round(saved, 2),
+                     "is_free": prov in ("llm7", "pollinations") or ":free" in mid})
+    rows.sort(key=lambda r: r["calls"], reverse=True)
+    total_saved = sum(r["saved_usd_est"] for r in rows if r["is_free"])
+    total_calls = sum(r["calls"] for r in rows)
+    return {"rows": rows[:50], "total_calls": total_calls,
+            "total_saved_usd_est": round(total_saved, 2)}
+
+
+# ---- #8 free-model alerts panel --------------------------------------------
+def free_model_alerts():
+    st = load_json(FREE_STATE_FILE, {})
+    now = time.time()
+    window = STEALTH_WINDOW_DAYS * 86400
+    new, ending, expired_recent = [], [], []
+    for key, rec in (st.get("seen") or {}).items():
+        info = rec.get("info") or {}
+        announced = rec.get("announced")
+        first = rec.get("first_seen") or now
+        age_d = (now - first) / 86400
+        days_left = max(0.0, (first + window - now) / 86400)
+        row = {"id": info.get("id") or key.split(":", 1)[-1],
+               "name": info.get("name") or key,
+               "age_days": round(age_d, 1),
+               "context": info.get("context") or 0}
+        if announced is None:
+            continue                  # seeded silently, never promoted
+        if age_d <= 2:
+            row["level"] = "new"
+            new.append(row)
+        elif days_left <= 2.5:
+            row["level"] = "ending"
+            row["days_left"] = round(days_left, 1)
+            ending.append(row)
+    for key, rec in list((st.get("expired") or {}).items()):
+        if (rec.get("last_seen") or 0) > now - 7 * 86400:
+            expired_recent.append({
+                "id": (rec.get("info") or {}).get("id") or key,
+                "days_free": round(((rec.get("last_seen") or 0) -
+                                    (rec.get("first_seen") or 0)) / 86400, 1)})
+    ending.sort(key=lambda r: r.get("days_left", 99))
+    return {"new": new[:6], "ending_soon": ending[:8], "expired": expired_recent[:5]}
 
 
 # ---- chat proxy ------------------------------------------------------------
@@ -317,6 +471,16 @@ def proxy_chat(payload, max_fallbacks=4):
     for cfg, mid in candidates[:max_fallbacks + 1]:
         try:
             status, raw = _try_chat(cfg, mid, payload)
+            try:
+                chars_out = len(json.loads(raw.decode("utf-8", "replace"))
+                                .get("choices", [{}])[0]
+                                .get("message", {}).get("content") or "")
+            except Exception:
+                chars_out = len(raw)
+            chars_in = sum(len(str(m.get("content", "")))
+                           for m in payload.get("messages", []))
+            record_usage(_provider_by_chat_url(cfg["chat_url"]), mid,
+                         chars_in, chars_out)
             return status, raw, {"served_by": f"{cfg['chat_url']}", "model": mid,
                                  "fallbacks_used": len(tried)}
         except urllib.error.HTTPError as e:
@@ -353,14 +517,20 @@ td,th{padding:8px 10px;border-bottom:1px solid #21262d;text-align:left;font-size
 <div class=card><b>🔑 Add an API key</b>
 <div class=row style=margin-top:10px>
 <input id=key style="flex:1;min-width:260px" placeholder="paste key (gsk_… sk-or-… nvapi-… AIza… csk-… hf_…)">
-<button onclick=addKey()>Validate & Save</button>
+<button onclick=addKey()>Validate &amp; Save</button>
 <button class=gray onclick=scan()>Re-scan all</button></div><div id=msg></div></div>
+<div class=card id=alertsCard><b>🔔 Free-model alerts</b> <span class=ctx>(from runner watcher)</span><div id=alerts style=margin-top:8px></div></div>
+<div class=card><b>❤️ Key health</b> <span class=ctx>(re-checked every __HEALTH_H__h)</span>
+<table id=healthTbl><tr><th>Provider</th><th>Key</th><th>Status</th></tr></table></div>
 <div class=card><b>🏆 Ranked FREE models</b> <span id=cataloginfo class=ctx></span>
 <table id=tbl><tr><th>#</th><th>Model</th><th>Provider</th><th>Context</th><th>Input</th></tr></table></div>
+<div class=card><b>📊 Usage leaderboard</b> <span id=savedInfo class=ctx></span>
+<table id=usageTbl><tr><th>#</th><th>Model</th><th>Calls</th><th>Tokens~</th><th>Saved est.</th></tr></table></div>
 <div class=card><b>⚡ Use anywhere (OpenAI-compatible)</b>
 <pre style=color:#8b949e;baseURL = "http://localhost:__PORT__/v1"
 model   = "&lt;pick from table&gt;"   e.g. openrouter/stealth/ox-alpha
-key     = anything</pre></div>
+key     = anything</pre>
+<p style=margin:6px 0 0><a href=/chat style=color:#58a6ff>💬 Open chat test UI →</a></p></div>
 <script>
 async function refresh(){const s=await(await fetch('/api/status')).json();
 let h='';for(const[p,r]of Object.entries(s.keys||{})){h+=`<tr><td>${p}</td><td>${r.masked}</td><td>${r.ok?'✅':'❌ '+r.detail}</td><td><button class=gray onclick=delKey('${p}')>x</button></td></tr>`}
@@ -369,7 +539,21 @@ const c=await(await fetch('/api/free')).json();
 document.getElementById('cataloginfo').textContent=`(${(c.free||[]).length} free · scan ${new Date((c.ts||0)*1000).toLocaleTimeString()})`;
 let t='<tr><th>#</th><th>Model</th><th>Provider</th><th>Context</th><th>Input</th></tr>';
 (c.free||[]).slice(0,60).forEach((m,i)=>{t+=`<tr><td>${i+1}</td><td>${m.model_id}</td><td><span class=badge>${m.provider}</span></td><td class=ctx>${(m.context/1000||'?')+'K'}</td><td>${[...new Set([...m.modalities,'text'])].join('+')}</td></tr>`});
-document.getElementById('tbl').innerHTML=t;}
+document.getElementById('tbl').innerHTML=t;
+try{const hk=await(await fetch('/api/health')).json();let ht='<tr><th>Provider</th><th>Key</th><th>Status</th></tr>';
+(hk.keys||[]).forEach(k=>{const ic=k.status==='healthy'?'✅':(k.status==='dead'?'💀':'⚠️');
+ht+=`<tr><td>${k.provider}</td><td class=ctx>${k.masked}</td><td>${ic} ${k.status}${k.fails?' ('+k.fails+' fails)':''}</td></tr>`});
+document.getElementById('healthTbl').innerHTML=ht;}catch(e){}
+try{const u=await(await fetch('/api/usage')).json();
+document.getElementById('savedInfo').textContent=`${u.total_calls||0} calls · saved ~$${u.total_saved_usd_est||0}`;
+let ut='<tr><th>#</th><th>Model</th><th>Calls</th><th>Tokens~</th><th>Saved est.</th></tr>';
+(u.rows||[]).slice(0,15).forEach((r,i)=>{ut+=`<tr><td>${i+1}</td><td>${r.model}</td><td>${r.calls}</td><td class=ctx>${r.tokens_est>=1000?(r.tokens_est/1000).toFixed(1)+'K':r.tokens_est}</td><td>$${r.saved_usd_est}</td></tr>`});
+document.getElementById('usageTbl').innerHTML=ut;}catch(e){}
+try{const al=await(await fetch('/api/alerts')).json();let ah='';
+(al.new||[]).forEach(m=>{ah+=`<div>🟢 NEW: ${m.id} <span class=ctx>(${m.age_days}d old)</span></div>`});
+(al.ending_soon||[]).forEach(m=>{ah+=`<div>🟡 ENDING: ${m.id} <span class=ctx>~${m.days_left}d left</span></div>`});
+(al.expired||[]).forEach(m=>{ah+=`<div>🔴 ENDED: ${m.id} <span class=ctx>(lived ~${m.days_free}d)</span></div>`});
+document.getElementById('alerts').innerHTML=ah||'<span class=ctx>all quiet — no new/expiring free models</span>';}catch(e){}}
 async function addKey(){const k=document.getElementById('key').value.trim();if(!k)return;
 document.getElementById('msg').textContent='validating…';
 const r=await(await fetch('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})})).json();
@@ -443,7 +627,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/":
-            return self._send(200, DASH.replace("__PORT__", str(PORT)), "text/html; charset=utf-8")
+            return self._send(200, DASH.replace("__PORT__", str(PORT))
+                              .replace("__HEALTH_H__", str(int(HEALTH_INTERVAL_H))),
+                              "text/html; charset=utf-8")
         if p == "/chat":
             return self._send(200, CHAT_PAGE, "text/html; charset=utf-8")
         if p == "/api/status":
@@ -459,6 +645,12 @@ class Handler(BaseHTTPRequestHandler):
             cat = load_json(CATALOG_FILE, {})
             data = [{"id": m["id"], "object": "model"} for m in cat.get("free", [])]
             return self._send(200, {"object": "list", "data": data})
+        if p == "/api/health":
+            return self._send(200, {"keys": key_health_snapshot()})
+        if p == "/api/usage":
+            return self._send(200, usage_leaderboard())
+        if p == "/api/alerts":
+            return self._send(200, free_model_alerts())
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -539,8 +731,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    start_health_monitor()
     print(f"[omni] gateway on http://127.0.0.1:{PORT} "
-          f"({len(PROVIDERS)} providers registered)")
+          f"({len(PROVIDERS)} providers registered, "
+          f"health monitor every {HEALTH_INTERVAL_H}h)")
     srv.serve_forever()
 
 
