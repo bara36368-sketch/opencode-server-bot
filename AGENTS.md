@@ -111,7 +111,12 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 5. Heartbeat + doctor — runner writes runner_heartbeat.json every loop (dead-man-switch for external watchers); `python runner.py doctor` = one-shot triage (heartbeat age, procs, disk, crash history, freemodels, ctrl API liveness).
 6. Hung-watchdog lite — web ALIVE but failing health checks 20 consecutive ticks → auto-restart + alert (`_hung_watchdog_tick`, RUNNER_HUNG_STREAK).
 7. Telegram remote control (bot side) — owner/admin only: /rstatus, /rrestart <proc>, /rlogs [filter], /rdisable <proc>, /renable <proc> via ctrl API :8431 (RUNNER_CTRL_TOKEN).
-- All tested: guard trips+notifies+expires cleanly, sentry detects bursts, doctor runs standalone.
+8. Jittered backoff (#15) — crash restart delays get ±20% jitter, no thundering-herd on shared hosts.
+9. Metrics persistence (#9) — one compact fleet row/minute → metrics.jsonl (self-rotating), baselines for digest/admin.
+10. Snapshot diff in digest (#13) — daily digest reports proc state changes + free models gained/lost vs last snapshot.
+11. Incidents CLI (#17) — `python runner.py incidents [YYYY-MM-DD]` renders readable episode timeline from proc-ledger.jsonl.
+- All tested with mocked-destructive paths (rule 3): guard trips+notifies+expires cleanly, sentry detects bursts, doctor runs standalone, jitter bounds 0.8x–1.2x verified across strikes 1–8.
+- Remaining ideas in RUNNER_IDEAS.md: #8 startup ordering, #10 SLO burn, #12 shared provider circuits, #14 self-validation, #16 graceful degradation.
 
 ## Next Steps
 1. Restart runner.py so all fixes take effect
