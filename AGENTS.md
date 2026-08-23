@@ -109,6 +109,15 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
+## OMNI Gateway (added 2026-08-23, commits ebd8603+)
+OmniRoute-inspired universal gateway, runner-supervised on :4455 (`omni` process).
+- Dashboard `http://localhost:4455/`: paste any provider key → prefix auto-detect (gsk_=groq, sk-or-=openrouter, nvapi-=nvidia, AIza=gemini, csk-=cerebras, hf_+=hf, sk-siliconflow, tgp_v1_=together...) → live validation → stored in omni_keys.json (gitignored)
+- Scanner walks validated + keyless providers (llm7, pollinations), extracts FREE models ($0/$0, :free suffix, free-by-design), RANKS by context+modalities+provider speed tier
+- Unified OpenAI-compatible endpoint: POST /v1/chat/completions with {"model": "provider/model_id"} — point any app at http://localhost:4455/v1
+- Ranked auto-fallback: requested model fails (401/403/404/429) → walks down the ranking skipping image-only models until one answers; response tagged omni.fallbacks_used
+- Live-verified end-to-end: scan found 46 free models; chat request on keyless llm7 401'd → fallback served "OMNI GATEWAY ONLINE" with zero keys
+- Endpoints: GET / · /api/status · /api/free · /v1/models · POST /api/keys · /api/scan · /v1/chat/completions · DELETE /api/keys/<name>
+
 ## Google Drive + File Editor (added 2026-08-23, commits 5d847cf + 0ca7786)
 - `gdrive_helper.py` (stdlib-only): parses all Drive link formats (/file/d/, open?id=, uc?id=, docs.google.com), streaming public downloads with big-file confirm-token dance, mid-stream 1GB cap
 - `/edit <instructions> <drive-link>` — downloads from Drive → streaming edit → delivery

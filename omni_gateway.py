@@ -184,7 +184,10 @@ def validate_key(provider, key):
             data = _http_json(cfg["models_url"] + "?key=" + key)
         else:
             data = _http_json(cfg["models_url"], key=key, auth=cfg["auth"])
-        raw = data.get("data", data.get("models", []))
+        if isinstance(data, list):          # pollinations returns a bare array
+            raw = data
+        else:
+            raw = data.get("data", data.get("models", []))
         ids = []
         for m in raw:
             if isinstance(m, dict):
@@ -269,35 +272,64 @@ def scan_all():
 
 
 # ---- chat proxy ------------------------------------------------------------
-def resolve_model(model_field):
-    """'provider/model_id' -> (cfg, model_id). Falls back to best-ranked."""
+def _try_chat(cfg, mid, payload):
+    """One attempt. Returns (status, raw_bytes) or raises HTTPError."""
+    body = dict(payload)
+    body["model"] = mid
+    data = json.dumps(body).encode()
+    headers = {"Content-Type": "application/json"}
+    keys = load_json(KEYS_FILE, {})
+    key = (keys.get(mid.split("/", 1)[0]) or {}).get("key") \
+        if "/" in mid else None
+    if key and cfg["auth"] == "bearer":
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(cfg["chat_url"], data=data,
+                                 headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return r.status, r.read()
+
+
+def proxy_chat(payload, max_fallbacks=4):
+    """Try the requested model; on auth/model errors walk down the ranked
+    free list (skipping image-only models) until one answers."""
+    tried = []
+    candidates = []
+    model_field = payload.get("model", "")
     if model_field and "/" in model_field:
         prov, mid = model_field.split("/", 1)
         if prov in PROVIDERS:
-            return PROVIDERS[prov], mid
+            candidates.append((PROVIDERS[prov], mid))
     cat = load_json(CATALOG_FILE, {})
-    fr = cat.get("free") or []
-    if fr:
-        best = fr[0]
-        return PROVIDERS[best["provider"]], best["model_id"]
-    return PROVIDERS["llm7"], "gpt-oss"
-
-
-def proxy_chat(payload):
-    model_field = payload.get("model", "")
-    cfg, mid = resolve_model(model_field)
-    body = dict(payload)
-    body["model"] = mid
-    key_rec = load_json(KEYS_FILE, {}).get(model_field.split("/", 1)[0]) \
-        if "/" in model_field else None
-    key = (key_rec or {}).get("key")
-    data = json.dumps(body).encode()
-    headers = {"Content-Type": "application/json"}
-    if key and cfg["auth"] == "bearer":
-        headers["Authorization"] = f"Bearer {key}"
-    req = urllib.request.Request(cfg["chat_url"], data=data, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return r.status, r.read()
+    for m in (cat.get("free") or []):
+        mods = [x.lower() for x in (m.get("modalities") or ["text"])]
+        mid_l = m["model_id"].lower()
+        image_only = ("text" not in mods) or any(
+            k in mid_l for k in ("image", "flux", "dall", "imagen", "sdxl",
+                                 "stable-diff", "-tts", "whisper", "embed"))
+        if image_only:
+            continue
+        cand = (PROVIDERS[m["provider"]], m["model_id"])
+        if all(c[1] != cand[1] or c[0] is not cand[0] for c in candidates):
+            candidates.append(cand)
+        if len(candidates) >= max_fallbacks + 1:
+            break
+    last_err = None
+    for cfg, mid in candidates[:max_fallbacks + 1]:
+        try:
+            status, raw = _try_chat(cfg, mid, payload)
+            return status, raw, {"served_by": f"{cfg['chat_url']}", "model": mid,
+                                 "fallbacks_used": len(tried)}
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:200]
+            tried.append(f"{mid}: HTTP {e.code}")
+            if e.code not in (401, 403, 404, 429, 502, 503):
+                return e.code, json.dumps({"error": detail}).encode(), {}
+            last_err = detail
+        except Exception as e:
+            tried.append(f"{mid}: {str(e)[:60]}")
+            last_err = str(e)[:200]
+    return 502, json.dumps({"error": f"all fallbacks failed: {'; '.join(tried)}",
+                            "last": last_err}).encode(), {}
 
 
 # ---- HTTP server -----------------------------------------------------------
@@ -356,7 +388,12 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _send(self, code, body, ctype="application/json"):
-        raw = body if isinstance(body, bytes) else json.dumps(body).encode()
+        if isinstance(body, bytes):
+            raw = body
+        elif "html" in ctype:
+            raw = body.encode("utf-8")
+        else:
+            raw = json.dumps(body).encode()
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(raw)))
@@ -410,7 +447,16 @@ class Handler(BaseHTTPRequestHandler):
                                     "free_found": len(cat.get("free", []))})
         if p == "/v1/chat/completions":
             try:
-                status, raw = proxy_chat(payload)
+                status, raw, meta = proxy_chat(payload)
+                if meta.get("fallbacks_used"):
+                    try:
+                        body = json.loads(raw.decode("utf-8", "replace"))
+                        if isinstance(body, dict):
+                            body.setdefault("omni", {k: v for k, v in meta.items()
+                                                     if k != "served_by"})
+                            raw = json.dumps(body).encode()
+                    except Exception:
+                        pass
                 return self._send(status, raw)
             except urllib.error.HTTPError as e:
                 return self._send(e.code, {"error": e.read().decode("utf-8", "replace")[:300]})
