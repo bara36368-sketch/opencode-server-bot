@@ -51,6 +51,12 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - zenmux (Grok 4.5 free)
 - zyloo (Kimi K2)
 
+### Added puter provider (2026-08-23)
+- `puter` — Puter.com OpenAI-compatible gateway (`https://api.puter.com/puterai/openai/v1/chat/completions`)
+- Model: `infron:moonshotai/kimi-k2.6:free` — Kimi K2.6 (1T params) explicitly tagged FREE
+- Key: user's Puter auth token from https://puter.com/dashboard → "Create token" (currently placeholder PASTE_PUTER_TOKEN_HERE)
+- Endpoint verified live (401 with invalid token = real, just needs token)
+
 ### Security Concern
 `providers.json` has ~15 hardcoded API keys. Move to env vars / `.env`.
 
@@ -103,7 +109,16 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
-## Runner Upgrade Pack v4 (added 2026-08-23) — see RUNNER_IDEAS.md for the full 20-idea doc
+## AndroidLLM Autopilot (added 2026-08-23, commit 4ff55fa)
+- Upgrades the reactive OOM cascade into proactive management:
+  - serve health probe — alive-but-unanswered for ANDROIDLLM_HUNG_TICKS (12) after 300s warmup → auto-restart + alert (model loading never false-trips)
+  - PREVENTIVE downgrades — host RAM >= ANDROIDLLM_RAM_PRESSURE_PCT (88%) while serving → proposes next smaller sharded model via existing consent gate BEFORE the OOM killer strikes
+  - NEW upgrade path — sustained headroom <= ANDROIDLLM_UPGRADE_HEADROOM_PCT (55%) → proposes the largest locally-sharded model fitting free RAM minus 1.5GB OS margin; the ladder now climbs back up
+  - status line in daily digest + `runner.py doctor`: active model, serving state, RAM pressure flag, pending /approve
+- All switches owner-gated (/approve | /deny); cooldown ANDROIDLLM_AUTOPILOT_COOLDOWN_S (6h default) prevents nagging
+- Verified with mocks: ladder climb conservative, preventive downgrade fires at pressure, upgrade fires at headroom, hung-restart works
+
+
 1. Adaptive cadence — loop sleeps 5s when unstable (recent restart / web unhealthy), normal 15s when calm (`_adaptive_sleep`).
 2. Deploy guard auto-rollback — after any bot git update, 600s observation window; ≥3 bot crashes in it → `git reset --hard` to pre-pull SHA + kill_all + Telegram alert (`_deploy_guard_*`). Env: RUNNER_DEPLOY_GUARD_S, RUNNER_DEPLOY_GUARD_MAX_CRASHES.
 3. Stderr sentry — tails per-proc .stderr incrementally; error-line bursts (≥12, Traceback/CRITICAL/FATAL/MemoryError) notify once per cooldown; every error line hashed into a normalized signature and written to proc-ledger as error_signature events (`_stderr_sentry_tick`).
