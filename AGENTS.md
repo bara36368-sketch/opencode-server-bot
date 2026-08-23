@@ -109,6 +109,13 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
+## Google Drive + File Editor (added 2026-08-23, commits 5d847cf + 0ca7786)
+- `gdrive_helper.py` (stdlib-only): parses all Drive link formats (/file/d/, open?id=, uc?id=, docs.google.com), streaming public downloads with big-file confirm-token dance, mid-stream 1GB cap
+- `/edit <instructions> <drive-link>` — downloads from Drive → streaming edit → delivery
+- Smart delivery: edited ≤45MB → Telegram document; larger → Drive upload if service account configured (GDRIVE_SERVICE_ACCOUNT_JSON + google libs), else local-path notice
+- Zero-setup: publicly-shared links work with no keys; uploads need SA email added as editor on folder (GDRIVE_FOLDER_ID)
+- Verified: parser all formats PASS, invalid-id clean rejection, no-credentials upload returns None gracefully
+
 ## File Editor (added 2026-08-23, commits ec76681 + 5d2fd2c + 4e616a6)
 - Upload any text file with caption `/edit <instructions>` → AI edits → edited file sent back as `<name>_edited.<ext>`
 - Or send a file first, then reply with `/edit <instructions>`; `/editfile` lists recent files per chat
