@@ -558,23 +558,53 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 TG_API = f"https://api.telegram.org/bot{TOKEN}"
 
 # ---- File Editor: upload -> AI edits -> sends edited file back -------------
+# Streaming chunked-edit engine: handles files up to FILE_EDIT_MAX_MB (1GB
+# default) without loading them fully into memory or the AI context.
 FILE_EDIT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "file_edits")
 EDITABLE_EXTS = (".txt", ".md", ".py", ".js", ".ts", ".json", ".html", ".css", ".csv",
                  ".xml", ".yaml", ".yml", ".sh", ".bat", ".ps1", ".java", ".c", ".cpp",
                  ".h", ".go", ".rs", ".rb", ".php", ".sql", ".ini", ".cfg", ".toml",
                  ".log", ".svg", ".tex", ".env")
-MAX_EDIT_CHARS = 14000
+MAX_EDIT_MB = float(os.environ.get("FILE_EDIT_MAX_MB", "1024"))
+EDIT_CHUNK_CHARS = int(os.environ.get("FILE_EDIT_CHUNK_CHARS", "9000"))
+EDIT_PROGRESS_EVERY = max(1, int(os.environ.get("FILE_EDIT_PROGRESS_EVERY", "10")))
 _chat_last_files = {}
 
+def _is_probably_binary(path):
+    try:
+        with open(path, "rb") as f:
+            head = f.read(8192)
+        return b"\x00" in head
+    except OSError:
+        return True
+
+def _iter_edit_chunks(path, chunk_chars=EDIT_CHUNK_CHARS):
+    """Yield (start_line_no, text) chunks split at line boundaries. Line-based
+    so the AI can't silently drop half a line; memory stays O(chunk)."""
+    buf, buf_lines, start_line = [], [], 1
+    line_no = 0
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line_no += 1
+            buf.append(line)
+            buf_lines.append(line_no)
+            if sum(len(x) for x in buf) >= chunk_chars:
+                yield start_line, "".join(buf)
+                buf, buf_lines, start_line = [], [], line_no + 1
+    if buf:
+        yield start_line, "".join(buf)
+
 async def _tg_download_file(file_id):
-    """Download a Telegram file's bytes via getFile. Returns local path or None."""
+    """Download a Telegram file's bytes via getFile. Returns local path or None.
+    Note: standard Bot API only serves files <= 20MB sent by users; larger
+    uploads require Telegram Premium sender + local Bot API server."""
     try:
         c = await get_http()
         r = await c.get(f"{TG_API}/getFile", params={"file_id": file_id}, timeout=15)
         fp = r.json().get("result", {}).get("file_path")
         if not fp:
             return None
-        r2 = await c.get(f"https://api.telegram.org/file/bot{TOKEN}/{fp}", timeout=60)
+        r2 = await c.get(f"https://api.telegram.org/file/bot{TOKEN}/{fp}", timeout=600)
         if r2.status_code != 200:
             return None
         os.makedirs(FILE_EDIT_DIR, exist_ok=True)
@@ -611,57 +641,81 @@ def _remember_chat_file(chat, path):
     _chat_last_files[chat] = [p for p in _chat_last_files[chat][-5:] if os.path.exists(p)]
 
 async def _ai_edit_file(chat, path, instructions):
-    """Read file, ask the AI to apply `instructions`, write <name>_edited.<ext>,
-    send it back. Returns status message."""
+    """Streaming chunked edit: process the file chunk-by-chunk (line-boundary
+    splits), write output progressively, send <name>_edited.<ext> back.
+    Handles files up to MAX_EDIT_MB without loading them fully in RAM or AI
+    context. Returns status message (None on success)."""
     base = os.path.basename(path)
     stem, ext = os.path.splitext(base)
     if not _is_editable(base):
         return (f"❌ '{base}' is not an editable text file.\n"
                 f"Supported: {', '.join(EDITABLE_EXTS[:10])} ...")
     try:
-        size = os.path.getsize(path)
-        if size > 512 * 1024:
-            return f"❌ '{base}' is too large ({size // 1024}KB). Max 512KB."
-        with open(path, encoding="utf-8", errors="replace") as f:
-            content = f.read()
-    except Exception as e:
+        size_mb = os.path.getsize(path) / (1024 * 1024)
+        if size_mb > MAX_EDIT_MB:
+            return f"❌ '{base}' is {size_mb:.1f}MB — over the {MAX_EDIT_MB:.0f}MB limit."
+    except OSError as e:
         return f"❌ Could not read '{base}': {e}"
-    truncated = ""
-    if len(content) > MAX_EDIT_CHARS:
-        content = content[:MAX_EDIT_CHARS]
-        truncated = f"\n\n[NOTE: file was truncated to first {MAX_EDIT_CHARS} chars]"
-    sys_prompt = (
-        "You are a precise file-editing engine. Apply EXACTLY the requested changes "
-        "to the file content and return ONLY the complete edited file content — "
-        "no explanations, no markdown fences, no commentary. Preserve formatting "
-        "and indentation unless the instructions say otherwise." + truncated
-    )
-    user_prompt = f"Edit instructions:\n{instructions}\n\n=== FILE: {base} ===\n{content}\n=== END FILE ==="
-    await typing(chat)
-    try:
-        edited = await smart_call(
-            [{"role": "system", "content": sys_prompt},
-             {"role": "user", "content": user_prompt}],
-            active_provider)
-    except Exception as e:
-        return f"❌ AI edit failed: {e}"
-    if not edited or len(edited) < 3:
-        return "❌ AI returned empty output — try different instructions."
-    cleaned = edited.strip()
-    if cleaned.startswith("```"):
-        cleaned = _re.sub(r"^```[a-zA-Z0-9_+-]*\n?", "", cleaned)
-        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+    if _is_probably_binary(path):
+        return (f"❌ '{base}' looks binary (null bytes found). The AI can only "
+                f"edit text content — binaries would corrupt.")
     out_path = os.path.join(os.path.dirname(path), f"{stem}_edited{ext}")
+    sys_prompt = (
+        "You are a precise streaming file-editing engine. You receive ONE CHUNK of a "
+        "larger file plus global edit instructions. Apply the instructions to this "
+        "chunk and return ONLY the edited chunk text — no explanations, no markdown "
+        "fences, no commentary, no missing lines. Lines unrelated to the instructions "
+        "MUST be reproduced unchanged, byte-for-byte, same count of lines.")
+    total_in = total_out = 0
+    changed_chunks = 0
+    done_chunks = 0
+    last_progress_sent = 0.0
     try:
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(cleaned)
+        with open(out_path, "w", encoding="utf-8") as out:
+            for start_line, chunk in _iter_edit_chunks(path):
+                user_prompt = (f"Global edit instructions:\n{instructions}\n\n"
+                               f"=== CHUNK starting at line {start_line} ===\n"
+                               f"{chunk}\n=== END CHUNK ===")
+                await typing(chat)
+                try:
+                    edited = await smart_call(
+                        [{"role": "system", "content": sys_prompt},
+                         {"role": "user", "content": user_prompt}],
+                        active_provider)
+                except Exception as e:
+                    raise RuntimeError(f"AI failed on chunk at line {start_line}: {e}") from e
+                cleaned = (edited or "").strip()
+                if cleaned.startswith("```"):
+                    cleaned = _re.sub(r"^```[a-zA-Z0-9_+-]*\n?", "", cleaned)
+                    cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+                if not cleaned:
+                    cleaned = chunk          # never lose data to an empty reply
+                total_in += len(chunk)
+                total_out += len(cleaned)
+                if cleaned != chunk.rstrip("\n") + "\n" and cleaned != chunk:
+                    changed_chunks += 1
+                done_chunks += 1
+                out.write(cleaned if cleaned.endswith("\n") else cleaned + "\n")
+                now = time.time()
+                if done_chunks % EDIT_PROGRESS_EVERY == 0 and now - last_progress_sent > 20:
+                    last_progress_sent = now
+                    await send(chat, f"✏️ Editing… {done_chunks} chunks done "
+                                     f"({total_in // 1024}KB processed)")
+    except RuntimeError as e:
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+        return f"❌ {e}"
     except Exception as e:
-        return f"❌ Could not save edited file: {e}"
+        return f"❌ Edit failed: {e}"
     ok = await _send_document(chat, out_path,
-                              caption=f"✏️ Edited '{base}'\nInstructions: {instructions[:200]}")
+                              caption=(f"✏️ Edited '{base}' ({size_mb:.2f}MB)\n"
+                                       f"Instructions: {instructions[:200]}\n"
+                                       f"Chunks: {done_chunks} ({changed_chunks} modified)"))
     if ok:
-        diff_note = "" if len(cleaned) == len(content) else f"\nSize: {len(content)} → {len(cleaned)} chars"
-        await send(chat, f"✅ Done! Edited version sent above.{diff_note}")
+        await send(chat, f"✅ Done! Processed {done_chunks} chunks across "
+                         f"{size_mb:.2f}MB — edited version sent above.")
         return None
     return "❌ Failed to upload the edited file."
 BOT_VERSION = "unknown"
@@ -8883,7 +8937,8 @@ async def main():
                         await send(chat, "📁 No files yet.\n\nHow to use:\n"
                                          "1️⃣ Send a file with caption <b>/edit fix the syntax errors</b>\n"
                                          "2️⃣ Or send a file, then reply to it with /edit &lt;instructions&gt;\n"
-                                         "3️⃣ /editfile — list your recent editable files")
+                                         "3️⃣ /editfile — list your recent editable files\n\n"
+                                         "Up to 1GB via streaming chunked editing.")
                         continue
                     lines = ["\U0001F4C1 Your recent files (newest first):", ""]
                     for i, p in enumerate(recent, 1):
