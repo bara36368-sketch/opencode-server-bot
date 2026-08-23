@@ -109,13 +109,14 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
-## File Editor (added 2026-08-23, commit ec76681)
-- Upload any text file with caption `/edit <instructions>` → AI applies edits → edited file sent back as `<name>_edited.<ext>`
-- Or send a file first, then reply to it with `/edit <instructions>`; `/editfile` lists recent files per chat (✅ editable / ❌ not)
-- AI prompt: precise editing engine, returns ONLY full file content; markdown fences stripped automatically
-- Guards: 35+ editable extension whitelist (.py .js .json .md .csv etc), 512KB size cap, 14K-char truncation notice, safe filename sanitize, per-chat last-5-files registry
-- Helpers: `_tg_download_file` (getFile+download), `_send_document` (multipart upload), `_ai_edit_file` (read→prompt→write→upload)
-- Verified: whitelist, fence cleanup, registry pruning, end-to-end mock flow (file+instructions to AI, correct output, upload)
+## File Editor (added 2026-08-23, commits ec76681 + 5d2fd2c + 4e616a6)
+- Upload any text file with caption `/edit <instructions>` → AI edits → edited file sent back as `<name>_edited.<ext>`
+- Or send a file first, then reply with `/edit <instructions>`; `/editfile` lists recent files per chat
+- **v2 streaming engine — up to 1GB** (FILE_EDIT_MAX_MB): line-boundary chunks (~9K chars) processed one at a time, output written progressively, memory O(chunk) — a 1GB log edits on a 4GB phone
+- Correctness guarantees: newline='' byte-faithful I/O; unchanged chunks written from ORIGINAL bytes (AI echo normalizes CRLF/indent); empty reply falls back to original chunk; leading-whitespace-safe fence cleanup
+- Binary guard: null-byte sniffing rejects binaries; progress updates every 10 chunks/20s; summary caption reports chunks processed vs modified
+- Forensic-verified: 59/59 replacements, 59/59 lines, zero divergence, CRLF intact end-to-end
+- Note: standard Telegram Bot API only downloads user files <= 20MB; larger needs local Bot API server
 
 ## AndroidLLM Autopilot (added 2026-08-23, commit 4ff55fa)
 - Upgrades the reactive OOM cascade into proactive management:
