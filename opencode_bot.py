@@ -580,17 +580,17 @@ def _is_probably_binary(path):
 
 def _iter_edit_chunks(path, chunk_chars=EDIT_CHUNK_CHARS):
     """Yield (start_line_no, text) chunks split at line boundaries. Line-based
-    so the AI can't silently drop half a line; memory stays O(chunk)."""
-    buf, buf_lines, start_line = [], [], 1
+    so the AI can't silently drop half a line; memory stays O(chunk).
+    newline='' keeps original line endings byte-for-byte."""
+    buf, start_line = [], 1
     line_no = 0
-    with open(path, encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace", newline="") as f:
         for line in f:
             line_no += 1
             buf.append(line)
-            buf_lines.append(line_no)
             if sum(len(x) for x in buf) >= chunk_chars:
                 yield start_line, "".join(buf)
-                buf, buf_lines, start_line = [], [], line_no + 1
+                buf, start_line = [], line_no + 1
     if buf:
         yield start_line, "".join(buf)
 
@@ -671,7 +671,7 @@ async def _ai_edit_file(chat, path, instructions):
     done_chunks = 0
     last_progress_sent = 0.0
     try:
-        with open(out_path, "w", encoding="utf-8") as out:
+        with open(out_path, "w", encoding="utf-8", newline="") as out:
             for start_line, chunk in _iter_edit_chunks(path):
                 user_prompt = (f"Global edit instructions:\n{instructions}\n\n"
                                f"=== CHUNK starting at line {start_line} ===\n"
@@ -684,15 +684,20 @@ async def _ai_edit_file(chat, path, instructions):
                         active_provider)
                 except Exception as e:
                     raise RuntimeError(f"AI failed on chunk at line {start_line}: {e}") from e
-                cleaned = (edited or "").strip()
+                cleaned = edited or ""
                 if cleaned.startswith("```"):
-                    cleaned = _re.sub(r"^```[a-zA-Z0-9_+-]*\n?", "", cleaned)
-                    cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
-                if not cleaned:
-                    cleaned = chunk          # never lose data to an empty reply
+                    cleaned = _re.sub(r"^```[a-zA-Z0-9_+-]*[ \t]*\r?\n?", "", cleaned)
+                    cleaned = _re.sub(r"\r?\n?```\s*$", "", cleaned)
+                # never lose data: empty/garbage reply -> keep original chunk
+                if not cleaned.strip():
+                    cleaned = chunk
+                # unchanged chunk -> write ORIGINAL bytes (AI echo can normalize
+                # CRLF/indentation; passthrough guarantees byte preservation)
+                elif cleaned.strip() == chunk.strip():
+                    cleaned = chunk
                 total_in += len(chunk)
                 total_out += len(cleaned)
-                if cleaned != chunk.rstrip("\n") + "\n" and cleaned != chunk:
+                if cleaned != chunk:
                     changed_chunks += 1
                 done_chunks += 1
                 out.write(cleaned if cleaned.endswith("\n") else cleaned + "\n")
