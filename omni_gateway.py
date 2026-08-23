@@ -1,0 +1,441 @@
+"""OMNI Gateway — one keyring, one endpoint, every free model ranked.
+
+OmniRoute-inspired local gateway:
+  1. Paste ANY provider API key into the dashboard (auto-detects provider
+     from key prefix, validates live, stores locally).
+  2. Scanner walks each validated provider's model catalog and detects FREE
+     models ($0 in/$0 out).
+  3. Free models are RANKED (context size + modalities + provider speed tier).
+  4. One OpenAI-compatible endpoint (/v1/chat/completions) proxies to whichever
+     ranked model you pick — any app just points at this base URL.
+
+Endpoints:
+  GET  /                     dashboard UI
+  GET  /api/status           keys + last scan summary
+  POST /api/keys             {key: "..."} -> auto-detect + validate + save
+  DEL  /api/keys/<name>      remove stored key
+  POST /api/scan             re-validate all keys + refresh catalogs
+  GET  /api/free             ranked free models JSON
+  POST /v1/chat/completions  unified endpoint {"model": "<provider>/<id>", ...}
+
+Port: OMNI_PORT (default 4455). Storage: omni_keys.json + omni_catalog.json
+(both gitignored — never commit real keys).
+"""
+import json
+import os
+import re
+import time
+import urllib.request
+import urllib.error
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+DIR = os.path.dirname(os.path.abspath(__file__))
+KEYS_FILE = os.path.join(DIR, "omni_keys.json")
+CATALOG_FILE = os.path.join(DIR, "omni_catalog.json")
+PORT = int(os.environ.get("OMNI_PORT", "4455"))
+
+# provider registry: key-prefix detect -> endpoints. auth: bearer | query | header
+PROVIDERS = {
+    "openrouter": {
+        "prefixes": ["sk-or-"],
+        "models_url": "https://openrouter.ai/api/v1/models",
+        "chat_url": "https://openrouter.ai/api/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 3,
+    },
+    "groq": {
+        "prefixes": ["gsk_"],
+        "models_url": "https://api.groq.com/openai/v1/models",
+        "chat_url": "https://api.groq.com/openai/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 5,
+    },
+    "gemini": {
+        "prefixes": ["AIza"],
+        "models_url": "https://generativelanguage.googleapis.com/v1beta/openai/models",
+        "chat_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "auth": "bearer",
+        "speed": 4,
+    },
+    "nvidia": {
+        "prefixes": ["nvapi-"],
+        "models_url": "https://integrate.api.nvidia.com/v1/models",
+        "chat_url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 4,
+    },
+    "cerebras": {
+        "prefixes": ["csk-"],
+        "models_url": "https://api.cerebras.ai/v1/models",
+        "chat_url": "https://api.cerebras.ai/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 5,
+    },
+    "mistral": {
+        "prefixes": [],
+        "models_url": "https://api.mistral.ai/v1/models",
+        "chat_url": "https://api.mistral.ai/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 4,
+    },
+    "deepseek": {
+        "prefixes": ["sk-"],
+        "models_url": "https://api.deepseek.com/v1/models",
+        "chat_url": "https://api.deepseek.com/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 4,
+    },
+    "together": {
+        "prefixes": ["tgp_v1_"],
+        "models_url": "https://api.together.xyz/v1/models",
+        "chat_url": "https://api.together.xyz/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 3,
+    },
+    "huggingface": {
+        "prefixes": ["hf_"],
+        "models_url": "https://router.huggingface.co/v1/models",
+        "chat_url": "https://router.huggingface.co/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 2,
+    },
+    "siliconflow": {
+        "prefixes": ["sk-siliconflow"],
+        "models_url": "https://api.siliconflow.cn/v1/models",
+        "chat_url": "https://api.siliconflow.cn/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 3,
+    },
+    "sambanova": {
+        "prefixes": [],
+        "models_url": "https://api.sambanova.ai/v1/models",
+        "chat_url": "https://api.sambanova.ai/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 5,
+    },
+    "llm7": {
+        "prefixes": [],          # works keyless too
+        "models_url": "https://api.llm7.io/v1/models",
+        "chat_url": "https://api.llm7.io/v1/chat/completions",
+        "auth": "none-ok",
+        "speed": 3,
+    },
+    "pollinations": {
+        "prefixes": [],
+        "models_url": "https://text.pollinations.ai/models",
+        "chat_url": "https://text.pollinations.ai/openai/chat/completions",  # POST via /openai
+        "auth": "none-ok",
+        "speed": 2,
+    },
+}
+_PREFIX_TO_PROVIDER = {}
+for _pname, _pcfg in PROVIDERS.items():
+    for _pre in _pcfg["prefixes"]:
+        _PREFIX_TO_PROVIDER[_pre] = _pname
+
+
+def detect_provider(key):
+    k = (key or "").strip()
+    for pre, pname in _PREFIX_TO_PROVIDER.items():
+        if k.startswith(pre):
+            return pname
+    return None
+
+
+def _http_json(url, key=None, auth="bearer", timeout=20):
+    headers = {"User-Agent": "omni-gateway/1.0"}
+    if key and auth == "bearer":
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def mask_key(key):
+    if not key or len(key) < 10:
+        return "***"
+    return key[:6] + "..." + key[-4:]
+
+
+# ---- storage ---------------------------------------------------------------
+def load_json(path, default):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return default
+
+
+def save_json(path, data):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+    os.replace(tmp, path)
+
+
+# ---- validation + catalog scanning -----------------------------------------
+def validate_key(provider, key):
+    """Live-check a key against its provider. Returns (ok, detail, models|[])."""
+    cfg = PROVIDERS.get(provider)
+    if not cfg:
+        return False, "unknown provider", []
+    try:
+        if provider == "gemini":
+            data = _http_json(cfg["models_url"] + "?key=" + key)
+        else:
+            data = _http_json(cfg["models_url"], key=key, auth=cfg["auth"])
+        raw = data.get("data", data.get("models", []))
+        ids = []
+        for m in raw:
+            if isinstance(m, dict):
+                mid = m.get("id") or m.get("name") or ""
+                ids.append((mid, m))
+            elif isinstance(m, str):
+                ids.append((m, {}))
+        return True, f"{len(ids)} models", ids
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code}", []
+    except Exception as e:
+        return False, str(e)[:80], []
+
+
+def extract_free_models(provider, entries):
+    """From a provider's catalog entries return [(model_id, info)] that are free."""
+    cfg = PROVIDERS[provider]
+    out = []
+    for mid, m in entries:
+        pricing = m.get("pricing") or {}
+        cost = m.get("cost") or {}
+        free = False
+        ctx = int(m.get("context_length") or (m.get("limit") or {}).get("context", 0) or 0)
+        mods = (m.get("architecture") or {}).get("input_modalities") \
+            or m.get("modalities") or ["text"]
+        if isinstance(mods, dict):
+            mods = mods.get("input") or ["text"]
+        try:
+            pp = float(pricing.get("prompt") or cost.get("input") or -1)
+            pc = float(pricing.get("completion") or cost.get("output") or -1)
+            free = pp == 0 and pc == 0
+        except (TypeError, ValueError):
+            free = False
+        if provider in ("llm7", "pollinations"):
+            free = True              # these services are free-tier by design
+        if ":free" in mid or m.get("free") or m.get("is_free"):
+            free = True
+        if free:
+            out.append({
+                "id": f"{provider}/{mid}",
+                "model_id": mid,
+                "provider": provider,
+                "context": ctx,
+                "modalities": [x for x in mods if x] or ["text"],
+                "desc": (m.get("description") or "")[:140],
+            })
+    return out
+
+
+def rank_score(m):
+    ctx = m.get("context") or 0
+    speed = PROVIDERS.get(m["provider"], {}).get("speed", 2) * 50_000
+    mods = m.get("modalities") or []
+    mod_bonus = 200_000 * len([x for x in mods if x != "text"])
+    return ctx + speed + mod_bonus
+
+
+def scan_all():
+    """Validate every stored key, refresh catalogs, persist ranked free list."""
+    keys = load_json(KEYS_FILE, {})
+    all_free = []
+    results = {}
+    # keyless providers always scanned
+    for pname, cfg in PROVIDERS.items():
+        if cfg["auth"] == "none-ok" and pname not in keys:
+            ok, detail, entries = validate_key(pname, None)
+            if ok:
+                results[pname] = {"ok": True, "detail": detail, "masked": "(keyless)"}
+                all_free.extend(extract_free_models(pname, entries))
+            continue
+    for pname, rec in keys.items():
+        key = rec.get("key", "")
+        ok, detail, entries = validate_key(pname, key)
+        results[pname] = {"ok": ok, "detail": detail,
+                          "masked": mask_key(key)}
+        if ok:
+            all_free.extend(extract_free_models(pname, entries))
+    all_free.sort(key=rank_score, reverse=True)
+    catalog = {"ts": time.time(), "free": all_free, "results": results}
+    save_json(CATALOG_FILE, catalog)
+    return catalog
+
+
+# ---- chat proxy ------------------------------------------------------------
+def resolve_model(model_field):
+    """'provider/model_id' -> (cfg, model_id). Falls back to best-ranked."""
+    if model_field and "/" in model_field:
+        prov, mid = model_field.split("/", 1)
+        if prov in PROVIDERS:
+            return PROVIDERS[prov], mid
+    cat = load_json(CATALOG_FILE, {})
+    fr = cat.get("free") or []
+    if fr:
+        best = fr[0]
+        return PROVIDERS[best["provider"]], best["model_id"]
+    return PROVIDERS["llm7"], "gpt-oss"
+
+
+def proxy_chat(payload):
+    model_field = payload.get("model", "")
+    cfg, mid = resolve_model(model_field)
+    body = dict(payload)
+    body["model"] = mid
+    key_rec = load_json(KEYS_FILE, {}).get(model_field.split("/", 1)[0]) \
+        if "/" in model_field else None
+    key = (key_rec or {}).get("key")
+    data = json.dumps(body).encode()
+    headers = {"Content-Type": "application/json"}
+    if key and cfg["auth"] == "bearer":
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(cfg["chat_url"], data=data, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return r.status, r.read()
+
+
+# ---- HTTP server -----------------------------------------------------------
+DASH = """<!DOCTYPE html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>OMNI Gateway</title><style>
+body{font-family:system-ui;background:#0d1117;color:#e6edf3;margin:0;padding:24px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;margin-bottom:16px}
+h1{margin:0 0 4px}.sub{color:#8b949e;margin-bottom:20px}
+input,button,select{font-size:14px;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3}
+button{background:#238636;cursor:pointer;border:none;font-weight:600}
+button.gray{background:#30363d}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+td,th{padding:8px 10px;border-bottom:1px solid #21262d;text-align:left;font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1f6feb}
+.free{background:#238636}.ctx{color:#8b949e}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+#msg{margin-top:10px;color:#58a6ff;min-height:20px}
+</style></head><body>
+<h1>🌐 OMNI Gateway</h1><div class=sub>one keyring · every provider · free models ranked</div>
+<div class=card><b>🔑 Add an API key</b>
+<div class=row style=margin-top:10px>
+<input id=key style="flex:1;min-width:260px" placeholder="paste key (gsk_… sk-or-… nvapi-… AIza… csk-… hf_…)">
+<button onclick=addKey()>Validate & Save</button>
+<button class=gray onclick=scan()>Re-scan all</button></div><div id=msg></div></div>
+<div class=card><b>🏆 Ranked FREE models</b> <span id=cataloginfo class=ctx></span>
+<table id=tbl><tr><th>#</th><th>Model</th><th>Provider</th><th>Context</th><th>Input</th></tr></table></div>
+<div class=card><b>⚡ Use anywhere (OpenAI-compatible)</b>
+<pre style=color:#8b949e;baseURL = "http://localhost:__PORT__/v1"
+model   = "&lt;pick from table&gt;"   e.g. openrouter/stealth/ox-alpha
+key     = anything</pre></div>
+<script>
+async function refresh(){const s=await(await fetch('/api/status')).json();
+let h='';for(const[p,r]of Object.entries(s.keys||{})){h+=`<tr><td>${p}</td><td>${r.masked}</td><td>${r.ok?'✅':'❌ '+r.detail}</td><td><button class=gray onclick=delKey('${p}')>x</button></td></tr>`}
+document.getElementById('keys').innerHTML=h||'<i>no keys yet</i>';
+const c=await(await fetch('/api/free')).json();
+document.getElementById('cataloginfo').textContent=`(${(c.free||[]).length} free · scan ${new Date((c.ts||0)*1000).toLocaleTimeString()})`;
+let t='<tr><th>#</th><th>Model</th><th>Provider</th><th>Context</th><th>Input</th></tr>';
+(c.free||[]).slice(0,60).forEach((m,i)=>{t+=`<tr><td>${i+1}</td><td>${m.model_id}</td><td><span class=badge>${m.provider}</span></td><td class=ctx>${(m.context/1000||'?')+'K'}</td><td>${[...new Set([...m.modalities,'text'])].join('+')}</td></tr>`});
+document.getElementById('tbl').innerHTML=t;}
+async function addKey(){const k=document.getElementById('key').value.trim();if(!k)return;
+document.getElementById('msg').textContent='validating…';
+const r=await(await fetch('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})})).json();
+document.getElementById('msg').textContent=r.ok?('✅ '+r.provider+' validated ('+r.detail+') — scanning catalog…'):('❌ '+(r.detail||'invalid'));
+document.getElementById('key').value='';await scan();refresh();}
+async function delKey(p){await fetch('/api/keys/'+p,{method:'DELETE'});scan();refresh();}
+async function scan(){document.getElementById('msg').textContent='scanning providers…';await fetch('/api/scan',{method:'POST'});document.getElementById('msg').textContent='';refresh();}
+refresh();setInterval(refresh,30000);
+</script>
+<table class=card id=keys></table>
+</body></html>"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def _send(self, code, body, ctype="application/json"):
+        raw = body if isinstance(body, bytes) else json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def do_GET(self):
+        p = self.path.split("?")[0]
+        if p == "/":
+            return self._send(200, DASH.replace("__PORT__", str(PORT)), "text/html; charset=utf-8")
+        if p == "/api/status":
+            keys = {k: {"masked": v.get("masked", mask_key(v.get("key", ""))),
+                        "ok": v.get("ok", False)}
+                    for k, v in load_json(KEYS_FILE, {}).items()}
+            return self._send(200, {"port": PORT, "providers": len(PROVIDERS),
+                                    "keys": keys})
+        if p == "/api/free":
+            cat = load_json(CATALOG_FILE, {"free": [], "ts": 0})
+            return self._send(200, {"ts": cat.get("ts", 0), "free": cat.get("free", [])[:200]})
+        if p.startswith("/v1/models"):
+            cat = load_json(CATALOG_FILE, {})
+            data = [{"id": m["id"], "object": "model"} for m in cat.get("free", [])]
+            return self._send(200, {"object": "list", "data": data})
+        return self._send(404, {"error": "not found"})
+
+    def do_POST(self):
+        p = self.path.split("?")[0]
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8", "replace") or "{}")
+        except Exception:
+            return self._send(400, {"error": "bad json"})
+        if p == "/api/keys":
+            key = str(payload.get("key", "")).strip()
+            if not key:
+                return self._send(400, {"error": "empty key"})
+            provider = detect_provider(key)
+            if not provider:
+                return self._send(200, {"ok": False, "detail":
+                                        "could not detect provider from key prefix"})
+            ok, detail, entries = validate_key(provider, key)
+            keys = load_json(KEYS_FILE, {})
+            if ok:
+                keys[provider] = {"key": key, "masked": mask_key(key),
+                                  "added": time.time()}
+                save_json(KEYS_FILE, keys)
+            return self._send(200, {"ok": ok, "provider": provider, "detail": detail})
+        if p == "/api/scan":
+            cat = scan_all()
+            return self._send(200, {"scanned": len(cat.get("results", {})),
+                                    "free_found": len(cat.get("free", []))})
+        if p == "/v1/chat/completions":
+            try:
+                status, raw = proxy_chat(payload)
+                return self._send(status, raw)
+            except urllib.error.HTTPError as e:
+                return self._send(e.code, {"error": e.read().decode("utf-8", "replace")[:300]})
+            except Exception as e:
+                return self._send(502, {"error": str(e)[:200]})
+        return self._send(404, {"error": "not found"})
+
+    def do_DELETE(self):
+        p = self.path.split("?")[0].rstrip("/")
+        m = re.match(r"^/api/keys/(.+)$", p)
+        if m:
+            name = m.group(1)
+            keys = load_json(KEYS_FILE, {})
+            keys.pop(name, None)
+            save_json(KEYS_FILE, keys)
+            return self._send(200, {"deleted": name})
+        return self._send(404, {"error": "not found"})
+
+
+def main():
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    print(f"[omni] gateway on http://127.0.0.1:{PORT} "
+          f"({len(PROVIDERS)} providers registered)")
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -36,3 +36,6 @@ runner_status.json
 crash_history.json
 announced_versions.json
 .projectmem/
+
+omni_keys.json
+omni_catalog.json

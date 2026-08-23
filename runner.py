@@ -673,6 +673,7 @@ _DEFAULT_RULES = {
     },
     "bot": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 1024, "max_cpu_pct": 0},
     "web": {"max_strikes": 4, "selfheal": False, "max_ram_mb": 768, "max_cpu_pct": 0},
+    "omni": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
     "mcp": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
     "cyberdeck": {"selfheal": True, "max_ram_mb": 768, "max_cpu_pct": 0},
     "memory": {"selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
@@ -1538,6 +1539,12 @@ PROCESSES = {
     "web": ["python", "web_gateway.py"],
     "cyberdeck": ["python", "cyberdeck_bot.py"],
 }
+# OMNI Gateway (OmniRoute-inspired): one keyring -> validated providers ->
+# ranked free models -> single OpenAI-compatible endpoint on :4455.
+if os.path.isfile(os.path.join(DIR, "omni_gateway.py")):
+    PROCESSES["omni"] = [sys.executable, os.path.join(DIR, "omni_gateway.py")]
+    log("omni gateway supervision enabled (:"
+        f"{os.environ.get('OMNI_PORT', '4455')})", "proc")
 # MCP reference pack (modelcontextprotocol/servers): HTTP bridge on :8430.
 # Both bots (bot + web gateway) reach the same tools over HTTP. The gateway
 # is supervised directly (NOT via `mcp_servers.py bridge`, whose os.execv is
