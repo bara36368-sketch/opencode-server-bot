@@ -109,6 +109,14 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 - Daily owner digest at DIGEST_HOUR (default 8am): uptime, per-proc health+RAM, restart counts, free-model tracker status, recent crashes.
 - Live-verified: stealth/ox-alpha probed OK (1.7s), adopted as `free_ox_alpha`, visible in providers.json.
 
+## File Editor (added 2026-08-23, commit ec76681)
+- Upload any text file with caption `/edit <instructions>` → AI applies edits → edited file sent back as `<name>_edited.<ext>`
+- Or send a file first, then reply to it with `/edit <instructions>`; `/editfile` lists recent files per chat (✅ editable / ❌ not)
+- AI prompt: precise editing engine, returns ONLY full file content; markdown fences stripped automatically
+- Guards: 35+ editable extension whitelist (.py .js .json .md .csv etc), 512KB size cap, 14K-char truncation notice, safe filename sanitize, per-chat last-5-files registry
+- Helpers: `_tg_download_file` (getFile+download), `_send_document` (multipart upload), `_ai_edit_file` (read→prompt→write→upload)
+- Verified: whitelist, fence cleanup, registry pruning, end-to-end mock flow (file+instructions to AI, correct output, upload)
+
 ## AndroidLLM Autopilot (added 2026-08-23, commit 4ff55fa)
 - Upgrades the reactive OOM cascade into proactive management:
   - serve health probe — alive-but-unanswered for ANDROIDLLM_HUNG_TICKS (12) after 300s warmup → auto-restart + alert (model loading never false-trips)
