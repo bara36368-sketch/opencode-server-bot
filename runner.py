@@ -221,6 +221,11 @@ def _build_daily_digest():
         lines.append(f"• {name}: {state}{ram} | restarts {rc}")
     lines.append("")
     lines.append(f"\U0001F501 Total restarts: {total_restarts}")
+    slo_line = _slo_digest_line()
+    if slo_line:
+        lines.insert(1, slo_line)
+    if _degrade_state["active"]:
+        lines.insert(1, "\u26D4 DEGRADED mode active (RAM pressure) — heavy procs paused")
     diff = _snapshot_diff_section()
     if diff:
         lines.append(diff)
@@ -525,6 +530,112 @@ def _incident_timeline(date_str=None):
                           if k not in ("ts", "event") and v is not None)
         out.append(f"{r.get('ts', '')}  {r.get('event', '?'):<22} {extra[:100]}")
     return out
+
+PROVIDER_HEALTH_FILE = os.path.join(DIR, "provider_health.json")
+SLO_FILE = os.path.join(DIR, "slo_daily.json")
+SLO_TARGET_PCT = float(os.environ.get("RUNNER_SLO_TARGET", "99.0"))
+DEGRADE_RAM_PCT = float(os.environ.get("RUNNER_DEGRADE_RAM_PCT", "92"))
+DEGRADE_RESUME_PCT = float(os.environ.get("RUNNER_DEGRADE_RESUME_PCT", "85"))
+DEGRADABLE_PROCS = [s.strip() for s in os.environ.get("RUNNER_DEGRADABLE", "cyberdeck,dma").split(",") if s.strip()]
+_degrade_state = {"active": False}
+_slo_day = {"day": None}
+
+def _degrade_tick():
+    """Idea #16: host RAM pressure -> stop heavy optional procs; resume when clear."""
+    try:
+        import psutil as _ps
+        pct = _ps.virtual_memory().percent
+    except Exception:
+        return
+    if not _degrade_state["active"] and pct >= DEGRADE_RAM_PCT:
+        stopped = []
+        for name in DEGRADABLE_PROCS:
+            if name in procs and procs[name].poll() is None:
+                kill_one(name, reason="ram_degrade")
+                _disabled.add(name)
+                stopped.append(name)
+        if stopped:
+            _degrade_state["active"] = True
+            log(f"DEGRADED mode: RAM {pct:.0f}% >= {DEGRADE_RAM_PCT}% — stopped {', '.join(stopped)}", "degrade")
+            _ledger("degrade_on", ram_pct=pct, stopped=stopped)
+            send_telegram(f"<b>Runner</b>: DEGRADED mode — RAM {pct:.0f}%, "
+                          f"paused: {', '.join(stopped)}. Auto-resumes under {DEGRADE_RESUME_PCT}%.")
+    elif _degrade_state["active"] and pct <= DEGRADE_RESUME_PCT:
+        resumed = []
+        for name in DEGRADABLE_PROCS:
+            if name in _disabled:
+                _disabled.discard(name)
+                resumed.append(name)
+        _degrade_state["active"] = False
+        if resumed:
+            log(f"RAM recovered to {pct:.0f}% — resuming {', '.join(resumed)}", "degrade")
+            _ledger("degrade_off", ram_pct=pct, resumed=resumed)
+            send_telegram(f"<b>Runner</b>: RAM recovered ({pct:.0f}%) — resuming: {', '.join(resumed)}")
+
+def _load_slo():
+    try:
+        with open(SLO_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _slo_tick():
+    """Idea #10: daily web availability ratio; digest escalates when budget burns."""
+    today = time.strftime("%Y-%m-%d")
+    if _slo_day["day"] != today:
+        prev = _load_slo()
+        if prev.get("day") and prev.get("total"):
+            prev["closed"] = True
+            with open(SLO_FILE + ".prev.json", "w", encoding="utf-8") as f:
+                json.dump(prev, f)
+        _slo_day.update({"day": today, "total": 0, "ok": 0})
+    _slo_day["total"] = _slo_day.get("total", 0) + 1
+    if health_check():
+        _slo_day["ok"] = _slo_day.get("ok", 0) + 1
+    if _slo_day["total"] % 20 == 0:
+        try:
+            with open(SLO_FILE, "w", encoding="utf-8") as f:
+                json.dump({"day": today, "total": _slo_day["total"], "ok": _slo_day["ok"]}, f)
+        except Exception:
+            pass
+
+def _slo_digest_line():
+    d = dict(_slo_day)
+    if not d.get("total"):
+        try:
+            with open(SLO_FILE, encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception:
+            return None
+    total, ok = d.get("total") or 0, d.get("ok") or 0
+    if not total:
+        return None
+    pct = 100.0 * ok / total
+    mark = "\u26A0\uFE0F" if pct < SLO_TARGET_PCT else "\U0001F7E2"
+    return f"{mark} Web availability today: {pct:.2f}% ({ok}/{total} checks, target {SLO_TARGET_PCT:.0f}%)"
+
+def _record_provider_failure(provider, error=""):
+    """Shared circuit file (#12): any process reports failures here; the ctrl
+    API exposes it so ALL processes can skip recently-broken providers."""
+    try:
+        data = {}
+        try:
+            with open(PROVIDER_HEALTH_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+        now = time.time()
+        entry = data.get(provider) or {"fails": [], }
+        fails = [t for t in entry.get("fails", []) if now - t < 3600]
+        fails.append(now)
+        data[provider] = {"fails": fails[-20:], "last_error": str(error)[:120],
+                          "updated": time.strftime("%H:%M:%S")}
+        tmp = PROVIDER_HEALTH_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, PROVIDER_HEALTH_FILE)
+    except Exception:
+        pass
 
 def _ledger(event, **fields):
     """Append a structured event to proc-ledger.jsonl (one JSON object per
@@ -1871,6 +1982,17 @@ class _CtrlHandler(BaseHTTPRequestHandler):
                 self._send(200, _api_metrics())
             elif path == "/api/restarts":
                 self._send(200, _api_restarts())
+            elif path == "/api/provider_health":
+                try:
+                    with open(PROVIDER_HEALTH_FILE, encoding="utf-8") as f:
+                        data = json.load(f)
+                    now = time.time()
+                    for name, e in list(data.items()):
+                        e["fails_1h"] = len([t for t in e.get("fails", []) if now - t < 3600])
+                        e.pop("fails", None)
+                    self._send(200, {"providers": data})
+                except FileNotFoundError:
+                    self._send(200, {"providers": {}})
             else:
                 self._send(404, {"error": f"no route {path}"})
         except Exception as e:
@@ -2455,6 +2577,8 @@ if __name__ == "__main__":
         _hung_watchdog_tick()
         _deploy_guard_tick()
         _metrics_tick()
+        _degrade_tick()
+        _slo_tick()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:

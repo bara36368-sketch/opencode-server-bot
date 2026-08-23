@@ -349,6 +349,34 @@ class SlidingWindow:
 def _is_configured(key):
     return bool(key) and "YOUR_" not in key and key != "not configured"
 
+_provider_fail_write_lock = [0.0]
+
+def _report_provider_failure_shared(provider, error=""):
+    """Idea #12: append failure to shared provider_health.json (throttled to
+    1 write/10s) so the runner ctrl API can expose fleet-wide circuit state."""
+    try:
+        now = time.time()
+        if now - _provider_fail_write_lock[0] < 10:
+            return
+        _provider_fail_write_lock[0] = now
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "provider_health.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+        entry = data.get(provider) or {"fails": []}
+        fails = [t for t in entry.get("fails", []) if now - t < 3600]
+        fails.append(now)
+        data[provider] = {"fails": fails[-20:], "last_error": str(error)[:120],
+                          "updated": datetime.now().strftime("%H:%M:%S")}
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, path)
+    except Exception:
+        pass
+
 class ProviderGateway:
     def __init__(self):
         self.health = {}
@@ -384,6 +412,7 @@ class ProviderGateway:
             h["failure"] += 1
             h["last_fail"] = time.time()
             h["cooldown_until"] = time.time() + min(60 * max(h["failure"] - h["success"], 1), 300)
+            _report_provider_failure_shared(name)
     def best_available(self):
         candidates = []
         for name in PROVIDERS:
