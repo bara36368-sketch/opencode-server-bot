@@ -57,7 +57,7 @@ PROVIDERS = {
     },
     "gemini": {
         "prefixes": ["AIza"],
-        "models_url": "https://generativelanguage.googleapis.com/v1beta/openai/models",
+        "models_url": "https://generativelanguage.googleapis.com/v1beta/models",
         "chat_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "auth": "bearer",
         "speed": 4,
@@ -128,9 +128,34 @@ PROVIDERS = {
     "pollinations": {
         "prefixes": [],
         "models_url": "https://text.pollinations.ai/models",
-        "chat_url": "https://text.pollinations.ai/openai/chat/completions",  # POST via /openai
+        "chat_url": "https://text.pollinations.ai/openai/chat/completions",
         "auth": "none-ok",
         "speed": 2,
+    },
+    # local OmniRoute daemon (:20128) — 400+ models, its own credential vault
+    "omniroute": {
+        "prefixes": [],
+        "models_url": "http://127.0.0.1:20128/v1/models",
+        "chat_url": "http://127.0.0.1:20128/v1/chat/completions",
+        "auth": "none-ok",
+        "speed": 3,
+        "all_free": True,        # local router decides billing; treat as usable
+    },
+    # GitHub Models — free tier via GitHub token (auto-seeded from machine env)
+    "github": {
+        "prefixes": ["github_pat_", "ghp_", "gho_"],
+        "models_url": "https://models.github.ai/catalog/models",
+        "chat_url": "https://models.github.ai/inference/chat/completions",
+        "auth": "bearer",
+        "speed": 3,
+    },
+    # Puter — free-tagged models (kimi-k2.6:free etc.)
+    "puter": {
+        "prefixes": ["put_"],
+        "models_url": "https://api.puter.com/puterai/chat/models",
+        "chat_url": "https://api.puter.com/puterai/openai/v1/chat/completions",
+        "auth": "bearer",
+        "speed": 3,
     },
 }
 _PREFIX_TO_PROVIDER = {}
@@ -169,6 +194,61 @@ def mask_key(key):
     if not key or len(key) < 10:
         return "***"
     return key[:6] + "..." + key[-4:]
+
+
+# env-var name -> provider in registry (for auto-seeding from this machine)
+ENV_SEED_MAP = {
+    "OPENROUTER_API_KEY": "openrouter",
+    "GROQ_API_KEY": "groq",
+    "GEMINI_API_KEY": "gemini",
+    "NVIDIA_API_KEY": "nvidia",
+    "CEREBRAS_API_KEY": "cerebras",
+    "MISTRAL_API_KEY": "mistral",
+    "DEEPSEEK_API_KEY": "deepseek",
+    "SAMBANOVA_API_KEY": "sambanova",
+    "SILICONFLOW_API_KEY": "siliconflow",
+    "TOGETHER_API_KEY": "together",
+    "HUGGINGFACE_API_KEY": "huggingface",
+    "HUGGINGFACE_TOKEN": "huggingface",
+    "GITHUB_TOKEN": "github",
+    "GITHUB_API_KEY": "github",
+}
+
+
+def seed_keys_from_machine():
+    """One-time import: pull every known provider key from the bot's .env /
+    setenv.sh / ~/.omniroute/.env into omni_keys.json so the scanner covers
+    all providers this machine already has credentials for."""
+    env = {}
+    candidates = [
+        os.path.join(DIR, ".env"),
+        os.path.join(DIR, "setenv.sh"),
+        os.path.expanduser(r"~\.omniroute\.env"),
+    ]
+    for path in candidates:
+        try:
+            for line in open(path, encoding="utf-8", errors="replace"):
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.replace("export ", "").partition("=")
+                v = v.strip().strip('"').strip("'")
+                if v and not v.startswith("#"):
+                    env.setdefault(k.strip(), v)
+        except OSError:
+            continue
+    keys = load_json(KEYS_FILE, {})
+    seeded = 0
+    for env_name, provider in ENV_SEED_MAP.items():
+        key = env.get(env_name)
+        if not key or provider in keys:
+            continue
+        keys[provider] = {"key": key, "masked": mask_key(key),
+                          "added": time.time(), "source": "auto-seed"}
+        seeded += 1
+    if seeded:
+        save_json(KEYS_FILE, keys)
+    return seeded
 
 
 # ---- storage ---------------------------------------------------------------
@@ -229,6 +309,8 @@ def extract_free_models(provider, entries):
             or m.get("modalities") or ["text"]
         if isinstance(mods, dict):
             mods = mods.get("input") or ["text"]
+        if provider == "gemini" and mid.startswith("models/"):
+            mid = mid[len("models/"):]      # Google lists ids with models/ prefix
         try:
             pp = float(pricing.get("prompt") or cost.get("input") or -1)
             pc = float(pricing.get("completion") or cost.get("output") or -1)
@@ -237,6 +319,10 @@ def extract_free_models(provider, entries):
             free = False
         if provider in ("llm7", "pollinations"):
             free = True              # these services are free-tier by design
+        if cfg.get("all_free"):
+            free = True              # local router (omniroute) decides billing
+        if provider in ("gemini", "github"):
+            free = True              # free tier via key quota, no per-token cost
         if ":free" in mid or m.get("free") or m.get("is_free"):
             free = True
         if free:
@@ -256,7 +342,10 @@ def rank_score(m):
     speed = PROVIDERS.get(m["provider"], {}).get("speed", 2) * 50_000
     mods = m.get("modalities") or []
     mod_bonus = 200_000 * len([x for x in mods if x != "text"])
-    return ctx + speed + mod_bonus
+    # -latest aliases are provider-maintained pointers to the current model:
+    # they never retire, so boost them hard for fallback reliability
+    latest_bonus = 1_500_000 if "-latest" in m.get("model_id", "") else 0
+    return ctx + speed + mod_bonus + latest_bonus
 
 
 def scan_all():
@@ -431,7 +520,9 @@ def _try_chat(cfg, mid, payload):
     body = dict(payload)
     body["model"] = mid
     data = json.dumps(body).encode()
-    headers = {"Content-Type": "application/json"}
+    # some edges (llm7 -> Cloudflare 1010) reject default python-UA clients
+    headers = {"Content-Type": "application/json",
+               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) OmniGateway/1.0"}
     keys = load_json(KEYS_FILE, {})
     key = (keys.get(mid.split("/", 1)[0]) or {}).get("key") \
         if "/" in mid else None
@@ -443,16 +534,45 @@ def _try_chat(cfg, mid, payload):
         return r.status, r.read()
 
 
-def proxy_chat(payload, max_fallbacks=4):
-    """Try the requested model; on auth/model errors walk down the ranked
-    free list (skipping image-only models) until one answers."""
+def _extract_reply_text(raw_bytes):
+    """OpenAI JSON first; fall back to SSE chunk aggregation (omniroute
+    always streams, even for stream:false requests)."""
+    raw = raw_bytes.decode("utf-8", "replace")
+    try:
+        body = json.loads(raw)
+        txt = (body.get("choices") or [{}])[0].get("message", {}).get("content")
+        if txt:
+            return txt
+    except Exception:
+        pass
+    text = ""
+    for line in raw.splitlines():
+        if not line.startswith("data:") or "[DONE]" in line:
+            continue
+        try:
+            c = json.loads(line[5:])
+            ch = (c.get("choices") or [{}])[0]
+            text += ((ch.get("delta") or {}).get("content")
+                     or (ch.get("message") or {}).get("content") or "")
+        except Exception:
+            continue
+    return text
+
+
+def proxy_chat(payload, max_fallbacks=20):
+    """Try requested model first, then walk the ranked free list. Runtime
+    per-provider budget (3 attempts) lets a provider's next model be tried
+    when one specific slug is retired/unavailable."""
     tried = []
-    candidates = []
+    prov_tries = {}
+    PER_PROVIDER_BUDGET = 3
+
+    queue = []
     model_field = payload.get("model", "")
     if model_field and "/" in model_field:
         prov, mid = model_field.split("/", 1)
         if prov in PROVIDERS:
-            candidates.append((PROVIDERS[prov], mid))
+            queue.append((PROVIDERS[prov], mid))
     cat = load_json(CATALOG_FILE, {})
     for m in (cat.get("free") or []):
         mods = [x.lower() for x in (m.get("modalities") or ["text"])]
@@ -462,37 +582,39 @@ def proxy_chat(payload, max_fallbacks=4):
                                  "stable-diff", "-tts", "whisper", "embed"))
         if image_only:
             continue
-        cand = (PROVIDERS[m["provider"]], m["model_id"])
-        if all(c[1] != cand[1] or c[0] is not cand[0] for c in candidates):
-            candidates.append(cand)
-        if len(candidates) >= max_fallbacks + 1:
-            break
+        queue.append((PROVIDERS[m["provider"]], m["model_id"]))
+    # guaranteed keyless tails
+    queue.append((PROVIDERS["pollinations"], "openai"))
+    queue.append((PROVIDERS["llm7"], "gpt-oss"))
+
     last_err = None
-    for cfg, mid in candidates[:max_fallbacks + 1]:
+    served_meta = {}
+    for cfg, mid in queue:
+        pname = _provider_by_chat_url(cfg["chat_url"])
+        if prov_tries.get(pname, 0) >= PER_PROVIDER_BUDGET:
+            continue
+        if len(tried) > max_fallbacks:
+            break
         try:
             status, raw = _try_chat(cfg, mid, payload)
-            try:
-                chars_out = len(json.loads(raw.decode("utf-8", "replace"))
-                                .get("choices", [{}])[0]
-                                .get("message", {}).get("content") or "")
-            except Exception:
-                chars_out = len(raw)
+            chars_out = len(_extract_reply_text(raw))
             chars_in = sum(len(str(m.get("content", "")))
                            for m in payload.get("messages", []))
-            record_usage(_provider_by_chat_url(cfg["chat_url"]), mid,
-                         chars_in, chars_out)
-            return status, raw, {"served_by": f"{cfg['chat_url']}", "model": mid,
+            record_usage(pname, mid, chars_in, chars_out)
+            return status, raw, {"served_by": mid, "model": mid,
                                  "fallbacks_used": len(tried)}
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:200]
+            prov_tries[pname] = prov_tries.get(pname, 0) + 1
             tried.append(f"{mid}: HTTP {e.code}")
-            if e.code not in (401, 403, 404, 429, 502, 503):
+            if e.code not in (400, 401, 402, 403, 404, 429, 502, 503):
                 return e.code, json.dumps({"error": detail}).encode(), {}
             last_err = detail
         except Exception as e:
+            prov_tries[pname] = prov_tries.get(pname, 0) + 1
             tried.append(f"{mid}: {str(e)[:60]}")
             last_err = str(e)[:200]
-    return 502, json.dumps({"error": f"all fallbacks failed: {'; '.join(tried)}",
+    return 502, json.dumps({"error": f"all fallbacks failed: {'; '.join(tried[:8])}",
                             "last": last_err}).encode(), {}
 
 
@@ -686,12 +808,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "empty message"})
             status, raw, meta = proxy_chat({"model": model,
                                             "messages": [{"role": "user", "content": msg}],
-                                            "max_tokens": 800})
-            try:
-                body = json.loads(raw.decode("utf-8", "replace"))
-                reply = body.get("choices", [{}])[0].get("message", {}).get("content", "")
-            except Exception:
-                reply = ""
+                                            "max_tokens": 2000})
+            reply = _extract_reply_text(raw)
             if not reply:
                 return self._send(status if status else 502,
                                   {"error": raw.decode("utf-8", "replace")[:300]})
@@ -730,6 +848,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    seeded = seed_keys_from_machine()
+    if seeded:
+        print(f"[omni] auto-seeded {seeded} provider key(s) from this machine")
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     start_health_monitor()
     print(f"[omni] gateway on http://127.0.0.1:{PORT} "
