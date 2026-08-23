@@ -8925,16 +8925,19 @@ async def main():
                     fid = _gd.parse_drive_link(link_text)
                     if fid:
                         await typing(chat)
-                        dl = await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: _gd.download_public_drive_file(
-                                fid, FILE_EDIT_DIR, MAX_EDIT_MB, "gdrive_file"))
+                        try:
+                            dl = await asyncio.get_event_loop().run_in_executor(
+                                None, lambda: _gd.download_public_drive_file(
+                                    fid, FILE_EDIT_DIR, MAX_EDIT_MB, "gdrive_file"))
+                        except Exception as _gde:
+                            dl = None
+                            log(f"gdrive download failed: {_gde}")
                         if dl:
                             _remember_chat_file(chat, dl)
                             target = dl
                             fname_g = os.path.basename(dl)
                             await send(chat, f"📥 Downloaded from Drive: {fname_g} ({os.path.getsize(dl)//1024}KB)")
                         else:
-                            last_err = "link not public or invalid"
                             await send(chat, f"❌ Could not download Drive file — make sure it's shared as 'Anyone with the link'.")
                     # 2) replied-to document?
                     if not target:
