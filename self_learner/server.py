@@ -22,11 +22,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import memory
 
 PORT = int(os.environ.get("BRAIN_PORT", "4590"))
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
+# this machine runs ollama on a nonstandard port (bot androidllm legacy 20200);
+# probe candidates in order until one answers /api/tags
+OLLAMA_URLS = [u for u in (os.environ.get("OLLAMA_URL", ""),
+                           "http://127.0.0.1:11434",
+                           "http://127.0.0.1:20200") if u]
 OMNI_CHAT = os.environ.get("OMNI_BASE", "http://127.0.0.1:4455") + "/api/chat"
 STUDY_INTERVAL_H = float(os.environ.get("BRAIN_STUDY_INTERVAL_H", "6"))
 MEMORY_LIMIT = int(os.environ.get("BRAIN_MEMORY_LIMIT", "6"))
-_ollama_cache = {"name": None, "ts": 0.0}
+_ollama_cache = {"name": None, "url": None, "ts": 0.0}
 _study_lock = threading.Lock()
 
 
@@ -34,26 +38,39 @@ def local_model_name():
     now = time.time()
     if _ollama_cache["name"] and now - _ollama_cache["ts"] < 300:
         return _ollama_cache["name"]
-    name = None
-    try:
-        with urllib.request.urlopen(OLLAMA_URL + "/api/tags", timeout=3) as r:
-            models = json.loads(r.read().decode()).get("models", [])
-        if models:
-            name = models[0]["name"]
-    except Exception:
-        name = None
-    _ollama_cache.update({"name": name, "ts": now})
-    return name
+    for base in OLLAMA_URLS:
+        try:
+            with urllib.request.urlopen(base + "/api/tags", timeout=3) as r:
+                models = json.loads(r.read().decode()).get("models", [])
+            if models:
+                name = models[0]["name"]
+                _ollama_cache.update({"name": name, "url": base, "ts": now})
+                return name
+        except Exception:
+            continue
+    _ollama_cache.update({"name": None, "url": None, "ts": now})
+    return None
 
 
 def omni_fallback(messages):
-    payload = json.dumps({"model": "auto", "messages": messages,
-                          "max_tokens": 1500}).encode()
-    req = urllib.request.Request(OMNI_CHAT, data=payload,
-                                 headers={"Content-Type": "application/json"},
-                                 method="POST")
-    with urllib.request.urlopen(req, timeout=240) as r:
-        return json.loads(r.read().decode("utf-8", "replace")).get("reply", "")
+    """Cloud fallback via OMNI Gateway. Tries known-live models first
+    ('auto' walks a long chain of dead slugs = slow)."""
+    last_err = None
+    for model in ("llm7/codestral-latest", "gemini/gemini-flash-latest", "auto"):
+        try:
+            payload = json.dumps({"model": model, "messages": messages,
+                                  "max_tokens": 1500}).encode()
+            req = urllib.request.Request(OMNI_CHAT, data=payload,
+                                         headers={"Content-Type": "application/json"},
+                                         method="POST")
+            with urllib.request.urlopen(req, timeout=240) as r:
+                reply = json.loads(r.read().decode("utf-8", "replace")).get("reply", "")
+                if reply:
+                    return reply
+        except Exception as e:
+            last_err = e
+            continue
+    raise RuntimeError(f"all cloud fallbacks failed: {last_err}")
 
 
 def build_system_prompt(query_hint):
@@ -83,10 +100,11 @@ def answer(user_text):
 
     model = local_model_name()
     if model:
+        base = _ollama_cache.get("url") or OLLAMA_URLS[0]
         try:
             payload = json.dumps({"model": model, "messages": messages,
                                   "stream": False}).encode()
-            req = urllib.request.Request(OLLAMA_URL + "/v1/chat/completions",
+            req = urllib.request.Request(base + "/v1/chat/completions",
                                          data=payload,
                                          headers={"Content-Type": "application/json"},
                                          method="POST")

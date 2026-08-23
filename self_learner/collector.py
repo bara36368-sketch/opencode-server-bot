@@ -15,7 +15,7 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 OMNI_BASE = os.environ.get("OMNI_BASE", "http://127.0.0.1:4455")
 ANSWER_MODELS = int(os.environ.get("BRAIN_ANSWER_MODELS", "3"))
 QUESTIONS_PER_CYCLE = int(os.environ.get("BRAIN_QUESTIONS", "3"))
-HTTP_TIMEOUT = float(os.environ.get("BRAIN_TIMEOUT", "90"))
+HTTP_TIMEOUT = float(os.environ.get("BRAIN_TIMEOUT", "240"))
 
 TOPIC_SEEDS = [
     "programming languages and their tradeoffs",
@@ -36,8 +36,10 @@ TOPIC_SEEDS = [
 ]
 
 
-def _omni_chat(model, messages, max_tokens=1200):
-    payload = json.dumps({"model": model, "messages": messages,
+def _omni_chat(model, system, user_text, max_tokens=1200):
+    """Gateway /api/chat contract: single 'message' + optional system prefix."""
+    content = (f"[SYSTEM] {system}\n\n[USER] {user_text}") if system else user_text
+    payload = json.dumps({"model": model, "message": content,
                           "max_tokens": max_tokens}).encode()
     req = urllib.request.Request(OMNI_BASE + "/api/chat", data=payload,
                                  headers={"Content-Type": "application/json"},
@@ -47,12 +49,16 @@ def _omni_chat(model, messages, max_tokens=1200):
 
 
 def pick_teacher_models(k=ANSWER_MODELS):
-    """Distinct providers, text-capable, top-ranked first."""
+    """Distinct providers, text-capable, top-ranked first. Skips omniroute
+    (meta-router: every call walks its own fallback chain = slow/flaky for
+    multi-perspective collection)."""
     with urllib.request.urlopen(OMNI_BASE + "/api/free", timeout=20) as r:
         free = json.loads(r.read().decode()).get("free", [])
     picks, seen = [], set()
     for m in free:
         prov = m["provider"]
+        if prov == "omniroute":
+            continue
         mods = [x.lower() for x in (m.get("modalities") or ["text"])]
         mid_l = m["model_id"].lower()
         if "text" not in mods or any(x in mid_l for x in
@@ -69,11 +75,10 @@ def pick_teacher_models(k=ANSWER_MODELS):
 
 def generate_question(topic):
     try:
-        d = _omni_chat("auto", [
-            {"role": "system", "content":
-             "You generate ONE specific, high-value study question about the given "
-             "topic. Output ONLY the question text, nothing else."},
-            {"role": "user", "content": f"Topic: {topic}"}], max_tokens=200)
+        d = _omni_chat("auto",
+            "You generate ONE specific, high-value study question about the given "
+            "topic. Output ONLY the question text, nothing else.",
+            f"Topic: {topic}", max_tokens=200)
         q = (d.get("reply") or "").strip().strip('"')
         return q[:400] if len(q) > 15 else None
     except Exception as e:
@@ -85,10 +90,9 @@ def collect_answers(question, teacher_models):
     answers = []
     for model in teacher_models:
         try:
-            d = _omni_chat(model, [
-                {"role": "user", "content":
-                 f"{question}\n\nAnswer precisely and completely in under 250 words. "
-                 f"If uncertain, say what is known vs unknown."}], max_tokens=700)
+            d = _omni_chat(model, None,
+                f"{question}\n\nAnswer precisely and completely in under 250 words. "
+                f"If uncertain, say what is known vs unknown.", max_tokens=700)
             reply = (d.get("reply") or "").strip()
             if len(reply) > 80:
                 answers.append({"model": model, "text": reply})
@@ -107,14 +111,12 @@ def distill(question, topic, answers):
     models_agree = len({a["model"].split("/")[0] for a in answers})
     score = min(0.95, 0.45 + 0.18 * models_agree)
     try:
-        d = _omni_chat("auto", [
-            {"role": "system", "content":
-             "You are a rigorous synthesizer. Multiple AI models answered the same "
-             "question. Merge them into one authoritative answer: keep points where "
-             "answers agree, flag disagreements explicitly as DISPUTED, drop anything "
-             "contradicted by majority. Output only the final distilled answer."},
-            {"role": "user", "content":
-             f"QUESTION: {question}\n\n{src_lines}"}], max_tokens=900)
+        d = _omni_chat("auto",
+            "You are a rigorous synthesizer. Multiple AI models answered the same "
+            "question. Merge them into one authoritative answer: keep points where "
+            "answers agree, flag disagreements explicitly as DISPUTED, drop anything "
+            "contradicted by majority. Output only the final distilled answer.",
+            f"QUESTION: {question}\n\n{src_lines}", max_tokens=900)
         final = (d.get("reply") or "").strip()
     except Exception as e:
         print(f"    distill failed: {e}")
