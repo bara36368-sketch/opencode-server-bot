@@ -221,6 +221,9 @@ def _build_daily_digest():
         lines.append(f"• {name}: {state}{ram} | restarts {rc}")
     lines.append("")
     lines.append(f"\U0001F501 Total restarts: {total_restarts}")
+    am_line = _androidllm_status_line()
+    if am_line:
+        lines.insert(1, am_line)
     slo_line = _slo_digest_line()
     if slo_line:
         lines.insert(1, slo_line)
@@ -1309,6 +1312,153 @@ def _maybe_downgrade_androidllm(exit_code, stderr_text):
             f"({androidllm_models.shard_dir(nxt, bot_env)}).\n\n"
             f"Reply <b>/approve</b> to switch, or <b>/deny</b> to stay on {cur}.")
     return "pending", f"OOM downgrade {cur} -> {nxt} ASKED OWNER (pending consent)"
+
+# -- AndroidLLM Autopilot ----------------------------------------------------
+# Proactive local-model management (upgrades the reactive OOM cascade):
+#   1. serve health probe -> hung restarts (alive but not answering)
+#   2. host RAM pressure -> PROPOSE downgrade BEFORE the OOM killer strikes
+#   3. sustained headroom -> PROPOSE upgrade to the largest fitting model
+# All switches go through the same consent gate as OOM downgrades (/approve).
+ANDROIDLLM_HUNG_TICKS = int(os.environ.get("ANDROIDLLM_HUNG_TICKS", "12"))
+ANDROIDLLM_PROBE_TIMEOUT = float(os.environ.get("ANDROIDLLM_PROBE_TIMEOUT", "3"))
+ANDROIDLLM_RAM_PRESSURE_PCT = float(os.environ.get("ANDROIDLLM_RAM_PRESSURE_PCT", "88"))
+ANDROIDLLM_UPGRADE_HEADROOM_PCT = float(os.environ.get("ANDROIDLLM_UPGRADE_HEADROOM_PCT", "55"))
+ANDROIDLLM_AUTOPILOT_COOLDOWN = int(os.environ.get("ANDROIDLLM_AUTOPILOT_COOLDOWN_S", str(6 * 3600)))
+_ap = {"probe_fails": 0, "last_action": 0.0}
+
+def _am_model_entry(mid):
+    for m in getattr(androidllm_models, "RECOMMENDED", []):
+        if m.get("id") == mid:
+            return m
+    return None
+
+def _next_bigger_fitting(cur):
+    """Largest sharded model above `cur` in the ladder that fits free RAM
+    (keeping ~1.5GB OS margin), or None."""
+    ladder = getattr(androidllm_models, "DOWNGRADE_LADDER", [])
+    if cur not in ladder:
+        return None
+    try:
+        avail = androidllm_models.available_ram_gb(bot_env)
+    except Exception:
+        return None
+    headroom = max(0.0, avail - 1.5)
+    for mid in reversed(ladder[:ladder.index(cur)]):
+        e = _am_model_entry(mid)
+        if e and androidllm_models.is_sharded(mid, bot_env) \
+                and float(e.get("disk_gb") or 99) <= headroom:
+            return mid
+    return None
+
+def _androidllm_probe_ok():
+    url = f"http://127.0.0.1:{_androidllm_port}/health"
+    try:
+        with urllib.request.urlopen(url, timeout=ANDROIDLLM_PROBE_TIMEOUT) as r:
+            return r.status < 500
+    except urllib.error.HTTPError:
+        return True          # answered with an error code -> server IS alive
+    except Exception:
+        pass
+    try:
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{_androidllm_port}/", timeout=ANDROIDLLM_PROBE_TIMEOUT) as r:
+            return r.status < 500
+    except Exception:
+        return False
+
+def _androidllm_autopilot_tick():
+    if not _androidllm_enabled:
+        return
+    p = procs.get("androidllm")
+    alive = bool(p and p.poll() is None)
+
+    # 1) hung-serve watchdog: alive but never answers, well after start
+    if alive:
+        up_s = time.time() - _started_at.get("androidllm", 0)
+        if up_s > 300:
+            if _androidllm_probe_ok():
+                _ap["probe_fails"] = 0
+            else:
+                _ap["probe_fails"] += 1
+                if _ap["probe_fails"] >= ANDROIDLLM_HUNG_TICKS:
+                    log(f"androidllm hung: {_ap['probe_fails']} failed probes while alive", "autopilot")
+                    send_telegram("<b>Androidllm</b>: serving process alive but not answering — restarting it.")
+                    _ledger("serve_hung_restart", proc="androidllm")
+                    kill_one("androidllm", reason="serve_hung")
+                    _ap["probe_fails"] = 0
+
+    # 2)+3) RAM-pressure downgrade / headroom upgrade proposals
+    if not alive:
+        return
+    now = time.time()
+    if now - _ap["last_action"] < ANDROIDLLM_AUTOPILOT_COOLDOWN:
+        return
+    if androidllm_models.peek_consent(bot_env):
+        return                      # already asking something
+    try:
+        import psutil as _ps
+        pct = _ps.virtual_memory().percent
+    except Exception:
+        return
+    st = androidllm_models.read_state(bot_env)
+    cur = st.get("id")
+
+    if pct >= ANDROIDLLM_RAM_PRESSURE_PCT and cur:
+        nxt = androidllm_models.next_smaller(cur, bot_env)
+        if nxt:
+            req = androidllm_models.request_consent(
+                "downgrade", nxt,
+                f"host RAM at {pct:.0f}% with {cur} served (prevent OOM)",
+                requester="autopilot", env=bot_env)
+            if req:
+                _ap["last_action"] = now
+                _ledger("autopilot_downgrade_proposed", proc="androidllm", cur=cur, nxt=nxt, ram_pct=pct)
+                if _can_notify("autopilot"):
+                    send_telegram(
+                        f"<b>Androidllm Autopilot</b>: RAM at <b>{pct:.0f}%</b> while "
+                        f"serving <b>{cur}</b>.\n\nProposed PREVENTIVE downgrade to "
+                        f"<b>{nxt}</b>. Reply <b>/approve</b> to switch now, or "
+                        f"<b>/deny</b> to ride it out (OOM cascade will re-ask later).")
+                log(f"autopilot proposed downgrade {cur} -> {nxt} (RAM {pct:.0f}%)", "autopilot")
+
+    elif pct <= ANDROIDLLM_UPGRADE_HEADROOM_PCT and cur:
+        bigger = _next_bigger_fitting(cur)
+        if bigger:
+            req = androidllm_models.request_consent(
+                "upgrade", bigger,
+                f"stable headroom ({pct:.0f}% RAM used) with {cur} served",
+                requester="autopilot", env=bot_env)
+            if req:
+                _ap["last_action"] = now
+                _ledger("autopilot_upgrade_proposed", proc="androidllm", cur=cur, nxt=bigger, ram_pct=pct)
+                if _can_notify("autopilot"):
+                    send_telegram(
+                        f"<b>Androidllm Autopilot</b>: you have spare RAM "
+                        f"({100-pct:.0f}% free) and <b>{bigger}</b> is sharded locally.\n\n"
+                        f"Proposed UPGRADE from <b>{cur}</b>. Reply <b>/approve</b> for the "
+                        f"bigger brain, or <b>/deny</b> to keep {cur}.")
+                log(f"autopilot proposed upgrade {cur} -> {bigger} (RAM {pct:.0f}%)", "autopilot")
+
+def _androidllm_status_line():
+    if not _androidllm_enabled:
+        return None
+    st = androidllm_models.read_state(bot_env)
+    cur = st.get("id") or "?"
+    parts = [f"\U0001F9EE Local model: {cur}"]
+    p = procs.get("androidllm")
+    parts.append("\U0001F7E2 serving" if p and p.poll() is None else "\U0001F534 stopped")
+    try:
+        import psutil as _ps
+        pct = _ps.virtual_memory().percent
+        parts.append(f"RAM {pct:.0f}%")
+        if pct >= ANDROIDLLM_RAM_PRESSURE_PCT:
+            parts.append("\u26A0\uFE0F pressure")
+    except Exception:
+        pass
+    pend = androidllm_models.peek_consent(bot_env)
+    if pend:
+        parts.append(f"\u23F3 awaiting /approve for {pend.get('target')}")
+    return " | ".join(parts)
 
 def health_check():
     try:
@@ -2538,6 +2688,9 @@ if __name__ == "__main__":
             print(f"freemodels: {len(fm.get('seen', {}))} tracked, adopted: {', '.join(adopted) or 'none'}")
         except Exception as e:
             print(f"freemodels: error ({e})")
+        am_line = _androidllm_status_line()
+        if am_line:
+            print(f"androidllm : {am_line}")
         import urllib.request as _ur
         try:
             req = _ur.Request(f"http://127.0.0.1:{CTRL_PORT}/api/health/live",
@@ -2579,6 +2732,7 @@ if __name__ == "__main__":
         _metrics_tick()
         _degrade_tick()
         _slo_tick()
+        _androidllm_autopilot_tick()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:
