@@ -249,6 +249,15 @@ def load_cyberdeck():
 # ============================================================
 PROVIDERS = {}
 
+def _omni_available():
+    """OMNI Gateway (:4455) reachable? Its own fallback chain picks models."""
+    try:
+        import urllib.request as _u
+        with _u.urlopen("http://127.0.0.1:4455/api/status", timeout=2) as _r:
+            return _r.status == 200
+    except Exception:
+        return False
+
 def load_providers():
     global PROVIDERS
     env = os.environ.copy()
@@ -338,6 +347,12 @@ def load_providers():
             log(f"providers.json merge failed: {e}", "init")
 
     log(f"Loaded {len(PROVIDERS)} providers: {', '.join(PROVIDERS.keys())}", "init")
+
+    # OMNI Gateway last = highest fallback (its own chain picks free models)
+    if _omni_available():
+        PROVIDERS["omni"] = {"url": "http://127.0.0.1:4455/v1/chat/completions",
+                             "model": "auto", "key": "omni-local"}
+        log("omni gateway detected — universal fallback enabled (:4455)", "init")
 
 ACTIVE_PROVIDER = "groq"
 ROUTER_CHAIN = ["9router", "vansrouter", "bitrouter", "omniroute", "androidllm"]

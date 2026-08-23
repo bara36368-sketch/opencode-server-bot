@@ -7,6 +7,28 @@ A Telegram AI bot stack that runs on Android (Termux) with two engines:
 
 Managed by `runner.py` (auto-pull, crash supervision, local model switching).
 
+## 🌐 OMNI Gateway — dashboard/manager (`omni_gateway.py`)
+
+**One keyring. One endpoint. Every free model, ranked.**
+
+```bash
+python runner.py          # omni auto-starts on http://localhost:4455
+```
+
+| URL | What |
+|---|---|
+| `http://localhost:4455` | Dashboard — paste keys, ranked FREE model table |
+| `http://localhost:4455/chat` | Chat test UI — talk to any ranked model |
+
+- Paste ANY provider key → prefix auto-detects provider (`gsk_`=Groq, `sk-or-`=OpenRouter, `nvapi-`=NVIDIA, `AIza`=Gemini, `csk-`=Cerebras, `hf_`=HF...) → live validation
+- Scanner extracts every FREE model ($0/$0, `:free`, free-by-design services) and ranks by context + modalities + speed
+- **Unified OpenAI-compatible endpoint**: point any app at `http://localhost:4455/v1`
+- Ranked auto-fallback: requested model down → walks the ranking until one answers
+
+Wired into the whole stack:
+- Telegram bots: `/provider omni` (model `auto` = gateway picks best ranked)
+- opencode CLI: `python opencode.py omni` → then `opencode run --model omni/auto "<prompt>"`
+
 ## Features
 
 ### Cyberdeck Builder

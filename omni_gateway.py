@@ -383,6 +383,46 @@ refresh();setInterval(refresh,30000);
 </body></html>"""
 
 
+CHAT_PAGE = """<!DOCTYPE html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>OMNI Chat Test</title><style>
+body{font-family:system-ui;background:#0d1117;color:#e6edf3;margin:0;padding:16px;display:flex;flex-direction:column;height:100vh;box-sizing:border-box}
+header{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+select,input{padding:9px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#e6edf3}
+#log{flex:1;overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px}
+.msg{margin-bottom:10px;padding:8px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.you{background:#1f6feb;margin-left:auto}.bot{background:#21262d;border:1px solid #30363d}
+.meta{font-size:11px;color:#8b949e;margin-top:4px}
+.bar{display:flex;gap:8px;margin-top:10px}
+input[type=text]{flex:1}
+button{background:#238636;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:600;cursor:pointer}
+</style></head><body>
+<header><b>💬 OMNI Chat</b>
+<select id=model></select>
+<button class=gray onclick="location='/'" style=background:#30363d>← dashboard</button></header>
+<div id=log></div>
+<div class=bar><input type=text id=q placeholder="message… (Enter to send)" autofocus>
+<button onclick=send()>Send</button></div>
+<script>
+async function loadModels(){const c=await(await fetch('/api/free')).json();
+const s=document.getElementById('model');s.innerHTML='';
+(c.free||[]).filter(m=>(m.modalities||[]).includes('text')).slice(0,80).forEach(m=>{
+const o=document.createElement('option');o.value=m.id;o.textContent=`${m.provider} · ${m.model_id}`;s.appendChild(o)});}
+function add(t,cls,meta){const d=document.createElement('div');d.className='msg '+cls;d.textContent=t;
+if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;d.appendChild(m)}
+document.getElementById('log').appendChild(d);document.getElementById('log').scrollTop=99999;}
+async function send(){const q=document.getElementById('q');const v=q.value.trim();if(!v)return;
+q.value='';add(v,'you');
+const model=document.getElementById('model').value;
+try{const r=await(await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({model:model,message:v})})).json();
+add(r.reply||('❌ '+(r.error||'no reply')),'bot',r.served_by?('via '+r.served_by+(r.fallbacks_used?' ('+r.fallbacks_used+' fallbacks)':'')):'');}
+catch(e){add('❌ '+e.message,'bot');}}
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+loadModels();
+</script></body></html>"""
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -404,6 +444,8 @@ class Handler(BaseHTTPRequestHandler):
         p = self.path.split("?")[0]
         if p == "/":
             return self._send(200, DASH.replace("__PORT__", str(PORT)), "text/html; charset=utf-8")
+        if p == "/chat":
+            return self._send(200, CHAT_PAGE, "text/html; charset=utf-8")
         if p == "/api/status":
             keys = {k: {"masked": v.get("masked", mask_key(v.get("key", ""))),
                         "ok": v.get("ok", False)}
@@ -445,6 +487,25 @@ class Handler(BaseHTTPRequestHandler):
             cat = scan_all()
             return self._send(200, {"scanned": len(cat.get("results", {})),
                                     "free_found": len(cat.get("free", []))})
+        if p == "/api/chat":
+            msg = str(payload.get("message", ""))[:4000]
+            model = payload.get("model", "")
+            if not msg:
+                return self._send(400, {"error": "empty message"})
+            status, raw, meta = proxy_chat({"model": model,
+                                            "messages": [{"role": "user", "content": msg}],
+                                            "max_tokens": 800})
+            try:
+                body = json.loads(raw.decode("utf-8", "replace"))
+                reply = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+            except Exception:
+                reply = ""
+            if not reply:
+                return self._send(status if status else 502,
+                                  {"error": raw.decode("utf-8", "replace")[:300]})
+            served = meta.get("model") or meta.get("served_by", "")
+            return self._send(200, {"reply": reply[:6000], "served_by": served,
+                                    "fallbacks_used": meta.get("fallbacks_used", 0)})
         if p == "/v1/chat/completions":
             try:
                 status, raw, meta = proxy_chat(payload)

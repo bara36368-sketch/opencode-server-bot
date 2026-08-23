@@ -235,6 +235,37 @@ def cmd_routes(args, env=None):
         print("tip      coding-heavy tasks: keep phone on; chat-heavy: cloud is fine")
 
 
+def cmd_omni(args):
+    """Register the OMNI Gateway (:4455) as an opencode CLI provider.
+    Uses the gateway's ranked fallback — model 'auto' always works."""
+    base = "http://127.0.0.1:4455/v1"
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:4455/api/free", timeout=5) as r:
+            free = json.loads(r.read().decode()).get("free", [])
+        top = free[0]["id"].split("/", 1)[1] if free else "auto"
+    except Exception:
+        top = "auto"
+    cfg = read_json(OPENCODE_CONFIG)
+    cfg.setdefault("provider", {})["omni"] = {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "OMNI Gateway (ranked free models)",
+        "options": {"baseURL": base, "apiKey": "omni-local"},
+        "models": {(top if top != "auto" else "auto"): {
+            "name": "omni-ranked-auto",
+            "limit": {"context": 131072, "output": 8192}}},
+    }
+    if "$schema" not in cfg:
+        cfg["$schema"] = "https://opencode.ai/config.json"
+    write_json(OPENCODE_CONFIG, cfg)
+    auth = read_json(OPENCODE_AUTH)
+    auth["omni"] = {"type": "api", "key": "omni-local"}
+    write_json(OPENCODE_AUTH, auth)
+    print("omni:   registered in %s" % OPENCODE_CONFIG)
+    print("model:  omni/auto  (gateway picks best ranked free model)")
+    print("next:   opencode run --model omni/auto \"<prompt>\"")
+    print("chat UI: http://localhost:4455/chat")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="opencode.py", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -242,6 +273,7 @@ def main(argv=None):
     sub.add_parser("status", help="phone health + config state")
     sub.add_parser("models", help="list catalog models")
     sub.add_parser("routes", help="phone-vs-cloud decision table")
+    sub.add_parser("omni", help="register OMNI Gateway (:4455) as opencode provider")
     run = sub.add_parser("run", help="non-interactive opencode run on the phone model")
     run.add_argument("prompt", nargs="?", default=None)
     run.add_argument("--model", default=None, help="catalog id, default = active/best")
@@ -258,6 +290,8 @@ def main(argv=None):
         return cmd_run(args)
     elif args.cmd == "routes":
         cmd_routes(args)
+    elif args.cmd == "omni":
+        cmd_omni(args)
     return 0
 
 
