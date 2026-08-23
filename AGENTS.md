@@ -115,8 +115,11 @@ skyvern, browser-use, openhands-agent, copilot-kit, goose-agent, agency-agents, 
 9. Metrics persistence (#9) — one compact fleet row/minute → metrics.jsonl (self-rotating), baselines for digest/admin.
 10. Snapshot diff in digest (#13) — daily digest reports proc state changes + free models gained/lost vs last snapshot.
 11. Incidents CLI (#17) — `python runner.py incidents [YYYY-MM-DD]` renders readable episode timeline from proc-ledger.jsonl.
-- All tested with mocked-destructive paths (rule 3): guard trips+notifies+expires cleanly, sentry detects bursts, doctor runs standalone, jitter bounds 0.8x–1.2x verified across strikes 1–8.
-- Remaining ideas in RUNNER_IDEAS.md: #8 startup ordering, #10 SLO burn, #12 shared provider circuits, #14 self-validation, #16 graceful degradation.
+12. Graceful degradation (#16) — host RAM >= RUNNER_DEGRADE_RAM_PCT (92%) pauses heavy optional procs (RUNNER_DEGRADABLE = cyberdeck,dma), auto-resumes <= 85%; digest shows DEGRADED banner (`_degrade_tick`).
+13. SLO burn tracking (#10) — daily web availability ratio persisted to slo_daily.json; digest line amber under RUNNER_SLO_TARGET (default 99%) (`_slo_tick`, `_slo_digest_line`).
+14. Shared provider circuits (#12) — bots append failures to provider_health.json (throttled); ctrl GET /api/provider_health exposes fails_1h fleet-wide; hook: ProviderGateway.record fail path (`_report_provider_failure_shared`, `_record_provider_failure`).
+- All tested with mocked-destructive paths (rule 3): guard trips+notifies+expires cleanly, sentry detects bursts, doctor runs standalone, jitter bounds 0.8x–1.2x verified across strikes 1–8, degrade on/off cycle works, SLO line renders, shared circuit file round-trips.
+- Runner ideas scorecard: 17/20 implemented. Remaining: #8 dependency-aware startup ordering, #14 explicit runner.py self-validation pre-restart, #19 config hot-reload for env constants, #20 committed pytest suite (mock tests exist only in session history).
 
 ## Next Steps
 1. Restart runner.py so all fixes take effect
