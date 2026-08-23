@@ -8916,25 +8916,65 @@ async def main():
 
                 elif cmd == "/edit":
                     reply_to = msg.get("reply_to_message", {})
-                    instr = " ".join(parts[1:]).strip() or "improve and fix any issues in this file"
+                    instr_full = " ".join(parts[1:]).strip()
+                    instructions = instr_full or "improve and fix any issues in this file"
                     target = None
-                    rdoc = reply_to.get("document") if isinstance(reply_to, dict) else None
-                    if rdoc:
+                    # 1) Google Drive link in this message (or reply text)?
+                    import gdrive_helper as _gd
+                    link_text = instr_full + " " + (reply_to.get("text", "") if isinstance(reply_to, dict) else "")
+                    fid = _gd.parse_drive_link(link_text)
+                    if fid:
                         await typing(chat)
-                        dl = await _tg_download_file(rdoc["file_id"])
+                        dl = await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: _gd.download_public_drive_file(
+                                fid, FILE_EDIT_DIR, MAX_EDIT_MB, "gdrive_file"))
                         if dl:
                             _remember_chat_file(chat, dl)
                             target = dl
+                            fname_g = os.path.basename(dl)
+                            await send(chat, f"📥 Downloaded from Drive: {fname_g} ({os.path.getsize(dl)//1024}KB)")
+                        else:
+                            last_err = "link not public or invalid"
+                            await send(chat, f"❌ Could not download Drive file — make sure it's shared as 'Anyone with the link'.")
+                    # 2) replied-to document?
                     if not target:
+                        rdoc = reply_to.get("document") if isinstance(reply_to, dict) else None
+                        if rdoc:
+                            await typing(chat)
+                            dl = await _tg_download_file(rdoc["file_id"])
+                            if dl:
+                                _remember_chat_file(chat, dl)
+                                target = dl
+                    # 3) recent file?
+                    if not target and not fid:
                         recent = [p for p in reversed(_chat_last_files.get(chat, [])) if os.path.exists(p)]
-                        if not recent:
-                            await send(chat, "❌ No recent files. Send me a file first "
-                                             "(or attach one with caption '/edit <instructions>').")
-                            continue
-                        target = recent[0]
-                    err = await _ai_edit_file(chat, target, instr)
+                        if recent:
+                            target = recent[0]
+                    if not target:
+                        await send(chat, "❌ No file to edit. Options:\n"
+                                         "• Attach a file with caption /edit <instructions>\n"
+                                         "• Reply to a file with /edit <instructions>\n"
+                                         "• Paste a Google Drive link: /edit <instructions> https://drive.google.com/file/d/...")
+                        continue
+                    err = await _ai_edit_file(chat, target, instructions)
                     if err:
                         await send(chat, err)
+                        continue
+                    # big-file delivery: edited file >45MB -> Drive upload if configured
+                    stem_e, ext_e = os.path.splitext(target)
+                    out_p = f"{stem_e}_edited{ext_e}"
+                    try:
+                        mb = os.path.getsize(out_p) / (1024 * 1024)
+                        if mb > 45:
+                            up = await asyncio.get_event_loop().run_in_executor(
+                                None, lambda: _gd.upload_to_drive(out_p))
+                            if up:
+                                await send(chat, f"📤 Edited file is {mb:.0f}MB — too big for Telegram, uploaded to Drive:\n{up}")
+                            else:
+                                await send(chat, f"📁 Edited file saved locally: {out_p}\n({mb:.0f}MB exceeds Telegram's 50MB send limit; "
+                                                 f"set GDRIVE_SERVICE_ACCOUNT_JSON to auto-upload large results to Drive)")
+                    except OSError:
+                        pass
 
                 elif cmd == "/editfile":
                     recent = [p for p in reversed(_chat_last_files.get(chat, [])) if os.path.exists(p)]
