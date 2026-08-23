@@ -162,6 +162,43 @@ def _maybe_check_free_models():
 # restarts, and the free-model tracker. Hour via DIGEST_HOUR (default 8am).
 _digest_last_day = [None]
 
+def _snapshot_diff_section():
+    """Idea #13: what changed since the most recent fleet snapshot."""
+    try:
+        snaps = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "snap_*.json")))
+        if not snaps:
+            return None
+        with open(snaps[-1], encoding="utf-8") as f:
+            snap = json.load(f)
+        lines = []
+        old_procs = snap.get("processes") or {}
+        changes = []
+        for name in PROCESSES:
+            new_state = _proc_status(name)
+            old = old_procs.get(name)
+            old_state = old.get("state") if isinstance(old, dict) else None
+            if old_state and old_state != new_state:
+                changes.append(f"{name}: {old_state} → {new_state}")
+        if changes:
+            lines.append("\U0001F4C8 Since last snapshot:")
+            lines.extend(f"• {c}" for c in changes[:6])
+        try:
+            fm = free_model_watcher.load_state()
+            day_ago = time.time() - 86400
+            gained = [a.get("model_id") for a in (fm.get("adopted") or {}).values()
+                      if a.get("adopted_at", 0) > day_ago]
+            lost = [k.split(":", 1)[-1] for k, r in (fm.get("expired") or {}).items()
+                    if r.get("last_seen", 0) > day_ago]
+            if gained or lost:
+                lines.append("\U0001F381 Free models 24h: "
+                             + (f"gained {', '.join(map(str, gained))} " if gained else "")
+                             + (f"| lost {', '.join(lost)}" if lost else ""))
+        except Exception:
+            pass
+        return "\n".join(lines) if lines else None
+    except Exception:
+        return None
+
 def _build_daily_digest():
     up_s = int(time.time() - _runner_started)
     uptime = f"{up_s // 86400}d {up_s % 86400 // 3600}h {up_s % 3600 // 60}m"
@@ -184,6 +221,10 @@ def _build_daily_digest():
         lines.append(f"• {name}: {state}{ram} | restarts {rc}")
     lines.append("")
     lines.append(f"\U0001F501 Total restarts: {total_restarts}")
+    diff = _snapshot_diff_section()
+    if diff:
+        lines.append(diff)
+        lines.append("")
     try:
         fm_state = free_model_watcher.load_state()
         n_seen = len(fm_state.get("seen", {}))
@@ -410,6 +451,80 @@ def _adaptive_sleep(base_s):
     if recent_restart or not web_ok:
         return CADENCE_FAST_S
     return base_s
+
+METRICS_FILE = os.path.join(DIR, "metrics.jsonl")
+METRICS_ROTATE_ROWS = 20000
+_metrics_last_write = [0.0]
+
+def _metrics_tick():
+    """Persist compact fleet metrics (idea #9): one row/minute, self-rotating.
+    Gives digests/admin real baselines instead of in-memory-only history."""
+    now = time.time()
+    if now - _metrics_last_write[0] < 60:
+        return
+    _metrics_last_write[0] = now
+    row = {"ts": now, "iso": time.strftime("%H:%M"), "web_ok": bool(health_check()), "procs": {}}
+    for name, p in procs.items():
+        alive = p.poll() is None
+        info = {"alive": alive}
+        if alive:
+            try:
+                u = _proc_usage(p.pid)
+                if u:
+                    info["rss_mb"] = round(u.get("rss_mb") or 0, 1)
+                    info["cpu_pct"] = round(u.get("cpu_pct") or 0, 1)
+            except Exception:
+                pass
+        row["procs"][name] = info
+    try:
+        with open(METRICS_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        if random_line_count(METRICS_FILE, cap=METRICS_ROTATE_ROWS * 2) > METRICS_ROTATE_ROWS * 2:
+            _rotate_log_file(METRICS_FILE, max_mb=5, keep=1)
+    except Exception as e:
+        log(f"metrics write error: {e}", "metrics")
+
+def random_line_count(path, cap=40000):
+    """Cheap line estimate for rotation decisions (stops at cap)."""
+    n = 0
+    try:
+        with open(path, "rb") as f:
+            for _ in f:
+                n += 1
+                if n > cap:
+                    break
+    except OSError:
+        return 0
+    return n
+
+def _incident_timeline(date_str=None):
+    """Idea #17: group proc-ledger events into readable incident episodes."""
+    target = date_str or "*"
+    rows = []
+    try:
+        with open(PROC_LEDGER, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                ts = r.get("ts", "")
+                if target != "*" and not ts.startswith(target):
+                    continue
+                if r.get("event") in ("crash", "start", "stop", "git_restart",
+                                      "deploy_rollback_start", "deploy_rollback_done",
+                                      "storm_hold", "restart_blocked", "nightly_maintenance"):
+                    rows.append(r)
+    except FileNotFoundError:
+        return ["no ledger yet"]
+    if not rows:
+        return [f"no incidents on {target}"]
+    out = [f"=== incident timeline {target} ({len(rows)} events) ==="]
+    for r in rows[-60:]:
+        extra = ", ".join(f"{k}={v}" for k, v in r.items()
+                          if k not in ("ts", "event") and v is not None)
+        out.append(f"{r.get('ts', '')}  {r.get('event', '?'):<22} {extra[:100]}")
+    return out
 
 def _ledger(event, **fields):
     """Append a structured event to proc-ledger.jsonl (one JSON object per
@@ -1217,7 +1332,12 @@ def _register_crash(name):
     now = time.time()
     strikes = _crash_strikes.get(name, 0) + 1
     _crash_strikes[name] = strikes
-    _next_start[name] = now + min(BACKOFF_BASE * (2 ** (strikes - 1)), BACKOFF_CAP)
+    # jittered exponential backoff (idea #15): +-20% avoids synchronized
+    # thundering-herd retries when multiple procs crash on a shared host
+    base_delay = min(BACKOFF_BASE * (2 ** (strikes - 1)), BACKOFF_CAP)
+    import random as _random
+    delay = base_delay * (0.8 + 0.4 * _random.random())
+    _next_start[name] = now + delay
 
 
 def _clear_backoff(name):
@@ -2305,6 +2425,13 @@ if __name__ == "__main__":
         except Exception:
             print(f"ctrl api  : DOWN on :{CTRL_PORT} (runner not running?)")
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "incidents":
+        # idea #17: readable incident timeline from proc-ledger.jsonl
+        # usage: runner.py incidents [YYYY-MM-DD]   (default: today)
+        target = sys.argv[2] if len(sys.argv) > 2 else time.strftime("%Y-%m-%d")
+        for line in _incident_timeline(target):
+            print(line)
+        sys.exit(0)
     _load_rules(force=True)
     _rotate_fleet_logs()
     _start_ctrl_server()
@@ -2327,6 +2454,7 @@ if __name__ == "__main__":
         _disk_and_maintenance_tick()
         _hung_watchdog_tick()
         _deploy_guard_tick()
+        _metrics_tick()
 
         # drain mode: after timeout, force-kill all supervised processes
         if _drain_active and _drain_started_at:
