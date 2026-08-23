@@ -674,6 +674,7 @@ _DEFAULT_RULES = {
     "bot": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 1024, "max_cpu_pct": 0},
     "web": {"max_strikes": 4, "selfheal": False, "max_ram_mb": 768, "max_cpu_pct": 0},
     "omni": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
+    "brain": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 256, "max_cpu_pct": 0},
     "mcp": {"max_strikes": 4, "selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
     "cyberdeck": {"selfheal": True, "max_ram_mb": 768, "max_cpu_pct": 0},
     "memory": {"selfheal": True, "max_ram_mb": 512, "max_cpu_pct": 0},
@@ -1545,6 +1546,13 @@ if os.path.isfile(os.path.join(DIR, "omni_gateway.py")):
     PROCESSES["omni"] = [sys.executable, os.path.join(DIR, "omni_gateway.py")]
     log("omni gateway supervision enabled (:"
         f"{os.environ.get('OMNI_PORT', '4455')})", "proc")
+# Self-learning brain (:4590): local Ollama model + multi-AI study loop that
+# asks other models via the OMNI gateway and distills answers into memory.
+_brain_py = os.path.join(DIR, "self_learner", "server.py")
+if os.path.isfile(_brain_py):
+    PROCESSES["brain"] = [sys.executable, _brain_py]
+    log("self-learning brain supervision enabled (:"
+        f"{os.environ.get('BRAIN_PORT', '4590')})", "proc")
 # MCP reference pack (modelcontextprotocol/servers): HTTP bridge on :8430.
 # Both bots (bot + web gateway) reach the same tools over HTTP. The gateway
 # is supervised directly (NOT via `mcp_servers.py bridge`, whose os.execv is
