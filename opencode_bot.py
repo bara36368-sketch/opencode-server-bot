@@ -556,6 +556,114 @@ except Exception:
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "set-via-env-var")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 TG_API = f"https://api.telegram.org/bot{TOKEN}"
+
+# ---- File Editor: upload -> AI edits -> sends edited file back -------------
+FILE_EDIT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "file_edits")
+EDITABLE_EXTS = (".txt", ".md", ".py", ".js", ".ts", ".json", ".html", ".css", ".csv",
+                 ".xml", ".yaml", ".yml", ".sh", ".bat", ".ps1", ".java", ".c", ".cpp",
+                 ".h", ".go", ".rs", ".rb", ".php", ".sql", ".ini", ".cfg", ".toml",
+                 ".log", ".svg", ".tex", ".env")
+MAX_EDIT_CHARS = 14000
+_chat_last_files = {}
+
+async def _tg_download_file(file_id):
+    """Download a Telegram file's bytes via getFile. Returns local path or None."""
+    try:
+        c = await get_http()
+        r = await c.get(f"{TG_API}/getFile", params={"file_id": file_id}, timeout=15)
+        fp = r.json().get("result", {}).get("file_path")
+        if not fp:
+            return None
+        r2 = await c.get(f"https://api.telegram.org/file/bot{TOKEN}/{fp}", timeout=60)
+        if r2.status_code != 200:
+            return None
+        os.makedirs(FILE_EDIT_DIR, exist_ok=True)
+        safe = _re.sub(r"[^A-Za-z0-9._-]", "_", fp.split("/")[-1])[-80:] or "file.bin"
+        path = os.path.join(FILE_EDIT_DIR, f"{int(time.time()*1000)}_{safe}")
+        with open(path, "wb") as f:
+            f.write(r2.content)
+        return path
+    except Exception as e:
+        log(f"file download error: {e}")
+        return None
+
+async def _send_document(chat, path, caption=None):
+    """Upload a local file as a Telegram document (multipart)."""
+    try:
+        c = await get_http()
+        fname = os.path.basename(path)
+        with open(path, "rb") as f:
+            files = {"document": (fname, f)}
+            data = {"chat_id": str(chat)}
+            if caption:
+                data["caption"] = caption[:1000]
+            r = await c.post(f"{TG_API}/sendDocument", data=data, files=files, timeout=120)
+        return r.status_code == 200
+    except Exception as e:
+        log(f"send_document error: {e}")
+        return False
+
+def _is_editable(path):
+    return path.lower().endswith(EDITABLE_EXTS)
+
+def _remember_chat_file(chat, path):
+    _chat_last_files.setdefault(chat, []).append(path)
+    _chat_last_files[chat] = [p for p in _chat_last_files[chat][-5:] if os.path.exists(p)]
+
+async def _ai_edit_file(chat, path, instructions):
+    """Read file, ask the AI to apply `instructions`, write <name>_edited.<ext>,
+    send it back. Returns status message."""
+    base = os.path.basename(path)
+    stem, ext = os.path.splitext(base)
+    if not _is_editable(base):
+        return (f"❌ '{base}' is not an editable text file.\n"
+                f"Supported: {', '.join(EDITABLE_EXTS[:10])} ...")
+    try:
+        size = os.path.getsize(path)
+        if size > 512 * 1024:
+            return f"❌ '{base}' is too large ({size // 1024}KB). Max 512KB."
+        with open(path, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except Exception as e:
+        return f"❌ Could not read '{base}': {e}"
+    truncated = ""
+    if len(content) > MAX_EDIT_CHARS:
+        content = content[:MAX_EDIT_CHARS]
+        truncated = f"\n\n[NOTE: file was truncated to first {MAX_EDIT_CHARS} chars]"
+    sys_prompt = (
+        "You are a precise file-editing engine. Apply EXACTLY the requested changes "
+        "to the file content and return ONLY the complete edited file content — "
+        "no explanations, no markdown fences, no commentary. Preserve formatting "
+        "and indentation unless the instructions say otherwise." + truncated
+    )
+    user_prompt = f"Edit instructions:\n{instructions}\n\n=== FILE: {base} ===\n{content}\n=== END FILE ==="
+    await typing(chat)
+    try:
+        edited = await smart_call(
+            [{"role": "system", "content": sys_prompt},
+             {"role": "user", "content": user_prompt}],
+            active_provider)
+    except Exception as e:
+        return f"❌ AI edit failed: {e}"
+    if not edited or len(edited) < 3:
+        return "❌ AI returned empty output — try different instructions."
+    cleaned = edited.strip()
+    if cleaned.startswith("```"):
+        cleaned = _re.sub(r"^```[a-zA-Z0-9_+-]*\n?", "", cleaned)
+        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+    out_path = os.path.join(os.path.dirname(path), f"{stem}_edited{ext}")
+    try:
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(cleaned)
+    except Exception as e:
+        return f"❌ Could not save edited file: {e}"
+    ok = await _send_document(chat, out_path,
+                              caption=f"✏️ Edited '{base}'\nInstructions: {instructions[:200]}")
+    if ok:
+        diff_note = "" if len(cleaned) == len(content) else f"\nSize: {len(content)} → {len(cleaned)} chars"
+        await send(chat, f"✅ Done! Edited version sent above.{diff_note}")
+        return None
+    return "❌ Failed to upload the edited file."
 BOT_VERSION = "unknown"
 
 DEFAULT_AGENTS = {
@@ -3442,9 +3550,25 @@ async def main():
                 elif document:
                     file_id = document["file_id"]
                     fname = document.get("file_name", "document.bin")
+                    doc_caption = msg.get("caption", "").strip()
                     ext = (fname or "").lower()
+                    if doc_caption.lower().startswith("/edit"):
+                        edit_instr = doc_caption[5:].strip() or "improve and fix any issues in this file"
+                        await typing(chat)
+                        dl = await _tg_download_file(file_id)
+                        if not dl:
+                            await send(chat, f"❌ Could not download '{fname}'.")
+                            continue
+                        _remember_chat_file(chat, dl)
+                        err = await _ai_edit_file(chat, dl, edit_instr)
+                        if err:
+                            await send(chat, err)
+                        continue
                     if ext.endswith((".csv", ".xlsx", ".xls")):
                         rows, summary = await bf.parse_spreadsheet(file_id, fname)
+                        dl = await _tg_download_file(file_id)
+                        if dl:
+                            _remember_chat_file(chat, dl)
                         if rows:
                             bf.doc_db.add_document(fname, str(rows[:50]))
                             await send(chat, f"📊 Spreadsheet '{fname}' loaded.\n{summary}")
@@ -3454,6 +3578,9 @@ async def main():
                             await send(chat, f"Could not parse '{fname}': {summary}")
                     else:
                         extracted = await bf.extract_text_from_file(file_id, fname)
+                        dl = await _tg_download_file(file_id)
+                        if dl:
+                            _remember_chat_file(chat, dl)
                         if extracted and len(extracted) > 20:
                             chunks = bf.doc_db.add_document(fname, extracted)
                             await send(chat, f"📄 Document '{fname}' indexed ({chunks} chunks, {len(extracted)} chars).\nAsk questions with /ask <question>")
@@ -8727,6 +8854,45 @@ async def main():
                             await send(chat, f"Weather error: HTTP {r.status_code}")
                     except Exception as e:
                         await send(chat, f"Weather error: {e}")
+
+                elif cmd == "/edit":
+                    reply_to = msg.get("reply_to_message", {})
+                    instr = " ".join(parts[1:]).strip() or "improve and fix any issues in this file"
+                    target = None
+                    rdoc = reply_to.get("document") if isinstance(reply_to, dict) else None
+                    if rdoc:
+                        await typing(chat)
+                        dl = await _tg_download_file(rdoc["file_id"])
+                        if dl:
+                            _remember_chat_file(chat, dl)
+                            target = dl
+                    if not target:
+                        recent = [p for p in reversed(_chat_last_files.get(chat, [])) if os.path.exists(p)]
+                        if not recent:
+                            await send(chat, "❌ No recent files. Send me a file first "
+                                             "(or attach one with caption '/edit <instructions>').")
+                            continue
+                        target = recent[0]
+                    err = await _ai_edit_file(chat, target, instr)
+                    if err:
+                        await send(chat, err)
+
+                elif cmd == "/editfile":
+                    recent = [p for p in reversed(_chat_last_files.get(chat, [])) if os.path.exists(p)]
+                    if not recent:
+                        await send(chat, "📁 No files yet.\n\nHow to use:\n"
+                                         "1️⃣ Send a file with caption <b>/edit fix the syntax errors</b>\n"
+                                         "2️⃣ Or send a file, then reply to it with /edit &lt;instructions&gt;\n"
+                                         "3️⃣ /editfile — list your recent editable files")
+                        continue
+                    lines = ["\U0001F4C1 Your recent files (newest first):", ""]
+                    for i, p in enumerate(recent, 1):
+                        size_kb = max(1, os.path.getsize(p) // 1024)
+                        mark = "\u2705" if _is_editable(p) else "\u274C"
+                        lines.append(f"{i}. {mark} {os.path.basename(p)} ({size_kb}KB)")
+                    lines.append("")
+                    lines.append("Reply to a file with /edit <instructions>, or send a new file with that caption.")
+                    await send(chat, "\n".join(lines))
 
                 elif cmd == "/freemodels":
                     await typing(chat)
